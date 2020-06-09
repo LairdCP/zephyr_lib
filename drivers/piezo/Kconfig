@@ -1,0 +1,15 @@
+# PWM configuration options
+
+# Copyright (c) Laird Connectivity
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig PIEZO
+	bool "Piezo Drivers"
+	help
+	  Enable config options for Piezo drivers.
+
+if PIEZO
+
+source "../laird_sensors/drivers/piezo/Kconfig.nrfx"
+
+endif # PIEZO

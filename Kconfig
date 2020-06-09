@@ -1,0 +1,14 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+menuconfig LAIRD_SENSORS
+    bool "Laird Sensor Modules"
+        default y
+        help
+            Collection of Laird Sensors
+
+if LAIRD_SENSORS
+
+    source "../laird_sensors/drivers/piezo/Kconfig"
+
+endif # LAIRD_SENSORS

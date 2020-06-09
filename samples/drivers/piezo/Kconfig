@@ -1,0 +1,4 @@
+
+source "Kconfig.zephyr"
+
+source "../laird_sensors/Kconfig"
