@@ -1,14 +1,14 @@
 #
 # Copyright (c) 2020 Laird Connectivity
 #
-menuconfig LAIRD_SENSORS
-    bool "Laird Sensor Modules"
+menuconfig COMPONENT_LIB
+    bool "Component Library"
         default y
         help
-            Collection of Laird Sensors
+            Component Library
 
-if LAIRD_SENSORS
+if COMPONENT_LIB
 
-    source "../laird_sensors/drivers/piezo/Kconfig"
+    source "../zephyr_lib/drivers/piezo/Kconfig"
 
-endif # LAIRD_SENSORS
+endif # COMPONENT_LIB
