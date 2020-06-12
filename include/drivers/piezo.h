@@ -14,7 +14,6 @@ extern "C" {
 bool piezo_on(u32_t period, u32_t pulseWidth);
 bool piezo_off(void);
 void piezo_shutdown(void);
-void sample_beep(void);
 
 #ifdef __cplusplus
 }

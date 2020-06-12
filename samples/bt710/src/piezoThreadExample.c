@@ -7,11 +7,11 @@
 #include <device.h>
 #include <logging/log.h>
 #include "piezo.h"
-#include "piezoWorkQueue.h"
+#include "WorkQueue.h"
 #include "piezoThreadExample.h"
 
 #define LOG_LEVEL LOG_LEVEL_DBG
-LOG_MODULE_REGISTER(PiezoThreadExample, LOG_LEVEL);
+LOG_MODULE_REGISTER(piezoThreadExample, LOG_LEVEL);
 #define PIEZO_PRIORITY K_PRIO_PREEMPT(5)
 #define PIEZO_STACK_LENGTH 512
 static K_THREAD_STACK_DEFINE(Piezo_stack_area, PIEZO_STACK_LENGTH);
@@ -26,7 +26,6 @@ typedef enum { Test_Piezo, Beep_Piezo } set_piezo_state;
 static struct k_sem Piezo_Wait_Sem;
 static struct k_sem Piezo_Beep_Sem;
 static set_piezo_state State;
-struct device *Dev_PWM;
 static int Sema_State;
 static bool Piezo_Running;
 

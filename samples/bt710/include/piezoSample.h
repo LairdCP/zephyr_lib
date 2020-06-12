@@ -2,8 +2,8 @@
  * Copyright (c) 2020 Laird Connectivity
  */
 
-#ifndef PIEZO_WORK_QUEUE_H
-#define PIEZO_WORK_QUEUE_H
+#ifndef PIEZO_SAMPLE_H
+#define PIEZO_SAMPLE_H
 
 #include <kernel.h>
 
@@ -12,10 +12,9 @@ extern "C" {
 #endif
 
 void sample_beep(void);
-void setup_piezo_work_queue(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* PIEZO_WORK_QUEUE_H */
+#endif /* PIEZO_SAMPLE_H */

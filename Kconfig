@@ -10,5 +10,6 @@ menuconfig COMPONENT_LIB
 if COMPONENT_LIB
 
     source "../zephyr_lib/drivers/piezo/Kconfig"
+    source "../zephyr_lib/drivers/vibemotor/Kconfig"
 
 endif # COMPONENT_LIB

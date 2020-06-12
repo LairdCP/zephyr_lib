@@ -1,0 +1,15 @@
+# PWM configuration options
+
+# Copyright (c) Laird Connectivity
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig VIBEMOTOR
+	bool "Vibe Motor"
+	help
+	  Enable config options for vibe motor.
+
+if VIBEMOTOR
+
+source "../zephyr_lib/drivers/vibemotor/Kconfig.nrfx"
+
+endif # VIBEMOTOR
