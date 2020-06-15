@@ -10,6 +10,6 @@ menuconfig PIEZO
 
 if PIEZO
 
-source "../zephyr_lib/drivers/piezo/Kconfig.nrfx"
+rsource "Kconfig.nrfx"
 
 endif # PIEZO

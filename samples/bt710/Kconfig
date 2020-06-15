@@ -1,4 +1,0 @@
-
-source "Kconfig.zephyr"
-
-source "../zephyr_lib/Kconfig"

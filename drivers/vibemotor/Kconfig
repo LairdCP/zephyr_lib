@@ -10,6 +10,6 @@ menuconfig VIBEMOTOR
 
 if VIBEMOTOR
 
-source "../zephyr_lib/drivers/vibemotor/Kconfig.nrfx"
+rsource "Kconfig.nrfx"
 
 endif # VIBEMOTOR
