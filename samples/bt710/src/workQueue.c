@@ -12,7 +12,6 @@
 
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(workQueue, LOG_LEVEL);
-#define VIBE_STACK_SIZE 512
 struct sensor_info Sensor_work_status;
 
 static void sample_stop_piezo(struct k_work *item)
