@@ -13,3 +13,9 @@ if COMPONENT_LIB
     rsource "drivers/vibemotor/Kconfig"
 
 endif # COMPONENT_LIB
+
+rsource "ble_common/Kconfig"
+rsource "ble_services/Kconfig"
+rsource "components/Kconfig"
+rsource "utilities/Kconfig"
+

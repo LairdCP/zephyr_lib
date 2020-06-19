@@ -1,0 +1,30 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# It is provided "as is", without warranty/guarantee of any kind, express of
+# implied, including but not limited to the warranties of merchantability,
+# fitness for a particular purpose and non-infringement.
+#
+
+menu "Laird Connectivity Zephyr BLE Services"
+	 default y
+
+config SHA256_SIZE
+	int
+	default 32
+
+config UNIVERSAL_BOOTLOADER_SERVICE
+	bool "Enable Universal Bootloader Service"
+	depends on LAIRDCONNECTIVITY_BLR
+
+config BLE_CELLULAR_SERVICE
+	bool "Enable BLE Cell service"
+
+config BLE_POWER_SERVICE
+	bool "Enable BLE Power Service"
+	select LCZ_POWER
+
+config LCZ_BLE_DIS
+	bool "Enable Custom Device Information BLE service"
+
+endmenu
