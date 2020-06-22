@@ -14,7 +14,7 @@
 #include <toolchain.h>
 #include <linker/sections.h>
 #include <kernel_structs.h>
-#include <misc/printk.h>
+#include <sys/printk.h>
 
 #include "laird_power.h"
 
