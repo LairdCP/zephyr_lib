@@ -28,36 +28,36 @@ LOG_MODULE_REGISTER(laird_bluetooth);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 ssize_t lbt_read_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		    void *buf, u16_t len, u16_t offset)
+		    void *buf, uint16_t len, uint16_t offset)
 {
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-				 sizeof(u8_t));
+				 sizeof(uint8_t));
 }
 
 ssize_t lbt_read_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     void *buf, u16_t len, u16_t offset)
+		     void *buf, uint16_t len, uint16_t offset)
 {
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-				 sizeof(u16_t));
+				 sizeof(uint16_t));
 }
 
 ssize_t lbt_read_u32(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     void *buf, u16_t len, u16_t offset)
+		     void *buf, uint16_t len, uint16_t offset)
 {
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
-				 sizeof(u32_t));
+				 sizeof(uint32_t));
 }
 
 ssize_t lbt_read_integer(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, u16_t len, u16_t offset)
+			 void *buf, uint16_t len, uint16_t offset)
 {
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
 				 sizeof(int));
 }
 
 ssize_t lbt_read_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			void *buf, u16_t len, u16_t offset,
-			u16_t max_str_length)
+			void *buf, uint16_t len, uint16_t offset,
+			uint16_t max_str_length)
 {
 	const char *value = attr->user_data;
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
@@ -66,7 +66,7 @@ ssize_t lbt_read_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 
 ssize_t lbt_read_string_no_max_size(struct bt_conn *conn,
 				    const struct bt_gatt_attr *attr, void *buf,
-				    u16_t len, u16_t offset)
+				    uint16_t len, uint16_t offset)
 {
 	const char *value = attr->user_data;
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
@@ -74,8 +74,8 @@ ssize_t lbt_read_string_no_max_size(struct bt_conn *conn,
 }
 
 ssize_t lbt_write_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 const void *buf, u16_t len, u16_t offset, u8_t flags,
-			 u16_t max_str_length)
+			 const void *buf, uint16_t len, uint16_t offset,
+			 uint8_t flags, uint16_t max_str_length)
 {
 	ARG_UNUSED(conn);
 	ARG_UNUSED(flags);
@@ -93,12 +93,13 @@ ssize_t lbt_write_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 }
 
 ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     const void *buf, u16_t len, u16_t offset, u8_t flags)
+		     const void *buf, uint16_t len, uint16_t offset,
+		     uint8_t flags)
 {
 	ARG_UNUSED(conn);
 	ARG_UNUSED(flags);
 
-	if (offset != 0 || len != sizeof(u8_t)) {
+	if (offset != 0 || len != sizeof(uint8_t)) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 
@@ -106,14 +107,14 @@ ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	return len;
 }
 
-u16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
-			  size_t size)
+uint16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
+			     size_t size)
 {
 	size_t i = 0;
 	while (i < size) {
 		if (memcmp(gatt[i].uuid, uuid, sizeof(struct bt_uuid_128)) ==
 		    0) {
-			return (u16_t)i;
+			return (uint16_t)i;
 		}
 		++i;
 	}
@@ -123,7 +124,7 @@ u16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
 	return 0;
 }
 
-const char *lbt_get_att_err_string(u8_t code)
+const char *lbt_get_att_err_string(uint8_t code)
 {
 	/* clang-format off */
 	switch (code) {
@@ -157,7 +158,7 @@ const char *lbt_get_att_err_string(u8_t code)
 	/* clang-format on */
 }
 
-const char *lbt_get_hci_err_string(u8_t code)
+const char *lbt_get_hci_err_string(uint8_t code)
 {
 	/* clang-format off */
 	switch (code) {
@@ -204,7 +205,7 @@ const char *lbt_get_hci_err_string(u8_t code)
 	/* clang-format on */
 }
 
-const char *lbt_get_nrf52_reset_reason_string(u8_t code)
+const char *lbt_get_nrf52_reset_reason_string(uint8_t code)
 {
 	/* clang-format off */
 	switch (code) {

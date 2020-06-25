@@ -37,8 +37,8 @@ extern "C" {
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void HexEncode(u8_t *pInput, u32_t nLength, u8_t *pOutput, bool bUpperCase,
-	       bool bWithNullTermination);
+void HexEncode(uint8_t *pInput, uint32_t nLength, uint8_t *pOutput,
+	       bool bUpperCase, bool bWithNullTermination);
 
 #ifdef __cplusplus
 }

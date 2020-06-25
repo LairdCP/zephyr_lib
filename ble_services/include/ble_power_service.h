@@ -26,7 +26,7 @@ extern "C" {
 struct bt_conn *power_svc_get_conn(void);
 
 void power_svc_init();
-void power_svc_set_voltage(u8_t integer, u8_t decimal);
+void power_svc_set_voltage(uint8_t integer, uint8_t decimal);
 
 #ifdef __cplusplus
 }

@@ -25,7 +25,7 @@ LOG_MODULE_REGISTER(Piezo, LOG_LEVEL);
 #error "Choose supported PWM driver"
 #endif
 
-bool piezo_on(u32_t period, u32_t pulseWidth)
+bool piezo_on(uint32_t period, uint32_t pulseWidth)
 {
 	struct device *dev_pwm;
 	dev_pwm = device_get_binding(PWM_DRIVER);
@@ -61,4 +61,3 @@ void piezo_shutdown(void)
 	piezo_off();
 	/* TODO: add sleep pin state */
 }
-

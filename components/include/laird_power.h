@@ -52,14 +52,14 @@ void power_mode_set(bool enable);
  * @brief Callback when measurement system is enabled.
  * Override in application or weak implementation will be used.
  */
-void power_measurement_callback(u8_t integer, u8_t decimal);
+void power_measurement_callback(uint8_t integer, uint8_t decimal);
 
 #ifdef CONFIG_REBOOT
 /**
  * @brief Reboots the module
  * @param 0 = normal reboot, 1 = stay in UART bootloader
  */
-void power_reboot_module(u8_t type);
+void power_reboot_module(uint8_t type);
 #endif
 
 #ifdef __cplusplus

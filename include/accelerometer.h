@@ -29,8 +29,8 @@ extern "C" {
 #define LIS2DH_ODR_9_NORMAL_1_25kHz 1250
 #define LIS2DH_ODR_9_LOW_5kHz 5000
 
-void config_accelerometer(u16_t full_scale, u16_t odr_hz, u16_t slope_threshold,
-			  u16_t slope_duration);
+void config_accelerometer(uint16_t full_scale, uint16_t odr_hz,
+			  uint16_t slope_threshold, uint16_t slope_duration);
 
 #ifdef __cplusplus
 }

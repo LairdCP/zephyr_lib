@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-bool piezo_on(u32_t period, u32_t pulseWidth);
+bool piezo_on(uint32_t period, uint32_t pulseWidth);
 bool piezo_off(void);
 void piezo_shutdown(void);
 

@@ -66,7 +66,7 @@ static struct adc_channel_cfg m_1st_channel_cfg = {
 	.input_positive = NRF_SAADC_INPUT_AIN5
 };
 
-static s16_t m_sample_buffer;
+static int16_t m_sample_buffer;
 static struct k_mutex adc_mutex;
 static struct k_timer power_timer;
 static struct k_work power_work;
@@ -76,8 +76,8 @@ static bool timer_enabled;
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
 
-static void power_adc_to_voltage(s16_t adc, float scaling, u8_t *voltage_int,
-				 u8_t *voltage_dec);
+static void power_adc_to_voltage(int16_t adc, float scaling,
+				 uint8_t *voltage_int, uint8_t *voltage_dec);
 static bool power_measure_adc(struct device *adc_dev, enum adc_gain gain,
 			      const struct adc_sequence sequence);
 static void power_run(void);
@@ -131,7 +131,7 @@ void power_mode_set(bool enable)
 }
 
 #ifdef CONFIG_REBOOT
-void power_reboot_module(u8_t type)
+void power_reboot_module(uint8_t type)
 {
 	/* Log panic will cause all buffered logs to be output */
 	LOG_INF("Rebooting module%s...",
@@ -151,8 +151,8 @@ void power_reboot_module(u8_t type)
 /* Local Function Definitions                                                 */
 /******************************************************************************/
 
-static void power_adc_to_voltage(s16_t adc, float scaling, u8_t *voltage_int,
-				 u8_t *voltage_dec)
+static void power_adc_to_voltage(int16_t adc, float scaling,
+				 uint8_t *voltage_int, uint8_t *voltage_dec)
 {
 	float voltage = (float)adc / ADC_LIMIT_VALUE * ADC_REFERENCE_VOLTAGE *
 			ADC_VOLTAGE_TOP_RESISTOR / ADC_VOLTAGE_BOTTOM_RESISTOR *
@@ -189,8 +189,8 @@ static bool power_measure_adc(struct device *adc_dev, enum adc_gain gain,
 static void power_run(void)
 {
 	int ret;
-	u8_t voltage_int;
-	u8_t voltage_dec;
+	uint8_t voltage_int;
+	uint8_t voltage_dec;
 	bool finished = false;
 
 	/* Find the ADC device */
@@ -274,7 +274,7 @@ static void system_workq_power_timer_handler(struct k_work *item)
 /* Override in application                                                    */
 /******************************************************************************/
 
-__weak void power_measurement_callback(u8_t integer, u8_t decimal)
+__weak void power_measurement_callback(uint8_t integer, uint8_t decimal)
 {
 	ARG_UNUSED(integer);
 	ARG_UNUSED(decimal);

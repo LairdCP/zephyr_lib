@@ -21,7 +21,7 @@ static struct k_thread Vibe_thread_data;
 #define PERIOD_MAX 200000
 #define PERIOD_INIT 100000
 #define VIBE_DURATION K_MSEC(500)
-static u32_t Period = PERIOD_INIT;
+static uint32_t Period = PERIOD_INIT;
 typedef enum { Test_Vibe } set_vibe_state;
 static struct k_sem Vibe_Wait_Sem;
 static struct k_sem Vibe_Beep_Sem;
@@ -32,7 +32,7 @@ static bool Vibe_Running;
 static void wait_for_input(void *unused1, void *unused2, void *unused3)
 {
 	Vibe_Running = false;
-	u8_t dir = 0U;
+	uint8_t dir = 0U;
 	k_sem_init(&Vibe_Wait_Sem, 0, 1);
 	k_sem_init(&Vibe_Beep_Sem, 0, 1);
 	while (true) {

@@ -11,7 +11,7 @@
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(Vibe, LOG_LEVEL);
 
-#if DT_NODE_HAS_PROP(DT_ALIAS(vibemotor), pwms) &&                                 \
+#if DT_NODE_HAS_PROP(DT_ALIAS(vibemotor), pwms) &&                             \
 	DT_PHA_HAS_CELL(DT_ALIAS(vibemotor), pwms, channel)
 /* get the defines from dt (based on alias 'vibemotor') */
 #define PWM_DRIVER DT_PWMS_LABEL(DT_ALIAS(vibemotor))
@@ -25,7 +25,7 @@ LOG_MODULE_REGISTER(Vibe, LOG_LEVEL);
 #error "Choose supported PWM driver"
 #endif
 
-bool vibe_on(u32_t period, u32_t pulseWidth)
+bool vibe_on(uint32_t period, uint32_t pulseWidth)
 {
 	struct device *dev_pwm;
 	dev_pwm = device_get_binding(PWM_DRIVER);
@@ -61,4 +61,3 @@ void vibe_shutdown(void)
 	vibe_off();
 	/* TODO: add sleep pin state */
 }
-

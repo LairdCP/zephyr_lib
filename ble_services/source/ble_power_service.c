@@ -39,17 +39,17 @@ static struct bt_uuid_128 VOLTAGE_UUID = POWER_SVC_BASE_UUID_128(0x0001);
 static struct bt_uuid_128 REBOOT_UUID = POWER_SVC_BASE_UUID_128(0x0002);
 
 struct ble_power_voltage {
-	u8_t voltage_int;
-	u8_t voltage_dec;
+	uint8_t voltage_int;
+	uint8_t voltage_dec;
 };
 
 struct ble_power_service {
 	struct ble_power_voltage voltage;
 #ifdef CONFIG_REBOOT
-	u8_t reboot;
+	uint8_t reboot;
 #endif
 
-	u16_t voltage_index;
+	uint16_t voltage_index;
 };
 
 struct ccc_table {
@@ -66,17 +66,18 @@ static struct bt_conn *power_svc_conn = NULL;
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void voltage_ccc_handler(const struct bt_gatt_attr *attr, u16_t value);
+static void voltage_ccc_handler(const struct bt_gatt_attr *attr,
+				uint16_t value);
 
 #ifdef CONFIG_REBOOT
 static ssize_t write_power_reboot(struct bt_conn *conn,
 				  const struct bt_gatt_attr *attr,
-				  const void *buf, u16_t len, u16_t offset,
-				  u8_t flags);
+				  const void *buf, uint16_t len,
+				  uint16_t offset, uint8_t flags);
 #endif
 
-static void power_svc_connected(struct bt_conn *conn, u8_t err);
-static void power_svc_disconnected(struct bt_conn *conn, u8_t reason);
+static void power_svc_connected(struct bt_conn *conn, uint8_t err);
+static void power_svc_disconnected(struct bt_conn *conn, uint8_t reason);
 
 /******************************************************************************/
 /* Power Service Declaration                                                  */
@@ -104,7 +105,7 @@ static struct bt_conn_cb power_svc_conn_callbacks = {
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-static void power_svc_notify(bool notify, u16_t index, u16_t length)
+static void power_svc_notify(bool notify, uint16_t index, uint16_t length)
 {
 	struct bt_conn *connection_handle = power_svc_get_conn();
 	if (connection_handle != NULL) {
@@ -117,7 +118,7 @@ static void power_svc_notify(bool notify, u16_t index, u16_t length)
 	}
 }
 
-void power_svc_set_voltage(u8_t integer, u8_t decimal)
+void power_svc_set_voltage(uint8_t integer, uint8_t decimal)
 {
 	bps.voltage.voltage_int = integer;
 	bps.voltage.voltage_dec = decimal;
@@ -139,7 +140,7 @@ void power_svc_init()
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void voltage_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
+static void voltage_ccc_handler(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	ccc.voltage.notify = IS_NOTIFIABLE(value);
 	power_mode_set(ccc.voltage.notify);
@@ -148,8 +149,8 @@ static void voltage_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
 #ifdef CONFIG_REBOOT
 static ssize_t write_power_reboot(struct bt_conn *conn,
 				  const struct bt_gatt_attr *attr,
-				  const void *buf, u16_t len, u16_t offset,
-				  u8_t flags)
+				  const void *buf, uint16_t len,
+				  uint16_t offset, uint8_t flags)
 {
 	ssize_t length = lbt_write_u8(conn, attr, buf, len, offset, flags);
 	if (length > 0) {
@@ -159,7 +160,7 @@ static ssize_t write_power_reboot(struct bt_conn *conn,
 }
 #endif
 
-static void power_svc_connected(struct bt_conn *conn, u8_t err)
+static void power_svc_connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err) {
 		return;
@@ -172,7 +173,7 @@ static void power_svc_connected(struct bt_conn *conn, u8_t err)
 	power_svc_conn = bt_conn_ref(conn);
 }
 
-static void power_svc_disconnected(struct bt_conn *conn, u8_t reason)
+static void power_svc_disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	if (!lbt_slave_role(conn)) {
 		return;

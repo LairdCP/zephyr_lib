@@ -34,7 +34,7 @@ void Qrtc_Init(void);
  *
  * @retval recomputed value for testing
  */
-u32_t Qrtc_SetEpoch(u32_t Epoch);
+uint32_t Qrtc_SetEpoch(uint32_t Epoch);
 
 /**
  * @brief Set the epoch using time structure.
@@ -48,12 +48,12 @@ u32_t Qrtc_SetEpoch(u32_t Epoch);
  *
  * @retval epoch for testing
  */
-u32_t Qrtc_SetEpochFromTm(struct tm *pTm, s32_t OffsetSeconds);
+uint32_t Qrtc_SetEpochFromTm(struct tm *pTm, int32_t OffsetSeconds);
 
 /**
  * @retval Seconds since Jan 1, 1970.
  */
-u32_t Qrtc_GetEpoch(void);
+uint32_t Qrtc_GetEpoch(void);
 
 /**
  * @retval true if the epoch has been set, otherwise false

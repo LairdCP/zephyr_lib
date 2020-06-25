@@ -36,17 +36,19 @@ static void fetch_and_display(struct device *sensor)
 	if (rc < 0) {
 		LOG_ERR("ERROR: Update failed: %d\n", rc);
 	} else {
-
 #if USE_PRINTF_FOR_ACCEL == true
-		printf("#%u%s: (%.1f, %.1f, %.1f)\n", count, overrun, sensor_value_to_double(&accel[0]), sensor_value_to_double(&accel[1]), sensor_value_to_double(&accel[2]));
+		printf("#%u%s: (%.1f, %.1f, %.1f)\n", count, overrun,
+		       sensor_value_to_double(&accel[0]),
+		       sensor_value_to_double(&accel[1]),
+		       sensor_value_to_double(&accel[2]));
 #else
 		int accel_debug[THREE_AXIS];
 		for (int i = 0; i < THREE_AXIS; i++) {
 			accel_debug[i] =
 				sensor_value_to_double(&accel[i]) * 100;
 		}
-		LOG_INF("#%u%s: (%d, %d %d)\n", count, overrun,
-			accel_debug[0], accel_debug[1], accel_debug[2]);
+		LOG_INF("#%u%s: (%d, %d %d)\n", count, overrun, accel_debug[0],
+			accel_debug[1], accel_debug[2]);
 #endif
 	}
 }
@@ -70,7 +72,7 @@ static void initialize_Sensor(void)
 }
 
 /* Accleration in m/S^2: 9.80665 m/s^2 = 1G */
-static void set_full_scale(u16_t full_scale)
+static void set_full_scale(uint16_t full_scale)
 {
 	int rc;
 	struct sensor_value attr;
@@ -86,7 +88,7 @@ static void set_full_scale(u16_t full_scale)
 }
 
 /* Values in Hz */
-static void set_sample_frequency(u16_t odr_hz)
+static void set_sample_frequency(uint16_t odr_hz)
 {
 	int rc;
 	struct sensor_value odr;
@@ -102,7 +104,7 @@ static void set_sample_frequency(u16_t odr_hz)
 }
 
 /* slope threshold Value is m/S^2 */
-static void set_slope_threshold(u16_t slope_threshold)
+static void set_slope_threshold(uint16_t slope_threshold)
 {
 	int rc;
 	struct sensor_value attr;
@@ -117,7 +119,7 @@ static void set_slope_threshold(u16_t slope_threshold)
 }
 
 /* number of slopes */
-static void set_slope_duration(u16_t slope_duration)
+static void set_slope_duration(uint16_t slope_duration)
 {
 	int rc;
 	struct sensor_value attr;
@@ -141,8 +143,8 @@ static void set_trigger(void)
 	}
 }
 
-void config_accelerometer(u16_t full_scale, u16_t odr_hz, u16_t slope_threshold,
-			  u16_t slope_duration)
+void config_accelerometer(uint16_t full_scale, uint16_t odr_hz,
+			  uint16_t slope_threshold, uint16_t slope_duration)
 {
 	initialize_Sensor();
 	set_full_scale(full_scale);

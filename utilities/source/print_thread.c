@@ -23,7 +23,7 @@ static void print_thread_cb(const struct k_thread *thread, void *user_data);
 /******************************************************************************/
 void print_thread_list(void)
 {
-	u32_t thread_count = 0;
+	uint32_t thread_count = 0;
 	k_thread_foreach(print_thread_cb, &thread_count);
 	printk("Preemption is %s\r\n",
 	       (CONFIG_PREEMPT_ENABLED) ? "Enabled" : "Disabled");
@@ -34,12 +34,13 @@ void print_thread_list(void)
 /******************************************************************************/
 static void print_thread_cb(const struct k_thread *thread, void *user_data)
 {
-	u32_t *pc = (u32_t *)user_data;
+	uint32_t *pc = (uint32_t *)user_data;
 	*pc += 1;
 	/* discard const qualifier */
 	struct k_thread *tid = (struct k_thread *)thread;
-	printk("%02u id: (0x%08x) priority: %3d name: '%s' ", *pc, (u32_t)tid,
-	       k_thread_priority_get(tid), k_thread_name_get(tid));
+	printk("%02u id: (0x%08x) priority: %3d name: '%s' ", *pc,
+	       (uint32_t)tid, k_thread_priority_get(tid),
+	       k_thread_name_get(tid));
 #if 0 /* not in this zephyr version. */
 	printk("state %s ", k_thread_state_str(tid));
 #endif

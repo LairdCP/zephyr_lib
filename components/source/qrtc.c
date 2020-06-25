@@ -19,7 +19,7 @@
 /******************************************************************************/
 struct qrtc {
 	bool epochWasSet;
-	u32_t offset;
+	uint32_t offset;
 };
 
 /******************************************************************************/
@@ -31,9 +31,9 @@ K_MUTEX_DEFINE(qrtcMutex);
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void UpdateOffset(u32_t Epoch);
-static u32_t GetUptimeSeconds(void);
-static u32_t ConvertTimeToEpoch(time_t Time);
+static void UpdateOffset(uint32_t Epoch);
+static uint32_t GetUptimeSeconds(void);
+static uint32_t ConvertTimeToEpoch(time_t Time);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -44,16 +44,16 @@ void Qrtc_Init(void)
 	qrtc.epochWasSet = false;
 }
 
-u32_t Qrtc_SetEpoch(u32_t Epoch)
+uint32_t Qrtc_SetEpoch(uint32_t Epoch)
 {
 	UpdateOffset(Epoch);
 	return Qrtc_GetEpoch();
 }
 
-u32_t Qrtc_SetEpochFromTm(struct tm *pTm, s32_t OffsetSeconds)
+uint32_t Qrtc_SetEpochFromTm(struct tm *pTm, int32_t OffsetSeconds)
 {
 	time_t rawTime = mktime(pTm);
-	u32_t epoch = ConvertTimeToEpoch(rawTime);
+	uint32_t epoch = ConvertTimeToEpoch(rawTime);
 	/* (local + offset) = UTC */
 	if (abs(OffsetSeconds) < epoch) {
 		epoch -= OffsetSeconds;
@@ -62,7 +62,7 @@ u32_t Qrtc_SetEpochFromTm(struct tm *pTm, s32_t OffsetSeconds)
 	return Qrtc_GetEpoch();
 }
 
-u32_t Qrtc_GetEpoch(void)
+uint32_t Qrtc_GetEpoch(void)
 {
 	return (GetUptimeSeconds() + qrtc.offset);
 }
@@ -79,10 +79,10 @@ bool Qrtc_EpochWasSet(void)
  * @brief Generate and save an offset using the current uptime to
  * make a quasi-RTC because there isn't hardware support.
  */
-static void UpdateOffset(u32_t Epoch)
+static void UpdateOffset(uint32_t Epoch)
 {
 	k_mutex_lock(&qrtcMutex, K_FOREVER);
-	u32_t uptime = GetUptimeSeconds();
+	uint32_t uptime = GetUptimeSeconds();
 	if (Epoch >= uptime) {
 		qrtc.offset = Epoch - uptime;
 		qrtc.epochWasSet = true;
@@ -90,16 +90,16 @@ static void UpdateOffset(u32_t Epoch)
 	k_mutex_unlock(&qrtcMutex);
 }
 
-static u32_t GetUptimeSeconds(void)
+static uint32_t GetUptimeSeconds(void)
 {
-	s64_t uptimeMs = k_uptime_get();
+	sint64_t uptimeMs = k_uptime_get();
 	if (uptimeMs < 0) {
 		return 0;
 	}
-	return (u32_t)(uptimeMs / MSEC_PER_SEC);
+	return (uint32_t)(uptimeMs / MSEC_PER_SEC);
 }
 
-static u32_t ConvertTimeToEpoch(time_t Time)
+static uint32_t ConvertTimeToEpoch(time_t Time)
 {
 	/* Time is a long long int in Zephyr. */
 	if (Time < 0) {
@@ -107,6 +107,6 @@ static u32_t ConvertTimeToEpoch(time_t Time)
 	} else if (Time >= UINT32_MAX) {
 		return 0;
 	} else {
-		return (u32_t)Time;
+		return (uint32_t)Time;
 	}
 }

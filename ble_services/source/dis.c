@@ -46,11 +46,11 @@ static const char MANUFACTURER_NAME[] = "Laird Connectivity";
 /******************************************************************************/
 static ssize_t read_const_string(struct bt_conn *conn,
 				 const struct bt_gatt_attr *attr, void *buf,
-				 u16_t len, u16_t offset);
+				 uint16_t len, uint16_t offset);
 
 static ssize_t read_version(struct bt_conn *conn,
 			    const struct bt_gatt_attr *attr, void *buf,
-			    u16_t len, u16_t offset);
+			    uint16_t len, uint16_t offset);
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
@@ -109,7 +109,7 @@ const char *dis_get_manufacturer_name(void)
 /* Constant strings are assumed to be properly terminated. */
 static ssize_t read_const_string(struct bt_conn *conn,
 				 const struct bt_gatt_attr *attr, void *buf,
-				 u16_t len, u16_t offset)
+				 uint16_t len, uint16_t offset)
 {
 	const char *value = attr->user_data;
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
@@ -119,7 +119,7 @@ static ssize_t read_const_string(struct bt_conn *conn,
 /* The Zephyr version is placed in the firmware revision characteristic. */
 static ssize_t read_version(struct bt_conn *conn,
 			    const struct bt_gatt_attr *attr, void *buf,
-			    u16_t len, u16_t offset)
+			    uint16_t len, uint16_t offset)
 {
 	return lbt_read_string(conn, attr, buf, len, offset,
 			       VERSION_MAX_STR_LEN);

@@ -43,8 +43,8 @@ static atomic_t stop_requests = ATOMIC_INIT(0);
 static atomic_t start_requests = ATOMIC_INIT(0);
 static bt_le_scan_cb_t *adv_handlers[CONFIG_BT_SCAN_MAX_USERS];
 
-static void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-				struct net_buf_simple *ad);
+static void bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
+				uint8_t type, struct net_buf_simple *ad);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -127,8 +127,8 @@ static bool valid_user_id(int id)
 	}
 }
 
-static void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-				struct net_buf_simple *ad)
+static void bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
+				uint8_t type, struct net_buf_simple *ad)
 {
 #if CONFIG_BT_SCAN_VERBOSE_ADV_HANDLER
 	char bt_addr[BT_ADDR_LE_STR_LEN];

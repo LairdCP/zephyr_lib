@@ -69,33 +69,33 @@ enum { RESET_REASON_POWER_UP = 0,
  *  @brief Helper function for reading a byte from the Bluetooth stack.
  */
 ssize_t lbt_read_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		    void *buf, u16_t len, u16_t offset);
+		    void *buf, uint16_t len, uint16_t offset);
 
 /**
  *  @brief Helper function for reading a uint16 from the Bluetooth stack.
  */
 ssize_t lbt_read_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     void *buf, u16_t len, u16_t offset);
+		     void *buf, uint16_t len, uint16_t offset);
 
 /**
  *  @brief Helper function for reading a uint32 from the Bluetooth stack.
  */
 ssize_t lbt_read_u32(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     void *buf, u16_t len, u16_t offset);
+		     void *buf, uint16_t len, uint16_t offset);
 
 /**
  *  @brief Helper function for reading an integer from the Bluetooth stack.
  */
 ssize_t lbt_read_integer(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, u16_t len, u16_t offset);
+			 void *buf, uint16_t len, uint16_t offset);
 
 /**
  *  @brief Helper function for reading a string characteristic from
  * the Bluetooth stack.
  */
 ssize_t lbt_read_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			void *buf, u16_t len, u16_t offset,
-			u16_t max_str_length);
+			void *buf, uint16_t len, uint16_t offset,
+			uint16_t max_str_length);
 
 /**
  *  @brief Helper function for reading a string characteristic from
@@ -103,7 +103,7 @@ ssize_t lbt_read_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
  */
 ssize_t lbt_read_string_no_max_size(struct bt_conn *conn,
 				    const struct bt_gatt_attr *attr, void *buf,
-				    u16_t len, u16_t offset);
+				    uint16_t len, uint16_t offset);
 
 /**
  * @brief Helper function for writing a string characteristic from the
@@ -113,36 +113,37 @@ ssize_t lbt_read_string_no_max_size(struct bt_conn *conn,
  * longer so that the string can be NULL terminated.
  */
 ssize_t lbt_write_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 const void *buf, u16_t len, u16_t offset, u8_t flags,
-			 u16_t max_str_length);
+			 const void *buf, uint16_t len, uint16_t offset,
+			 uint8_t flags, uint16_t max_str_length);
 
 /**
- * @brief Helper function for writing a u8_t from the Bluetooth stack.
+ * @brief Helper function for writing a uint8_t from the Bluetooth stack.
  */
 ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     const void *buf, u16_t len, u16_t offset, u8_t flags);
+		     const void *buf, uint16_t len, uint16_t offset,
+		     uint8_t flags);
 
 /**
  * @brief Helper function for finding a characteristic handle in the GATT
  * table.
  */
-u16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
-			  size_t size);
+uint16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
+			     size_t size);
 
 /**
  * @retval ATT error code as a string.
  */
-const char *lbt_get_att_err_string(u8_t code);
+const char *lbt_get_att_err_string(uint8_t code);
 
 /**
  * @retval HCI error code as a string.
  */
-const char *lbt_get_hci_err_string(u8_t code);
+const char *lbt_get_hci_err_string(uint8_t code);
 
 /**
  * @retval Reset reason code as a string.
  */
-const char *lbt_get_nrf52_reset_reason_string(u8_t code);
+const char *lbt_get_nrf52_reset_reason_string(uint8_t code);
 
 /**
  * @retval true if Master role, false if slave role or there

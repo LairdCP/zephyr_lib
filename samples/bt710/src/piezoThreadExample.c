@@ -21,7 +21,7 @@ static struct k_thread Piezo_thread_data;
 #define PERIOD_MAX 3900
 #define PERIOD_INIT 1500
 #define BEEP_DURATION K_MSEC(60)
-static u32_t Period = PERIOD_INIT;
+static uint32_t Period = PERIOD_INIT;
 typedef enum { Test_Piezo, Beep_Piezo } set_piezo_state;
 static struct k_sem Piezo_Wait_Sem;
 static struct k_sem Piezo_Beep_Sem;
@@ -32,7 +32,7 @@ static bool Piezo_Running;
 static void wait_for_input(void *unused1, void *unused2, void *unused3)
 {
 	Piezo_Running = false;
-	u8_t dir = 0U;
+	uint8_t dir = 0U;
 	k_sem_init(&Piezo_Wait_Sem, 0, 1);
 	k_sem_init(&Piezo_Beep_Sem, 0, 1);
 	while (true) {

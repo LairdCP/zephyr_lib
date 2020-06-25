@@ -24,7 +24,7 @@ extern "C" {
 #define BT_DATA_INVALID 0x00
 
 typedef struct AdHandle {
-	u8_t *pPayload;
+	uint8_t *pPayload;
 	size_t size;
 } AdHandle_t;
 
@@ -42,14 +42,14 @@ typedef struct AdHandle {
  *
  * @retval AdHandle_t - pointer to payload if found otherwise NULL
  */
-AdHandle_t AdFind_Type(u8_t *pAdv, size_t Length, u8_t Type1, u8_t Type2);
+AdHandle_t AdFind_Type(uint8_t *pAdv, size_t Length, uint8_t Type1, uint8_t Type2);
 
 /**
  * @brief Finds a short or complete name in advertisement.
  *
  * @retval AdHandle_t pointer to payload if found otherwise NULL
  */
-AdHandle_t AdFind_Name(u8_t *pAdv, size_t Length);
+AdHandle_t AdFind_Name(uint8_t *pAdv, size_t Length);
 
 /**
  * @brief Compares name string with name field in advertisement.
@@ -57,7 +57,7 @@ AdHandle_t AdFind_Name(u8_t *pAdv, size_t Length);
  * @retval true if name field is in advertisement and NameLength bytes match,
  * otherwise false
  */
-bool AdFind_MatchName(u8_t *pAdv, size_t Length, char *Name, size_t NameLength);
+bool AdFind_MatchName(uint8_t *pAdv, size_t Length, char *Name, size_t NameLength);
 
 #ifdef __cplusplus
 }

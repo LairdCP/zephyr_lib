@@ -43,7 +43,7 @@ enum led_blink_state {
 struct led {
 	enum led_state state;
 	struct device *device_handle;
-	u32_t pin;
+	uint32_t pin;
 	bool on_when_high;
 	bool pattern_busy;
 	struct led_blink_pattern pattern;
@@ -68,7 +68,7 @@ static void turn_off(struct led *pLed);
 static void change_state(struct led *pLed, bool state, bool blink);
 static void led_bind_and_configure(struct led_configuration *pConfig);
 static void led_bind_device(led_index_t index, const char *name);
-static void led_configure_pin(led_index_t index, u32_t pin);
+static void led_configure_pin(led_index_t index, uint32_t pin);
 
 static bool valid_index(led_index_t index);
 
@@ -175,7 +175,7 @@ static void led_bind_device(led_index_t index, const char *name)
 	}
 }
 
-static void led_configure_pin(led_index_t index, u32_t pin)
+static void led_configure_pin(led_index_t index, uint32_t pin)
 {
 	int ret;
 	led[index].pin = pin;

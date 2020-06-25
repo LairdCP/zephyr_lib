@@ -25,7 +25,8 @@
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-AdHandle_t AdFind_Type(u8_t *pAdv, size_t Length, u8_t Type1, u8_t Type2)
+AdHandle_t AdFind_Type(uint8_t *pAdv, size_t Length, uint8_t Type1,
+		       uint8_t Type2)
 {
 	AdHandle_t result = { NULL, 0 };
 	size_t i = 0;
@@ -34,7 +35,7 @@ AdHandle_t AdFind_Type(u8_t *pAdv, size_t Length, u8_t Type1, u8_t Type2)
 		result.size = pAdv[i];
 		if ((result.size >= MIN_VALUE_INDEX) &&
 		    ((i + result.size) <= Length)) {
-			u8_t elementType = pAdv[i + 1];
+			uint8_t elementType = pAdv[i + 1];
 			if ((elementType == Type1) &&
 			    (Type1 != BT_DATA_INVALID)) {
 				result.pPayload = pAdv + i + MIN_VALUE_INDEX;
@@ -59,13 +60,14 @@ AdHandle_t AdFind_Type(u8_t *pAdv, size_t Length, u8_t Type1, u8_t Type2)
 	return result;
 }
 
-AdHandle_t AdFind_Name(u8_t *pAdv, size_t Length)
+AdHandle_t AdFind_Name(uint8_t *pAdv, size_t Length)
 {
 	return AdFind_Type(pAdv, Length, BT_DATA_NAME_SHORTENED,
 			   BT_DATA_NAME_COMPLETE);
 }
 
-bool AdFind_MatchName(u8_t *pAdv, size_t Length, char *Name, size_t NameLength)
+bool AdFind_MatchName(uint8_t *pAdv, size_t Length, char *Name,
+		      size_t NameLength)
 {
 	AdHandle_t nameHandle = AdFind_Name(pAdv, Length);
 	if (nameHandle.pPayload != NULL) {
