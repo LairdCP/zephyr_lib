@@ -16,6 +16,7 @@
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <kernel.h>
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,9 +26,9 @@ extern "C" {
 /******************************************************************************/
 typedef struct LedPwm
 {
-    uint8_t redValue;
-    uint8_t greenValue;
-    uint8_t blueValue;
+    uint8_t redDutyValue;
+    uint8_t greenDutyValue;
+    uint8_t blueDutyValue;
 }rgbLedColor_t;
 
 /******************************************************************************/
@@ -45,9 +46,10 @@ typedef struct LedPwm
  *
  * @retval
  */
-bool LedPwm_RGBon(u16_t ledNumber, rgbLedColor_t ledColor, u32_t period, u32_t pulseWidth);
-bool LedPwm_on(u16_t ledNumber, u32_t period, u32_t pulseWidth);
-bool LedPwm_off(u16_t ledNumber);
+bool LedPwm_RGBon(uint16_t ledNumber, rgbLedColor_t ledColor, uint32_t period);
+bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth);
+bool LedPwm_RGBoff(uint16_t rgbLedNumber);
+bool LedPwm_off(uint16_t ledNumber);
 void LedPwm_shutdown(void);
 
 #ifdef __cplusplus
