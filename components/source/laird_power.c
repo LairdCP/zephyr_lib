@@ -23,11 +23,11 @@ LOG_MODULE_REGISTER(oob_power);
 #include <stdio.h>
 #include <zephyr/types.h>
 #include <kernel.h>
-#include <gpio.h>
+#include <drivers/gpio.h>
 #include <hal/nrf_saadc.h>
-#include <adc.h>
+#include <drivers/adc.h>
 #ifdef CONFIG_REBOOT
-#include <misc/reboot.h>
+#include <power/reboot.h>
 #endif
 #include "laird_power.h"
 
@@ -100,14 +100,14 @@ void power_init(void)
 	/* Configure the VIN_ADC_EN pin as an output set low to disable the
 	   power supply voltage measurement */
 	ret = gpio_pin_configure(device_get_binding(MEASURE_ENABLE_PORT),
-				 MEASURE_ENABLE_PIN, (GPIO_DIR_OUT));
+				 MEASURE_ENABLE_PIN, (GPIO_OUTPUT));
 	if (ret) {
 		LOG_ERR("Error configuring power GPIO");
 		return;
 	}
 
-	ret = gpio_pin_write(device_get_binding(MEASURE_ENABLE_PORT),
-			     MEASURE_ENABLE_PIN, MEASURE_STATUS_DISABLE);
+	ret = gpio_pin_set(device_get_binding(MEASURE_ENABLE_PORT),
+			   MEASURE_ENABLE_PIN, MEASURE_STATUS_DISABLE);
 	if (ret) {
 		LOG_ERR("Error setting power GPIO");
 		return;
@@ -194,9 +194,9 @@ static void power_run(void)
 	bool finished = false;
 
 	/* Find the ADC device */
-	struct device *adc_dev = device_get_binding(DT_ADC_0_NAME);
+	struct device *adc_dev = device_get_binding(ADC0);
 	if (adc_dev == NULL) {
-		LOG_ERR("ADC device name %s not found", DT_ADC_0_NAME);
+		LOG_ERR("ADC device name %s not found", ADC0);
 		return;
 	}
 
@@ -213,8 +213,8 @@ static void power_run(void)
 	k_mutex_lock(&adc_mutex, K_FOREVER);
 
 	/* Enable power supply voltage to be monitored */
-	ret = gpio_pin_write(device_get_binding(MEASURE_ENABLE_PORT),
-			     MEASURE_ENABLE_PIN, MEASURE_STATUS_ENABLE);
+	ret = gpio_pin_set(device_get_binding(MEASURE_ENABLE_PORT),
+			   MEASURE_ENABLE_PIN, MEASURE_STATUS_ENABLE);
 	if (ret) {
 		LOG_ERR("Error setting power GPIO");
 		return;
@@ -255,8 +255,8 @@ static void power_run(void)
 	}
 
 	/* Disable the voltage monitoring FET */
-	ret = gpio_pin_write(device_get_binding(MEASURE_ENABLE_PORT),
-			     MEASURE_ENABLE_PIN, MEASURE_STATUS_DISABLE);
+	ret = gpio_pin_set(device_get_binding(MEASURE_ENABLE_PORT),
+			   MEASURE_ENABLE_PIN, MEASURE_STATUS_DISABLE);
 
 	if (ret) {
 		LOG_ERR("Error setting power GPIO");

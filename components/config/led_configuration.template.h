@@ -37,7 +37,7 @@ enum led_index {
 	RED_LED3,
 	GREEN_LED4, /* not recommended for use - reserved for bootloader */
 };
-BUILD_ASSERT_MSG(CONFIG_NUMBER_OF_LEDS > GREEN_LED4, "LED object too small");
+BUILD_ASSERT(CONFIG_NUMBER_OF_LEDS > GREEN_LED4, "LED object too small");
 
 #ifdef __cplusplus
 }

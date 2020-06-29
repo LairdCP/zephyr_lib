@@ -32,15 +32,12 @@ extern "C" {
 
 /* Client Characteristic Configuration Descriptor */
 struct lbt_ccc_element {
-	struct bt_gatt_ccc_cfg cfg[BT_GATT_CCC_MAX];
 	bool notify;
 };
 
-/* Link a CCC handler
- * assumes lbt_ccc_element array named ccc
- * and a function of the form name_ccc_handler
- */
-#define LBT_GATT_CCC(name) BT_GATT_CCC(ccc.name.cfg, name##_ccc_handler)
+/* Link a handler with the form name_ccc_handler  */
+#define LBT_GATT_CCC(name)                                                     \
+	BT_GATT_CCC(name##_ccc_handler, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 
 #define BT_SUCCESS 0
 

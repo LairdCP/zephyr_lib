@@ -5,7 +5,7 @@
 # implied, including but not limited to the warranties of merchantability,
 # fitness for a particular purpose and non-infringement.
 #
-#if BT
+if BT
 
 menu "Laird Connectivity Zephyr BLE Common Components"
 	 default y
@@ -28,4 +28,4 @@ config BT_SCAN_VERBOSE_ADV_HANDLER
 
 endmenu
 
-#endif
+endif

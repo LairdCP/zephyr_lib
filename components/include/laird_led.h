@@ -32,8 +32,8 @@ typedef size_t led_index_t;
  * times (repeated twice).
  */
 struct led_blink_pattern {
-	int32_t on_time;
-	int32_t off_time;
+	uint32_t on_time;
+	uint32_t off_time;
 	uint32_t repeat_count;
 };
 

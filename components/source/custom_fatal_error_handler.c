@@ -21,7 +21,7 @@
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void z_SysFatalErrorHandler(unsigned int reason, const NANO_ESF *pEsf)
+void z_SysFatalErrorHandler(unsigned int reason, const z_arch_esf_t *pEsf)
 {
 	ARG_UNUSED(pEsf);
 
@@ -31,7 +31,7 @@ void z_SysFatalErrorHandler(unsigned int reason, const NANO_ESF *pEsf)
 		goto hang_system;
 	}
 #endif
-	if (reason == _NANO_ERR_KERNEL_PANIC) {
+	if (reason == K_ERR_KERNEL_PANIC) {
 		goto hang_system;
 	}
 	if (k_is_in_isr() || z_is_thread_essential()) {

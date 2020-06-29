@@ -24,9 +24,8 @@ LOG_MODULE_REGISTER(bt_scan);
 /* Sensor events are not received properly unless filter duplicates is OFF
  * Bug 16484: Zephyr 2.x - Retest filter duplicates and move this to app */
 #define BT_LE_SCAN_CONFIG1                                                     \
-	BT_LE_SCAN_PARAM(BT_HCI_LE_SCAN_ACTIVE,                                \
-			 BT_HCI_LE_SCAN_FILTER_DUP_DISABLE,                    \
-			 BT_GAP_SCAN_FAST_INTERVAL, BT_GAP_SCAN_FAST_WINDOW)
+	BT_LE_SCAN_PARAM(BT_LE_SCAN_TYPE_ACTIVE, 0, BT_GAP_SCAN_FAST_INTERVAL, \
+			 BT_GAP_SCAN_FAST_WINDOW)
 
 /******************************************************************************/
 /* Local Function Definitions                                                 */

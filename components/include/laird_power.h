@@ -12,7 +12,7 @@
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <zephyr/types.h>
+#include <devicetree.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +23,7 @@ extern "C" {
 /******************************************************************************/
 
 /* Port and pin number of the voltage measurement enabling functionality */
-#define MEASURE_ENABLE_PORT DT_NORDIC_NRF_GPIO_0_LABEL
+#define MEASURE_ENABLE_PORT DT_PROP(DT_NODELABEL(gpio0), label)
 #define MEASURE_ENABLE_PIN 28
 
 /* Measurement time between readings */
@@ -32,6 +32,9 @@ extern "C" {
 /* Reboot types */
 #define REBOOT_TYPE_NORMAL 0
 #define REBOOT_TYPE_BOOTLOADER 1
+
+/* ADC0 device */
+#define ADC0 DT_PROP(DT_NODELABEL(adc), label)
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */

@@ -92,7 +92,7 @@ static void UpdateOffset(uint32_t Epoch)
 
 static uint32_t GetUptimeSeconds(void)
 {
-	sint64_t uptimeMs = k_uptime_get();
+	int64_t uptimeMs = k_uptime_get();
 	if (uptimeMs < 0) {
 		return 0;
 	}
