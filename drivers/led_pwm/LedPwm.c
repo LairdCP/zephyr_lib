@@ -1,6 +1,5 @@
 /**
  * @file LedPwm.c
- * @brief Blank is better that repeating the information in header.
  *
  * Copyright (c) 2020 Laird Connectivity
  *
@@ -32,6 +31,7 @@ LOG_MODULE_REGISTER(LED_PWM, LOG_LEVEL);
 #define PWM_LED5_NODE	DT_ALIAS(led5pwm)
 #define PWM_LED6_NODE	DT_ALIAS(led6pwm)
 #define PWM_LED7_NODE	DT_ALIAS(led7pwm)
+#define PWM_LED8_NODE	DT_ALIAS(led8pwm)
 
 
 #define FLAGS_OR_ZERO(node)						\
@@ -102,11 +102,15 @@ LOG_MODULE_REGISTER(LED_PWM, LOG_LEVEL);
 #else
 #warning "Choose supported PWM driver"
 #endif
-
-/******************************************************************************/
-/* Global Data Definitions                                                    */
-/******************************************************************************/
-
+//LED 7
+#if DT_NODE_HAS_STATUS(PWM_LED8_NODE, okay)
+/* get the defines from dt (based on alias 'led8pwm') */
+#define PWM_DRIVER_8 DT_PWMS_LABEL(DT_ALIAS(led8pwm))
+#define PWM_CHANNEL_8 DT_PWMS_CHANNEL(DT_ALIAS(led8pwm))
+#define PWM_FLAGS_8 FLAGS_OR_ZERO(DT_ALIAS(led8pwm))
+#else
+#warning "Choose supported PWM driver"
+#endif
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
@@ -168,18 +172,26 @@ struct pwmHardware ledList[] =
 		.pwmFlag = PWM_FLAGS_7,
 	},
 #endif
+#ifdef PWM_DRIVER_8
+	{
+		.driverName = PWM_DRIVER_8,
+		.channelNumber = PWM_CHANNEL_8,
+		.pwmFlag = PWM_FLAGS_8,
+	},
+#endif
 };
 	
-/******************************************************************************/
-/* Local Function Prototypes                                                  */
-/******************************************************************************/
-
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
 bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth)
 {
 	struct device *dev_pwm;
+	if(ledNumber > ARRAY_SIZE(ledList))
+	{
+		LOG_ERR("LED %d is larger than number of LEDs %ld!\n", ledNumber, ARRAY_SIZE(ledList));
+		return false;
+	}
 	dev_pwm = device_get_binding(ledList[ledNumber].driverName);
 	if (!dev_pwm) {
 		LOG_ERR("Cannot find %s!\n", ledList[ledNumber].driverName);
@@ -214,16 +226,9 @@ void LedPwm_shutdown(void)
 {
 	uint8_t ledIndex;
 
-	for(ledIndex =0; ledIndex < sizeof(ledList); ledIndex++)
+	for(ledIndex =0; ledIndex < ARRAY_SIZE(ledList); ledIndex++)
 	{
 		LedPwm_off(ledIndex);
 	}
 	/* TODO: add sleep pin state */
 }
-/******************************************************************************/
-/* Local Function Definitions                                                 */
-/******************************************************************************/
-
-/******************************************************************************/
-/* Interrupt Service Routines                                                 */
-/******************************************************************************/
