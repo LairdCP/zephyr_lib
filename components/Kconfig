@@ -1,0 +1,62 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# It is provided "as is", without warranty/guarantee of any kind, express of
+# implied, including but not limited to the warranties of merchantability,
+# fitness for a particular purpose and non-infringement.
+#
+
+menu "Laird Connectivity Zephyr Components"
+	 default y
+
+config LCZ_QRTC
+	bool "Enable the Quasi-RTC component"
+	help
+		Uses an offset with uptime to replicate functionality of an RTC
+
+config LCZ_LED
+	bool "Enable the LED component"
+	help
+		Simple on/off and pattern control for multiple LEDs.
+		Doesn't use PWM.
+
+config DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK
+	int "On time in milliseconds"
+	range 1 999
+	default 100
+
+config DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK
+	int "Off time in milliseconds"
+	range 1 999
+	default 900
+
+config NUMBER_OF_LEDS
+	int "Number of LEDS"
+	depends on LCZ_LED
+	default 4
+	range 1 31
+
+config LCZ_DNS
+	bool "Wrapper for DNS resolver that provides retries and debug printing"
+
+config DNS_RETRIES
+    int "Number of times to retry resolving server address"
+	depends on LCZ_DNS
+    default 1
+
+config DNS_RETRY_DELAY_SECONDS
+    int "Number of seconds to wait between resolution attempts"
+	depends on LCZ_DNS
+    default 5
+
+# Splitting ADC and reset could make dependencies cleaner
+# nothing else in zephyr wraps with CONFIG_REBOOT (mcumgr selects it).
+config LCZ_POWER
+	bool "Controls ADC and reset"
+	select REBOOT
+
+config LCZ_CUSTOM_FATAL_ERROR_HANDLER
+	bool "Custom fatal error handler that resets on fatal error"
+	depends on LCZ_POWER
+
+endmenu

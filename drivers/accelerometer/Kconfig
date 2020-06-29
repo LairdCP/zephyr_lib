@@ -1,0 +1,9 @@
+# ACCELEROMETER configuration options
+
+# Copyright (c) Laird Connectivity
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig ACCELEROMETER
+	bool "accelerometer"
+	help
+	  Enable config options for accelerometer.

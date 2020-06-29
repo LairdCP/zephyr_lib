@@ -11,5 +11,12 @@ if COMPONENT_LIB
 
     rsource "drivers/piezo/Kconfig"
     rsource "drivers/vibemotor/Kconfig"
+    rsource "drivers/accelerometer/Kconfig"
 
 endif # COMPONENT_LIB
+
+rsource "ble_common/Kconfig"
+rsource "ble_services/Kconfig"
+rsource "components/Kconfig"
+rsource "utilities/Kconfig"
+
