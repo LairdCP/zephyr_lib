@@ -12,7 +12,6 @@
 /******************************************************************************/
 #include <zephyr.h>
 #include <device.h>
-//#include <devicetree.h>
 #include <drivers/pwm.h>
 #include <logging/log.h>
 #include "LedPwm.h"
@@ -117,33 +116,7 @@ struct pwmHardware
 	uint32_t channelNumber;
 	pwm_flags_t pwmFlag;
 };
-struct rgbLedHardware
-{
-	struct pwmHardware colorLed[NUMBER_RGB_COLORS];
-};
-/*struct rgbLedHardware rgbList[] = 
-{
-	{
-		.colorLed =
-		{
-			{
-				.driverName = PWM_DRIVER_1,
-				.channelNumber = PWM_CHANNEL_1,
-				.pwmFlag = PWM_FLAGS_1,
-			},
-			{
-				.driverName = PWM_DRIVER_2,
-				.channelNumber = PWM_CHANNEL_2,
-				.pwmFlag = PWM_FLAGS_2,
-			},
-			{
-				.driverName = PWM_DRIVER_3,
-				.channelNumber = PWM_CHANNEL_3,
-				.pwmFlag = PWM_FLAGS_3,
-			},
-		},
-	},
-};*/
+
 struct pwmHardware ledList[] = 
 {
 #ifdef PWM_DRIVER_1
@@ -204,85 +177,22 @@ struct pwmHardware ledList[] =
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-bool LedPwm_RGBon(uint16_t rgbLedNumber, rgbLedColor_t ledColor, uint32_t period)
-{
-/*	uint32_t pulseWidth[NUMBER_RGB_COLORS];
-	struct device *dev_pwm[NUMBER_RGB_COLORS];
-	uint8_t devIndex;
-	uint8_t pwmIndex;
-
-	memset(pulseWidth, 0, NUMBER_RGB_COLORS);
-
-	for(devIndex = 0; devIndex < NUMBER_RGB_COLORS; devIndex++)
-	{
-		dev_pwm[devIndex] = device_get_binding(rgbList[rgbLedNumber].colorLed[devIndex].driverName);
-		if (!dev_pwm[devIndex]) 
-		{
-			LOG_ERR("Cannot find %s!\n", rgbList[rgbLedNumber].colorLed[devIndex].driverName);
-			return false;
-		}
-	}
-    
-	//set the pulse width for each color duty cycle 
-	pulseWidth[0] = ledColor.redDutyValue * period;
-	pulseWidth[1] = ledColor.greenDutyValue * period;
-	pulseWidth[2] = ledColor.blueDutyValue * period;
-
-	for(pwmIndex = 0; pwmIndex < NUMBER_RGB_COLORS; pwmIndex++)
-	{
-		if (pwm_pin_set_usec(dev_pwm[pwmIndex], rgbList[rgbLedNumber].colorLed[pwmIndex].channelNumber,
-							 period, pulseWidth[pwmIndex], rgbList[rgbLedNumber].colorLed[pwmIndex].pwmFlag)) 
-		{
-			LOG_ERR("pwm pin set fails\n");
-			return false;
-		}
-	}*/
-	return true;
-}
 bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth)
 {
 	struct device *dev_pwm;
 	dev_pwm = device_get_binding(ledList[ledNumber].driverName);
 	if (!dev_pwm) {
 		LOG_ERR("Cannot find %s!\n", ledList[ledNumber].driverName);
-		printk("Cannot find %s!\n", ledList[ledNumber].driverName);
 		return false;
 	}
 	if (pwm_pin_set_usec(dev_pwm, ledList[ledNumber].channelNumber, period, pulseWidth,
 			     ledList[ledNumber].pwmFlag)) {
-		LOG_ERR("pwm pin set fails\n");		
-		printk("pwm pin set fails\n");
+		LOG_ERR("pwm pin set fails\n");	
 		return false;
 	}
 	return true;
 }
-bool LedPwm_RGBoff(uint16_t rgbLedNumber)
-{
-	/*
-	struct device *dev_pwm[NUMBER_RGB_COLORS];
-	uint8_t devIndex;
-	uint8_t pwmIndex;
-	for(devIndex = 0; devIndex < NUMBER_RGB_COLORS; devIndex++)
-	{
-		dev_pwm[devIndex] = device_get_binding(rgbList[rgbLedNumber].colorLed[devIndex].driverName);
-		if (!dev_pwm[devIndex]) 
-		{
-			LOG_ERR("Cannot find %s!\n", rgbList[rgbLedNumber].colorLed[devIndex].driverName);
-			return false;
-		}
-	}
 
-	for(pwmIndex = 0; pwmIndex < NUMBER_RGB_COLORS; pwmIndex++)
-	{
-		if (pwm_pin_set_usec(dev_pwm[pwmIndex], rgbList[rgbLedNumber].colorLed[pwmIndex].channelNumber,
-							0, 0, rgbList[rgbLedNumber].colorLed[pwmIndex].pwmFlag)) 
-		{
-			LOG_ERR("pwm pin set fails\n");
-			return false;
-		}
-	}*/
-	return true;
-}
 bool LedPwm_off(uint16_t ledNumber)
 {
 	struct device *dev_pwm;
@@ -290,13 +200,11 @@ bool LedPwm_off(uint16_t ledNumber)
 	if (!dev_pwm) 
 	{
 		LOG_ERR("Cannot find %s!\n", ledList[ledNumber].driverName);
-		printk("Cannot find %s!\n", ledList[ledNumber].driverName);
 		return false;
 	}
 	if (pwm_pin_set_usec(dev_pwm, ledList[ledNumber].channelNumber, 0, 0, 
 	                     ledList[ledNumber].pwmFlag)) {
 		LOG_ERR("pwm pin set fails\n");
-		printk("pwm pin set fails\n");
 		return false;
 	}
 	return true;
@@ -305,12 +213,7 @@ bool LedPwm_off(uint16_t ledNumber)
 void LedPwm_shutdown(void)
 {
 	uint8_t ledIndex;
-//	uint8_t rgbIndex;
-	
-//	for(rgbIndex =0; rgbIndex < sizeof(rgbList); rgbIndex++)
-//	{
-//		LedPwm_RGBoff(rgbIndex);
-//	}
+
 	for(ledIndex =0; ledIndex < sizeof(ledList); ledIndex++)
 	{
 		LedPwm_off(ledIndex);

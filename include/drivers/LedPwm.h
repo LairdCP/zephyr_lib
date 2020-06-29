@@ -46,9 +46,7 @@ typedef struct LedPwm
  *
  * @retval
  */
-bool LedPwm_RGBon(uint16_t ledNumber, rgbLedColor_t ledColor, uint32_t period);
 bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth);
-bool LedPwm_RGBoff(uint16_t rgbLedNumber);
 bool LedPwm_off(uint16_t ledNumber);
 void LedPwm_shutdown(void);
 
