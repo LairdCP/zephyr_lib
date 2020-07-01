@@ -10,4 +10,5 @@ add_subdirectory(ble_common)
 add_subdirectory(ble_services)
 add_subdirectory(components)
 add_subdirectory(utilities)
+add_subdirectory(mcumgr_wrapper)
 
