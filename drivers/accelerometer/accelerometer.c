@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <zephyr.h>
 #include <device.h>
-#include <drivers/Sensor.h>
+#include <drivers/sensor.h>
 #include <logging/log.h>
 #include "accelerometer.h"
 
