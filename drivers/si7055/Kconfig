@@ -12,7 +12,7 @@ if SI7055
 
 config SI7055_ENABLE_CHECKSUM
 	bool "SI7055 Checksum On Measurement"
-	default false
+	default n
 	help
 	  Validates the additional checksum byte for temperature measurements.
 
