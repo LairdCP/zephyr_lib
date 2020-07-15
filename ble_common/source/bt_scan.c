@@ -19,19 +19,12 @@ LOG_MODULE_REGISTER(bt_scan);
 #include "bt_scan.h"
 
 /******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-/* Sensor events are not received properly unless filter duplicates is OFF
- * Bug 16484: Zephyr 2.x - Retest filter duplicates and move this to app */
-#define BT_LE_SCAN_CONFIG1                                                     \
-	BT_LE_SCAN_PARAM(BT_LE_SCAN_TYPE_ACTIVE, 0, BT_GAP_SCAN_FAST_INTERVAL, \
-			 BT_GAP_SCAN_FAST_WINDOW)
-
-/******************************************************************************/
-/* Local Function Definitions                                                 */
+/* Local Function Prototypes                                                  */
 /******************************************************************************/
 static void scan_start(void);
 static bool valid_user_id(int id);
+static void bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
+				uint8_t type, struct net_buf_simple *ad);
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
@@ -42,12 +35,23 @@ static atomic_t stop_requests = ATOMIC_INIT(0);
 static atomic_t start_requests = ATOMIC_INIT(0);
 static bt_le_scan_cb_t *adv_handlers[CONFIG_BT_SCAN_MAX_USERS];
 
-static void bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
-				uint8_t type, struct net_buf_simple *ad);
+static struct bt_le_scan_param scan_parameters = BT_LE_SCAN_PARAM_INIT(
+	BT_LE_SCAN_TYPE_PASSIVE, BT_LE_SCAN_OPT_FILTER_DUPLICATE,
+	BT_GAP_SCAN_FAST_INTERVAL, BT_GAP_SCAN_FAST_WINDOW);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
+bool bt_scan_set_parameters(const struct bt_le_scan_param *param)
+{
+	if (atomic_get(&bts_users) != 0) {
+		return false;
+	} else {
+		memcpy(&scan_parameters, param, sizeof(scan_parameters));
+		return true;
+	}
+}
+
 bool bt_scan_register(int *pId, bt_le_scan_cb_t *cb)
 {
 	*pId = (int)atomic_inc(&bts_users);
@@ -110,9 +114,12 @@ static void scan_start(void)
 	}
 
 	if (atomic_cas(&scanning, 0, 1)) {
-		int err = bt_le_scan_start(BT_LE_SCAN_CONFIG1,
-					   bt_scan_adv_handler);
+		int err =
+			bt_le_scan_start(&scan_parameters, bt_scan_adv_handler);
 		LOG_DBG("%d", err);
+		if (err != 0) {
+			atomic_clear(&scanning);
+		}
 	}
 }
 

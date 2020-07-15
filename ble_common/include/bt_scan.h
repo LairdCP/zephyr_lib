@@ -27,10 +27,21 @@ extern "C" {
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 /**
+ * @brief Sets scan parameters if number of scan modules users is zero.
+ *
+ * @param p Bluetooth scan parameters.
+ *
+ * @retval true if success, false otherwise
+ */
+bool bt_scan_set_parameters(const struct bt_le_scan_param *param);
+
+/**
  * @brief Register user of scan module.
  *
  * @param pId user id
  * @param cb Register advertisement handler callback
+ *
+ * @retval true if new user was registered, false otherwise.
  */
 bool bt_scan_register(int *pId, bt_le_scan_cb_t *cb);
 
