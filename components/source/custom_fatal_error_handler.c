@@ -27,7 +27,7 @@ void z_SysFatalErrorHandler(unsigned int reason, const z_arch_esf_t *pEsf)
 
 #if !defined(CONFIG_SIMPLE_FATAL_ERROR_HANDLER)
 #ifdef CONFIG_STACK_SENTINEL
-	if (reason == _NANO_ERR_STACK_CHK_FAIL) {
+	if (reason == K_ERR_STACK_CHK_FAIL) {
 		goto hang_system;
 	}
 #endif
