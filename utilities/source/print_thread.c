@@ -11,6 +11,9 @@
 /* Includes                                                                   */
 /******************************************************************************/
 #include <kernel.h>
+#include <string.h>
+
+#include "string_util.h"
 #include "print_thread.h"
 
 /******************************************************************************/
@@ -38,11 +41,17 @@ static void print_thread_cb(const struct k_thread *thread, void *user_data)
 	*pc += 1;
 	/* discard const qualifier */
 	struct k_thread *tid = (struct k_thread *)thread;
-	printk("%02u id: (0x%08x) priority: %3d name: '%s' ", *pc,
-	       (uint32_t)tid, k_thread_priority_get(tid),
-	       k_thread_name_get(tid));
-#if 0 /* not in this zephyr version. */
-	printk("state %s ", k_thread_state_str(tid));
-#endif
+	size_t max_size = CONFIG_THREAD_MAX_NAME_LEN + 1;
+	char thread_name[max_size];
+	left_justify(thread_name, k_thread_name_get(tid), max_size, ' ');
+	printk("%02u id: (0x%08x) prio: %3d '%s'", *pc, (uint32_t)tid,
+	       k_thread_priority_get(tid), thread_name);
+
+	size_t unused = 0;
+	k_thread_stack_space_get(thread, &unused);
+	printk(" stack size: %5u used: %5u unused: %5u", tid->stack_info.size,
+	       (tid->stack_info.size - unused), unused);
+
+	printk(" state: %s ", k_thread_state_str(tid));
 	printk("\r\n");
 }

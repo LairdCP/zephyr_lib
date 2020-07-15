@@ -11,6 +11,7 @@
 /* Includes                                                                   */
 /******************************************************************************/
 #include <string.h>
+#include <stdbool.h>
 
 #include "string_util.h"
 
@@ -79,4 +80,21 @@ char *strncat_max(char *d1, const char *s1, size_t max_str_len)
 	size_t len = strlen(d1);
 	size_t n = (len < max_str_len) ? (max_str_len - len) : 0;
 	return strncat(d1, s1, n); /* adds null-character (n+1) */
+}
+
+void left_justify(char *dest, const char *source, size_t dest_size, char pad)
+{
+	bool copy = true;
+	size_t i;
+	for (i = 0; i < dest_size - 1; i++) {
+		if (source[i] == 0) {
+			copy = false;
+		}
+		if (copy) {
+			dest[i] = source[i];
+		} else {
+			dest[i] = pad;
+		}
+	}
+	dest[i] = 0;
 }
