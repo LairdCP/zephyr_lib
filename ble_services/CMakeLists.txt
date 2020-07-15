@@ -12,3 +12,4 @@ zephyr_sources_ifdef(CONFIG_UNIVERSAL_BOOTLOADER_SERVICE source/universal_bootlo
 zephyr_sources_ifdef(CONFIG_BLE_CELLULAR_SERVICE source/ble_cellular_service.c)
 zephyr_sources_ifdef(CONFIG_BLE_POWER_SERVICE source/ble_power_service.c)
 zephyr_sources_ifdef(CONFIG_LCZ_BLE_DIS source/dis.c)
+zephyr_sources_ifdef(CONFIG_FOTA_SERVICE source/fota.c)

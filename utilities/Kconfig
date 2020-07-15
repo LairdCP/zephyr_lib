@@ -26,4 +26,16 @@ config PRINT_THREAD_MAX_NAME_LEN
 	default THREAD_MAX_NAME_LEN
 	depends on PRINT_THREAD_LIST
 
+config FILE_SYSTEM_UTILITIES
+	bool "Helper functions for using file system"
+	depends on FILE_SYSTEM
+	depends on HEAP_MEM_POOL_SIZE > 0
+
+config FSU_HASH_CHUNK_SIZE
+	int "Default chunk size for computing hash"
+	depends on FILE_SYSTEM_UTILITIES
+	default 1024
+	help
+		Chunk buffer and SHA256 context use heap.
+
 endmenu

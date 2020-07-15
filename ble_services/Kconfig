@@ -29,6 +29,29 @@ config BLE_POWER_SERVICE
 config LCZ_BLE_DIS
 	bool "Enable Custom Device Information BLE service"
 
+config FOTA_SERVICE
+	bool "Enable Firmware Update Over-the-Air Service"
+	depends on FILE_SYSTEM_UTILITIES
+	help
+		This service can be used in conjunction with mcumgr file transfer to update
+		the HL7800 modem.
+
+if FOTA_SERVICE
+
+config FOTA_HASH_SIZE
+	int "Size of the hash in bytes"
+	default SHA256_SIZE
+
+config FOTA_FILE_NAME_MAX_SIZE
+	int "Maximum file name length"
+	default 64
+
+config FOTA_FS_MOUNT
+	string "Default mount for the file system used by FOTA"
+	default "/lfs"
+
+endif
+
 endmenu
 
 endif
