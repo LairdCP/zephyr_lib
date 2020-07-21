@@ -12,6 +12,7 @@ if COMPONENT_LIB
     rsource "drivers/piezo/Kconfig"
     rsource "drivers/vibemotor/Kconfig"
     rsource "drivers/accelerometer/Kconfig"
+    rsource "drivers/led_pwm/Kconfig"
 
 endif # COMPONENT_LIB
 

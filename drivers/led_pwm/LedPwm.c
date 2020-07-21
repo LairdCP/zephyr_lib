@@ -102,15 +102,6 @@ LOG_MODULE_REGISTER(LED_PWM, LOG_LEVEL);
 #else
 #warning "Choose supported PWM driver"
 #endif
-//LED 7
-#if DT_NODE_HAS_STATUS(PWM_LED8_NODE, okay)
-/* get the defines from dt (based on alias 'led8pwm') */
-#define PWM_DRIVER_8 DT_PWMS_LABEL(DT_ALIAS(led8pwm))
-#define PWM_CHANNEL_8 DT_PWMS_CHANNEL(DT_ALIAS(led8pwm))
-#define PWM_FLAGS_8 FLAGS_OR_ZERO(DT_ALIAS(led8pwm))
-#else
-#warning "Choose supported PWM driver"
-#endif
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
@@ -172,13 +163,6 @@ struct pwmHardware ledList[] =
 		.pwmFlag = PWM_FLAGS_7,
 	},
 #endif
-#ifdef PWM_DRIVER_8
-	{
-		.driverName = PWM_DRIVER_8,
-		.channelNumber = PWM_CHANNEL_8,
-		.pwmFlag = PWM_FLAGS_8,
-	},
-#endif
 };
 	
 /******************************************************************************/
@@ -214,7 +198,7 @@ bool LedPwm_off(uint16_t ledNumber)
 		LOG_ERR("Cannot find %s!\n", ledList[ledNumber].driverName);
 		return false;
 	}
-	if (pwm_pin_set_usec(dev_pwm, ledList[ledNumber].channelNumber, 0, 0, 
+	if (pwm_pin_set_usec(dev_pwm, ledList[ledNumber].channelNumber, 256, 0,
 	                     ledList[ledNumber].pwmFlag)) {
 		LOG_ERR("pwm pin set fails\n");
 		return false;
@@ -231,4 +215,11 @@ void LedPwm_shutdown(void)
 		LedPwm_off(ledIndex);
 	}
 	/* TODO: add sleep pin state */
+	struct device *dev_pwm;
+
+	dev_pwm = device_get_binding(ledList[0].driverName);
+	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
+
+	dev_pwm = device_get_binding(ledList[3].driverName);
+	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
 }

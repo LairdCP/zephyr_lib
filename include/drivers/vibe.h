@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+void vibe_init(void);
 bool vibe_on(uint32_t period, uint32_t pulseWidth);
 bool vibe_off(void);
 void vibe_shutdown(void);
