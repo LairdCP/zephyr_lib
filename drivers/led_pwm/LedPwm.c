@@ -168,6 +168,17 @@ struct pwmHardware ledList[] =
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
+void LedPwm_init(void)
+{
+	struct device *dev_pwm;
+
+	dev_pwm = device_get_binding(ledList[0].driverName);
+	device_set_power_state(dev_pwm, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
+
+	dev_pwm = device_get_binding(ledList[3].driverName);
+	device_set_power_state(dev_pwm, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
+}
+
 bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth)
 {
 	struct device *dev_pwm;

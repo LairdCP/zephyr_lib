@@ -56,6 +56,11 @@ void vibe_init(void)
 		return;
 	}
 	gpio_pin_configure(vibe_gpio_device, VIBE_GPIO_PIN, VIBE_GPIO_FLAGS);
+
+	struct device *dev_pwm;
+
+	dev_pwm = device_get_binding(PWM_DRIVER);
+	device_set_power_state(dev_pwm, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
 }
 
 bool vibe_on(uint32_t period, uint32_t pulseWidth)
@@ -97,5 +102,4 @@ void vibe_shutdown(void)
 
 	dev_pwm = device_get_binding(PWM_DRIVER);
 	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
-
 }
