@@ -19,9 +19,11 @@ LOG_MODULE_REGISTER(mcumgr_wrapper);
 #include <stats/stats.h>
 
 #ifdef CONFIG_MCUMGR_CMD_FS_MGMT
+#include "fs_mgmt/fs_mgmt.h"
+#endif
+#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
 #include <device.h>
 #include <fs/fs.h>
-#include "fs_mgmt/fs_mgmt.h"
 #include <fs/littlefs.h>
 #endif
 #ifdef CONFIG_MCUMGR_CMD_OS_MGMT
@@ -61,7 +63,7 @@ STATS_SECT_DECL(smp_svr_stats) smp_svr_stats;
 struct k_timer tick_timer;
 #endif
 
-#ifdef CONFIG_MCUMGR_CMD_FS_MGMT
+#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
 static struct fs_mount_t littlefs_mnt = { .type = FS_LITTLEFS,
 					  .fs_data = &cstorage,
@@ -90,12 +92,13 @@ void mcumgr_wrapper_register_subsystems(void)
 	}
 
 	/* Register the built-in mcumgr command handlers. */
-#ifdef CONFIG_MCUMGR_CMD_FS_MGMT
+#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
 	rc = fs_mount(&littlefs_mnt);
 	if (rc < 0) {
 		LOG_ERR("Error mounting littlefs [%d]", rc);
 	}
-
+#endif
+#ifdef CONFIG_MCUMGR_CMD_FS_MGMT
 	fs_mgmt_register_group();
 #endif
 #ifdef CONFIG_MCUMGR_CMD_OS_MGMT

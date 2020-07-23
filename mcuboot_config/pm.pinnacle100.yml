@@ -1,0 +1,43 @@
+#include <autoconf.h>
+#include <devicetree_legacy_unfixed.h>
+
+mcuboot:
+  size: DT_FLASH_AREA_MCUBOOT_SIZE
+  placement:
+    before: [mcuboot_primary]
+
+mcuboot_primary_app:
+  # All images to be placed in MCUboot's slot 0 should be placed in this
+  # partition
+  span: [app]
+
+mcuboot_primary:
+  span: [mcuboot_pad, mcuboot_primary_app]
+
+mcuboot_secondary:
+  region: external_flash
+  address: DT_FLASH_AREA_IMAGE_1_OFFSET
+  size: DT_FLASH_AREA_IMAGE_1_SIZE
+
+#ifndef CONFIG_BOOT_SWAP_USING_MOVE
+mcuboot_scratch:
+  region: external_flash
+  address: DT_FLASH_AREA_IMAGE_SCRATCH_OFFSET
+  size: DT_FLASH_AREA_IMAGE_SCRATCH_SIZE
+#endif
+
+lfs_storage:
+  region: external_flash
+  address: DT_FLASH_AREA_LFS_STORAGE_OFFSET
+  size: DT_FLASH_AREA_LFS_STORAGE_SIZE
+
+# Padding placed before image to boot
+mcuboot_pad:
+  # MCUboot pad must be placed before the 'spm' partition if that is present.
+  # If 'spm' partition is not present, it must be placed before the 'app'.
+  size: CONFIG_PM_PARTITION_SIZE_MCUBOOT_PAD
+  placement:
+    before: [mcuboot_primary_app]
+    #ifdef CONFIG_FPROTECT
+    align: { start: CONFIG_FPROTECT_BLOCK_SIZE }
+#endif
