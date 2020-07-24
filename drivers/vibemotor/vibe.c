@@ -57,6 +57,9 @@ void vibe_init(void)
 	}
 	gpio_pin_configure(vibe_gpio_device, VIBE_GPIO_PIN, VIBE_GPIO_FLAGS);
 
+	/* IMPORTANT: PWM pins must be set low prior to PWM being enabled according to nRF52833 datasheet section 6.16.4 */
+	gpio_pin_set_raw(vibe_gpio_device, VIBE_GPIO_PIN, 0);
+
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(PWM_DRIVER);

@@ -98,4 +98,13 @@ void piezo_shutdown(void)
 	dev_pwm = device_get_binding(PWM_DRIVER);
 	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
 
+	/* disconnect the GPIO */
+	struct device *piezo_gpio_device;
+	piezo_gpio_device = device_get_binding(PIEZO_GPIO_LABEL);
+	if (piezo_gpio_device == NULL) {
+		printk("Error getting piezo_gpio device\n");
+		return;
+	}
+	gpio_pin_configure(piezo_gpio_device, PIEZO_GPIO_PIN, GPIO_DISCONNECTED);
+
 }
