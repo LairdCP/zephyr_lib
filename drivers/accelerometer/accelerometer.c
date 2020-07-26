@@ -16,6 +16,7 @@ LOG_MODULE_REGISTER(Accel, LOG_LEVEL);
 static struct device *Sensor;
 static struct sensor_trigger Trig;
 
+#if 0
 static void fetch_and_display(struct device *sensor)
 {
 	static unsigned int count;
@@ -57,6 +58,7 @@ static void trigger_handler(struct device *dev, struct sensor_trigger *trig)
 {
 	fetch_and_display(dev);
 }
+#endif
 
 static void initialize_Sensor(void)
 {
@@ -133,6 +135,7 @@ static void set_slope_duration(uint16_t slope_duration)
 	LOG_DBG("slope duration = %d", attr.val1);
 }
 
+#if 0
 static void set_trigger(void)
 {
 	int rc;
@@ -142,6 +145,7 @@ static void set_trigger(void)
 		return;
 	}
 }
+#endif
 
 void config_accelerometer(uint16_t full_scale, uint16_t odr_hz,
 			  uint16_t slope_threshold, uint16_t slope_duration)
@@ -151,5 +155,7 @@ void config_accelerometer(uint16_t full_scale, uint16_t odr_hz,
 	set_sample_frequency(odr_hz);
 	set_slope_threshold(slope_threshold);
 	set_slope_duration(slope_duration);
+#if 0
 	set_trigger();
+#endif
 }
