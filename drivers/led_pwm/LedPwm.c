@@ -170,6 +170,7 @@ struct pwmHardware ledList[] =
 /******************************************************************************/
 void LedPwm_init(void)
 {
+#if defined(CONFIG_DEVICE_POWER_MANAGEMENT)
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(ledList[0].driverName);
@@ -177,6 +178,7 @@ void LedPwm_init(void)
 
 	dev_pwm = device_get_binding(ledList[3].driverName);
 	device_set_power_state(dev_pwm, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
+#endif
 }
 
 bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth)
@@ -226,6 +228,7 @@ void LedPwm_shutdown(void)
 		LedPwm_off(ledIndex);
 	}
 	/* TODO: add sleep pin state */
+#if defined(CONFIG_DEVICE_POWER_MANAGEMENT)
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(ledList[0].driverName);
@@ -233,4 +236,5 @@ void LedPwm_shutdown(void)
 
 	dev_pwm = device_get_binding(ledList[3].driverName);
 	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
+#endif
 }

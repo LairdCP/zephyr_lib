@@ -60,10 +60,12 @@ void vibe_init(void)
 	/* IMPORTANT: PWM pins must be set low prior to PWM being enabled according to nRF52833 datasheet section 6.16.4 */
 	gpio_pin_set_raw(vibe_gpio_device, VIBE_GPIO_PIN, 0);
 
+#if defined(CONFIG_DEVICE_POWER_MANAGEMENT)
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(PWM_DRIVER);
 	device_set_power_state(dev_pwm, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
+#endif
 }
 
 bool vibe_on(uint32_t period, uint32_t pulseWidth)
@@ -101,8 +103,10 @@ void vibe_shutdown(void)
 {
 	vibe_off();
 	/* TODO: add sleep pin state */
+#if defined(CONFIG_DEVICE_POWER_MANAGEMENT)
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(PWM_DRIVER);
 	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
+#endif
 }

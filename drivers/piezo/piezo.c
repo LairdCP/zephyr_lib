@@ -63,7 +63,9 @@ void piezo_init(void)
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(PWM_DRIVER);
+#if defined(CONFIG_DEVICE_POWER_MANAGEMENT)
 	device_set_power_state(dev_pwm, DEVICE_PM_ACTIVE_STATE, NULL, NULL);
+#endif
 }
 
 bool piezo_on(uint32_t period, uint32_t pulseWidth)
@@ -96,7 +98,9 @@ void piezo_shutdown(void)
 	struct device *dev_pwm;
 
 	dev_pwm = device_get_binding(PWM_DRIVER);
+#if defined(CONFIG_DEVICE_POWER_MANAGEMENT)
 	device_set_power_state(dev_pwm, DEVICE_PM_LOW_POWER_STATE, NULL, NULL);
+#endif
 
 	/* disconnect the GPIO */
 	struct device *piezo_gpio_device;
