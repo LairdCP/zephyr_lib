@@ -49,6 +49,12 @@ config DNS_RETRY_DELAY_SECONDS
 	depends on LCZ_DNS
     default 5
 
+config LCZ_HWREV
+	bool "Enable Hardware Revision ID detection"
+	depends on (BOARD_BT510)
+	help
+		Enable Hardware Revision ID checking.
+
 # Splitting ADC and reset could make dependencies cleaner
 # nothing else in zephyr wraps with CONFIG_REBOOT (mcumgr selects it).
 config LCZ_POWER
