@@ -107,6 +107,21 @@ ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	return len;
 }
 
+ssize_t lbt_write_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		     const void *buf, uint16_t len, uint16_t offset,
+		     uint8_t flags)
+{
+	ARG_UNUSED(conn);
+	ARG_UNUSED(flags);
+
+	if (offset != 0 || len != sizeof(uint16_t)) {
+		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+	}
+
+	memcpy(attr->user_data, buf, len);
+	return len;
+}
+
 uint16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
 			     size_t size)
 {

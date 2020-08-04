@@ -23,11 +23,19 @@ extern "C" {
 /******************************************************************************/
 
 /* Port and pin number of the voltage measurement enabling functionality */
-#define MEASURE_ENABLE_PORT DT_PROP(DT_NODELABEL(gpio0), label)
-#define MEASURE_ENABLE_PIN 28
+#if defined (CONFIG_BOARD_MG100)
+# define MEASURE_ENABLE_PORT DT_PROP(DT_NODELABEL(gpio1), label)
+# define MEASURE_ENABLE_PIN 10
+#elif defined (CONFIG_BOARD_PINNACLE_100_DVK)
+# define MEASURE_ENABLE_PORT DT_PROP(DT_NODELABEL(gpio0), label)
+# define MEASURE_ENABLE_PIN 28
+# error "error 1"
+#else
+# error "A measurement enable pin must be defined for this board."
+#endif
 
 /* Measurement time between readings */
-#define POWER_TIMER_PERIOD K_MSEC(15000)
+#define POWER_TIMER_PERIOD K_MSEC(CONFIG_LCZ_ADC_SAMPLE_PERIOD * 1000)
 
 /* Reboot types */
 #define REBOOT_TYPE_NORMAL 0

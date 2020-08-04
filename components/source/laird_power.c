@@ -63,7 +63,13 @@ static struct adc_channel_cfg m_1st_channel_cfg = {
 	.reference = ADC_REF_INTERNAL,
 	.acquisition_time = ADC_ACQUISITION_TIME,
 	.channel_id = ADC_CHANNEL_ID,
+#if defined CONFIG_BOARD_PINNACLE_100_DVK
 	.input_positive = NRF_SAADC_INPUT_AIN5
+#elif defined CONFIG_BOARD_MG100
+	.input_positive = NRF_SAADC_INPUT_AIN0
+#else
+	#error "An ADC input must be defined for this hardware variant."
+#endif
 };
 
 static int16_t m_sample_buffer;

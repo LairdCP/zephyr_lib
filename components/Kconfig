@@ -65,4 +65,14 @@ config LCZ_CUSTOM_FATAL_ERROR_HANDLER
 	bool "Custom fatal error handler that resets on fatal error"
 	depends on LCZ_POWER
 
+config LCZ_ADC_SAMPLE_PERIOD
+	int "Number of seconds in between ADC readings"
+	depends on LCZ_POWER
+	default 15
+
+config LCZ_ADC_ALWAYS_SAMPLING
+	bool "Keeps the ADC sampling always active regardless of BLE state"
+	depends on LCZ_POWER
+	default y
+
 endmenu

@@ -121,6 +121,13 @@ ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 		     uint8_t flags);
 
 /**
+ * @brief Helper function for writing a uint16_t from the Bluetooth stack.
+ */
+ssize_t lbt_write_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		     const void *buf, uint16_t len, uint16_t offset,
+		     uint8_t flags);
+
+/**
  * @brief Helper function for finding a characteristic handle in the GATT
  * table.
  */
