@@ -39,6 +39,12 @@ struct lbt_ccc_element {
 #define LBT_GATT_CCC(name)                                                     \
 	BT_GATT_CCC(name##_ccc_handler, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 
+/* The next handle after a service UUID */
+#define LBT_NEXT_HANDLE_AFTER_SERVICE(x) ((x) + 1)
+
+/* The next (possible) handle after a characterstic (UUID and value) */
+#define LBT_NEXT_HANDLE_AFTER_CHAR(x) ((x) + 2)
+
 #define BT_SUCCESS 0
 
 /** ATT_MTU - OpCode (1 byte) - Handle (2 bytes) */
