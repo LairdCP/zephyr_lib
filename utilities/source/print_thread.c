@@ -27,7 +27,7 @@ static void print_thread_cb(const struct k_thread *thread, void *user_data);
 void print_thread_list(void)
 {
 	uint32_t thread_count = 0;
-	k_thread_foreach(print_thread_cb, &thread_count);
+	k_thread_foreach_unlocked(print_thread_cb, &thread_count);
 	printk("Preemption is %s\r\n",
 	       (CONFIG_PREEMPT_ENABLED) ? "Enabled" : "Disabled");
 }
