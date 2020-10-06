@@ -75,4 +75,29 @@ config LCZ_ADC_ALWAYS_SAMPLING
 	depends on LCZ_POWER
 	default y
 
+config LCZ_NFC
+	bool "Enables NFC Support"
+	select NFC_T2T_NRFXLIB
+	select NFC_NDEF
+	select NFC_NDEF_MSG
+	select NFC_NDEF_RECORD
+	select NFC_NDEF_LE_OOB_REC
+	select NFC_NDEF_LE_OOB_REC_PARSER
+	select NFC_NDEF_TEXT_RECORD
+	select NFC_NDEF_URI_MSG
+	select NFC_NDEF_URI_REC
+	select NFC_NDEF_PARSER
+	select NFC_NDEF_PAYLOAD_TYPE_COMMON
+	select NFC_NDEF_TNEP_RECORD
+
+if LCZ_NFC
+config LCZ_NFC_REC1_STR
+	string "NFC Record 1 String"
+	default "https://apps.apple.com/us/app/laird-pinnacle-connect/id1481075861?ls=1"
+
+config LCZ_NFC_REC2_STR
+	string "NFC Record 2 String"
+	default "http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect"
+endif
+
 endmenu
