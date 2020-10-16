@@ -389,7 +389,7 @@ static void fota_list_files(const char *name)
 {
 	size_t count = 0;
 	struct fs_dirent *pEntries =
-		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count);
+		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count, FS_DIR_ENTRY_FILE);
 	size_t i;
 	for (i = 0; i < count; i++) {
 		fota_set_file_name(pEntries[i].name);
@@ -409,7 +409,7 @@ static void fota_modem_start(const char *name)
 	/* Ensure file name only matches one file and that it exists. */
 	size_t count = 0;
 	struct fs_dirent *pEntries =
-		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count);
+		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count, FS_DIR_ENTRY_FILE);
 	if (count == 0) {
 		status = -ENOENT;
 		fota_set_status(status);
@@ -444,7 +444,7 @@ static void fota_delete_files(const char *name)
 	int status = FOTA_STATUS_SUCCESS;
 	size_t count = 0;
 	struct fs_dirent *pEntries =
-		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count);
+		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count, FS_DIR_ENTRY_FILE);
 	if (count == 0) {
 		status = -ENOENT;
 	} else {
@@ -463,21 +463,20 @@ static void fota_delete_files(const char *name)
 
 static void fota_compute_sha256(const char *name)
 {
-	uint8_t hash[32];
+	uint8_t hash[FSU_HASH_SIZE];
 	ssize_t status = FOTA_STATUS_SUCCESS;
 	size_t count = 0;
 	struct fs_dirent *pEntries =
-		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count);
+		fsu_find(CONFIG_FOTA_FS_MOUNT, name, &count, FS_DIR_ENTRY_FILE);
 	if (count == 0) {
 		status = -ENOENT;
 	} else {
 		size_t i = 0;
 		while ((i < count) && (status == FOTA_STATUS_SUCCESS)) {
-			fota_build_full_name(pEntries[i].name);
 			LOG_DBG("Computing hash for %s",
-				log_strdup(fota_full_name));
-			status = fsu_sha256(fota_full_name, pEntries[i].size,
-					    hash);
+				log_strdup(pEntries[i].name));
+			status = fsu_sha256(hash, CONFIG_FOTA_FS_MOUNT,
+					    pEntries[i].name, pEntries[i].size);
 			if (status == FOTA_STATUS_SUCCESS) {
 				fota_set_hash(hash);
 			}
@@ -490,7 +489,6 @@ static void fota_compute_sha256(const char *name)
 
 static void fota_build_full_name(const char *name)
 {
-	size_t max_size = sizeof(fota_full_name);
-	memset(fota_full_name, 0, max_size);
-	snprintk(fota_full_name, max_size, "%s/%s", CONFIG_FOTA_FS_MOUNT, name);
+	fsu_build_full_name(fota_full_name, sizeof(fota_full_name),
+			    CONFIG_FOTA_FS_MOUNT, name);
 }

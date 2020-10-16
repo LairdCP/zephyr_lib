@@ -22,9 +22,9 @@ LOG_MODULE_REGISTER(mcumgr_wrapper);
 #include "fs_mgmt/fs_mgmt.h"
 #endif
 #ifdef CONFIG_FILE_SYSTEM_LITTLEFS
-#include <device.h>
-#include <fs/fs.h>
-#include <fs/littlefs.h>
+#ifdef CONFIG_FILE_SYSTEM_UTILITIES
+#include "file_system_utilities.h"
+#endif
 #endif
 #ifdef CONFIG_MCUMGR_CMD_OS_MGMT
 #include "os_mgmt/os_mgmt.h"
@@ -63,15 +63,6 @@ STATS_SECT_DECL(smp_svr_stats) smp_svr_stats;
 struct k_timer tick_timer;
 #endif
 
-#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
-FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
-static struct fs_mount_t littlefs_mnt = { .type = FS_LITTLEFS,
-					  .fs_data = &cstorage,
-					  .storage_dev = (void *)FLASH_AREA_ID(
-						  lfs_storage),
-					  .mnt_point = "/lfs" };
-#endif
-
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
@@ -93,10 +84,9 @@ void mcumgr_wrapper_register_subsystems(void)
 
 	/* Register the built-in mcumgr command handlers. */
 #ifdef CONFIG_FILE_SYSTEM_LITTLEFS
-	rc = fs_mount(&littlefs_mnt);
-	if (rc < 0) {
-		LOG_ERR("Error mounting littlefs [%d]", rc);
-	}
+#ifdef CONFIG_FILE_SYSTEM_UTILITIES
+	fsu_lfs_mount();
+#endif
 #endif
 #ifdef CONFIG_MCUMGR_CMD_FS_MGMT
 	fs_mgmt_register_group();
