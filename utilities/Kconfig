@@ -14,18 +14,6 @@ config JSON_LOG_ENABLED
 	help
 		JSON strings can be too large for LOG system.
 
-config PRINT_THREAD_LIST
-	bool "Include function that prints lists of threads"
-	depends on THREAD_MONITOR
-	depends on THREAD_NAME
-	depends on INIT_STACKS
-	depends on THREAD_STACK_INFO
-
-config PRINT_THREAD_MAX_NAME_LEN
-	int "Max length of name printed in thread list"
-	default THREAD_MAX_NAME_LEN
-	depends on PRINT_THREAD_LIST
-
 config FILE_SYSTEM_UTILITIES
 	bool "Helper functions for using file system"
 	depends on FILE_SYSTEM
