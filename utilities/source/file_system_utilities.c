@@ -42,7 +42,7 @@ static struct fs_mount_t littlefs_mnt = { .type = FS_LITTLEFS,
 					  .fs_data = &cstorage,
 					  .storage_dev = (void *)FLASH_AREA_ID(
 						  lfs_storage),
-					  .mnt_point = FSU_MOUNT_POINT };
+					  .mnt_point = CONFIG_FSU_MOUNT_POINT };
 
 static bool lfs_mounted;
 #endif
