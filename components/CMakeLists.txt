@@ -12,3 +12,4 @@ zephyr_sources_ifdef(CONFIG_LCZ_NFC source/laird_connectivity_nfc.c)
 zephyr_sources_ifdef(CONFIG_LCZ_CUSTOM_FATAL_ERROR_HANDLER
     source/custom_fatal_error_handler.c)
 zephyr_sources_ifdef(CONFIG_LCZ_SOCK source/lcz_sock.c)
+zephyr_sources_ifdef(CONFIG_LCZ_RESET_ON_EXIT source/lcz_reset_on_exit.c)

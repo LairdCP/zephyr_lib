@@ -121,4 +121,10 @@ config LCZ_SOCK_TIMING
 	bool "Enable verbose logging for poll timeouts and wait complete"
 	depends on LCZ_SOCK
 
+config LCZ_RESET_ON_EXIT
+	bool "Reset when exit is called"
+	depends on REBOOT
+	help
+		Default Zephyr behavior is to wait forever.
+
 endmenu
