@@ -21,8 +21,13 @@ config FILE_SYSTEM_UTILITIES
 
 if FILE_SYSTEM_UTILITIES
 
+config FSU_HASH
+	bool "Enable hash generation functions"
+	depends on MBEDTLS
+
 config FSU_HASH_CHUNK_SIZE
 	int "Default chunk size for computing hash"
+	depends on FSU_HASH
 	default 1024
 	help
 		Chunk buffer and SHA256 context use heap.

@@ -18,7 +18,10 @@ LOG_MODULE_REGISTER(fsu);
 #include <zephyr.h>
 #include <device.h>
 #include <fs/fs.h>
+
+#ifdef CONFIG_FSU_HASH
 #include <mbedtls/sha256.h>
+#endif
 
 #ifdef CONFIG_FILE_SYSTEM_LITTLEFS
 #include <fs/littlefs.h>
@@ -181,9 +184,12 @@ void fsu_free_found(struct fs_dirent *entry)
 int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 	       size_t size)
 {
+	int rc = -1;
+
+#ifdef CONFIG_FSU_HASH
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
-		return -1;
+		return rc;
 	}
 
 	char abs_path[FSU_MAX_ABS_PATH_SIZE];
@@ -191,7 +197,7 @@ int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 	memset(&hash[0], 0, FSU_HASH_SIZE);
 
 	struct fs_file_t f;
-	int rc = fs_open(&f, abs_path);
+	rc = fs_open(&f, abs_path);
 	if (rc < 0) {
 		return rc;
 	}
@@ -231,6 +237,7 @@ int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 		k_free(pCtx);
 	}
 	(void)fs_close(&f);
+#endif
 	return rc;
 }
 

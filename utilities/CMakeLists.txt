@@ -14,3 +14,5 @@ zephyr_link_libraries(LITTLEFS INTERFACE
   zephyr_interface
 )
 endif()
+
+zephyr_link_libraries_ifdef(CONFIG_FSU_HASH mbedTLS)
