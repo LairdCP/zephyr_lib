@@ -23,7 +23,7 @@
 /******************************************************************************/
 static int macro_status;
 
-static char mount_point[FSU_MAX_PATH_SIZE];
+static char mount_point[FSU_MAX_ABS_PATH_SIZE];
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -68,7 +68,7 @@ static int fsu_ls_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_sha_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv);
 
-static int fsu_shell_init(struct device *device);
+static int fsu_shell_init(const struct device *device);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -190,7 +190,7 @@ static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
-static int fsu_shell_init(struct device *device)
+static int fsu_shell_init(const struct device *device)
 {
 	ARG_UNUSED(device);
 	strcpy(mount_point, CONFIG_FSU_MOUNT_POINT);

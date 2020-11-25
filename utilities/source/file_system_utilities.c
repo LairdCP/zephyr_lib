@@ -30,6 +30,14 @@ LOG_MODULE_REGISTER(fsu);
 #include "file_system_utilities.h"
 
 /******************************************************************************/
+/* Local Constant, Macro and Type Definitions                                 */
+/******************************************************************************/
+#define BREAK_ON_ERROR(x)                                                      \
+	if (x < 0) {                                                           \
+		break;                                                         \
+	}
+
+/******************************************************************************/
 /* Global Data Definitions                                                    */
 /******************************************************************************/
 #ifdef CONFIG_FILE_SYSTEM_LITTLEFS
@@ -51,6 +59,15 @@ static bool lfs_mounted;
 #endif
 
 /******************************************************************************/
+/* Local Function Prototypes                                                  */
+/******************************************************************************/
+static ssize_t fsu_wa(const char *path, const char *name, void *data,
+		      size_t size, bool append);
+
+static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
+			  bool append);
+
+/******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
 int fsu_lfs_mount(void)
@@ -70,11 +87,11 @@ int fsu_lfs_mount(void)
 			struct fs_statvfs stats;
 			int status = fs_statvfs(littlefs_mnt.mnt_point, &stats);
 			if (status == 0) {
-				LOG_DBG("Optimal transfer block size %lu",
+				LOG_INF("Optimal transfer block size %lu",
 					stats.f_bsize);
-				LOG_DBG("Allocation unit size %lu",
+				LOG_INF("Allocation unit size %lu",
 					stats.f_frsize);
-				LOG_DBG("Free blocks %lu", stats.f_bfree);
+				LOG_INF("Free blocks %lu", stats.f_bfree);
 			}
 		}
 	} else {
@@ -133,6 +150,9 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 	LOG_DBG("%s opendir: %d", log_strdup(path), rc);
 	/* Use malloc because entry is 264 bytes when using LFS */
 	struct fs_dirent *entry = k_malloc(sizeof(struct fs_dirent));
+	if (entry == NULL) {
+		LOG_ERR("Unable to allocate directory entry");
+	}
 	while (rc >= 0 && (entry != NULL)) {
 		memset(entry, 0, sizeof(struct fs_dirent));
 		rc = fs_readdir(&dir, entry);
@@ -154,6 +174,9 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 	/* Make an array of matching items. */
 	if (*count > 0) {
 		results = k_calloc(*count, sizeof(struct fs_dirent));
+		if (results == NULL) {
+			LOG_ERR("Unable to allocate directory entries");
+		}
 		rc = fs_opendir(&dir, path);
 		size_t i = 0;
 		while ((i < *count) && (rc >= 0) && (results != NULL)) {
@@ -200,7 +223,7 @@ int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 	memset(&hash[0], 0, FSU_HASH_SIZE);
 
 	struct fs_file_t f;
-	rc = fs_open(&f, abs_path);
+	rc = fs_open(&f, abs_path, FS_O_READ);
 	if (rc < 0) {
 		return rc;
 	}
@@ -280,46 +303,24 @@ int fsu_single_entry_exists(const char *path, const char *name,
 	return status;
 }
 
-int fsu_append(const char *path, const char *name, void *data, size_t size)
+ssize_t fsu_append(const char *path, const char *name, void *data, size_t size)
 {
-	if (path == NULL || name == NULL) {
-		LOG_ERR("Invalid path or name");
-		return -1;
-	}
-
-	char abs_path[FSU_MAX_ABS_PATH_SIZE];
-	(void)fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
-
-	return fsu_append_abs(abs_path, data, size);
+	return fsu_wa(path, name, data, size, true);
 }
 
-int fsu_append_abs(const char *abs_path, void *data, size_t size)
+ssize_t fsu_write(const char *path, const char *name, void *data, size_t size)
 {
-	if (abs_path == NULL) {
-		LOG_ERR("Invalid path + file name");
-		return -1;
-	}
+	return fsu_wa(path, name, data, size, false);
+}
 
-	struct fs_file_t handle;
-	int rc = fs_open(&handle, abs_path, FS_O_CREATE | FS_O_APPEND);
-	if (rc < 0) {
-		LOG_ERR("Unable to open file %s for append",
-			log_strdup(abs_path));
-		return rc;
-	}
+ssize_t fsu_append_abs(const char *abs_path, void *data, size_t size)
+{
+	return fsu_wa_abs(abs_path, data, size, true);
+}
 
-	rc = fs_write(&handle, data, size);
-	if (rc < 0) {
-		LOG_ERR("Unable to append file %s", log_strdup(abs_path));
-	} else {
-		LOG_DBG("%s apppend (%d)", log_strdup(abs_path), rc);
-	}
-
-	int rc2 = fs_close(&handle);
-	if (rc2 < 0) {
-		LOG_ERR("Unable to close file");
-	}
-	return rc;
+ssize_t fsu_write_abs(const char *abs_path, void *data, size_t size)
+{
+	return fsu_wa_abs(abs_path, data, size, false);
 }
 
 int fsu_delete_files(const char *path, const char *name)
@@ -357,19 +358,106 @@ int fsu_delete_files(const char *path, const char *name)
 
 int fsu_mkdir(const char *path, const char *name)
 {
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
 	int r = fsu_single_entry_exists(path, name, FS_DIR_ENTRY_DIR);
 	if (r < 0) {
-		char abs_path[FSU_MAX_ABS_PATH_SIZE];
-		(void)fsu_build_full_name(abs_path, sizeof(abs_path), path,
-					  name);
-
-		int r = fs_mkdir(abs_path);
-		if (r < 0) {
-			LOG_ERR("Unable to create directory %s",
-				log_strdup(abs_path));
+		r = fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+		if (r >= 0) {
+			r = fs_mkdir(abs_path);
+			if (r < 0) {
+				LOG_ERR("Unable to create directory %s",
+					log_strdup(abs_path));
+			}
 		}
 	} else {
 		LOG_DBG("Directory exists");
 	}
 	return r;
+}
+
+ssize_t fsu_read(const char *path, const char *name, void *data, size_t size)
+{
+	ssize_t rc = -EPERM;
+	do {
+		if (path == NULL || name == NULL) {
+			LOG_ERR("Invalid path or name");
+			break;
+		}
+
+		char abs_path[FSU_MAX_ABS_PATH_SIZE];
+		rc = fsu_build_full_name(abs_path, sizeof(abs_path), path,
+					 name);
+		BREAK_ON_ERROR(rc);
+
+		/* It is quicker to try to open the file than checking if it exists. */
+		struct fs_file_t f;
+		rc = fs_open(&f, abs_path, FS_O_READ);
+		BREAK_ON_ERROR(rc);
+
+		rc = fs_read(&f, data, size);
+
+		int rc2 = fs_close(&f);
+		if (rc2 < 0) {
+			LOG_ERR("Unable to close file");
+		}
+	} while (0);
+
+	return rc;
+}
+
+/******************************************************************************/
+/* Local Function Definitions                                                 */
+/******************************************************************************/
+/* write or append */
+static int fsu_wa(const char *path, const char *name, void *data, size_t size,
+		  bool append)
+{
+	if (path == NULL || name == NULL) {
+		LOG_ERR("Invalid path or name");
+		return -1;
+	}
+
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+	(void)fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+
+	return fsu_wa_abs(abs_path, data, size, append);
+}
+
+static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
+			  bool append)
+{
+	fs_mode_t flags = FS_O_CREATE | (append ? FS_O_APPEND : FS_O_WRITE);
+	const char *desc = append ? "append" : "write";
+	ssize_t rc = -EPERM;
+	do {
+		if (abs_path == NULL) {
+			LOG_ERR("Invalid path + file name");
+			break;
+		}
+
+		struct fs_file_t handle;
+		ssize_t rc = fs_open(&handle, abs_path, flags);
+		if (rc < 0) {
+			LOG_ERR("Unable to open file %s for %s",
+				log_strdup(abs_path), desc);
+		}
+		BREAK_ON_ERROR(rc);
+
+		rc = fs_write(&handle, data, size);
+		if (rc < 0) {
+			LOG_ERR("Unable to %s file %s", desc,
+				log_strdup(abs_path));
+		} else {
+			LOG_DBG("%s %s (%d)", log_strdup(abs_path), desc, rc);
+		}
+		BREAK_ON_ERROR(rc);
+
+		int rc2 = fs_close(&handle);
+		if (rc2 < 0) {
+			LOG_ERR("Unable to close file");
+		}
+
+	} while (0);
+
+	return rc;
 }

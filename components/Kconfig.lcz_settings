@@ -1,0 +1,24 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# It is provided "as is", without warranty/guarantee of any kind, express of
+# implied, including but not limited to the warranties of merchantability,
+# fitness for a particular purpose and non-infringement.
+#
+
+menuconfig LCZ_SETTINGS
+	bool "Enable Laird Connectivity Settings Module"
+	depends on FILE_SYSTEM_UTILITIES
+
+if LCZ_SETTINGS
+
+config LCZ_SETTINGS_LOG_LEVEL
+    int "Log Level"
+    range 0 4
+	default 3
+
+config LCZ_SETTINGS_PATH
+	string "Path to folder for settings"
+	default "settings"
+
+endif # LCZ_SETTINGS

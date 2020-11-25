@@ -39,6 +39,12 @@ BUILD_ASSERT(CONFIG_FSU_MAX_FILE_NAME_SIZE >=
 		      CONFIG_FSU_MAX_IMAGE_NAME_SIZE + 4),
 	     "File name too small");
 
+/* CONFIG_FILE_SYSTEM_MAX_FILE_NAME can be used to reduce memory requirements
+ * for directory operations.
+ */
+BUILD_ASSERT(CONFIG_FSU_MAX_FILE_NAME_SIZE < MAX_FILE_NAME,
+             "File name too large");
+
 /* An empty string will match everything */
 #define FSU_EMPTY_STRING ""
 
@@ -132,6 +138,18 @@ int fsu_single_entry_exists(const char *path, const char *name,
 int fsu_append(const char *path, const char *name, void *data, size_t size);
 
 /**
+ * @brief Opens file, writes data, and closes file.
+ *
+ * @param path directory path
+ * @param name file name
+ * @param data to be written
+ * @param size in bytes
+ *
+ * @retval negative error code, number of bytes written on success.
+ */
+int fsu_write(const char *path, const char *name, void *data, size_t size);
+
+/**
  * @brief Opens file, appends data, and closes file.
  *
  * @param abs_path directory path and name
@@ -141,6 +159,17 @@ int fsu_append(const char *path, const char *name, void *data, size_t size);
  * @retval negative error code, number of bytes written on success.
  */
 int fsu_append_abs(const char *abs_path, void *data, size_t size);
+
+/**
+ * @brief Opens file, writes data, and closes file.
+ *
+ * @param abs_path directory path and name
+ * @param data to be written
+ * @param size in bytes
+ *
+ * @retval negative error code, number of bytes written on success.
+ */
+int fsu_write_abs(const char *abs_path, void *data, size_t size);
 
 /**
  * @brief Deletes all files matching name.
@@ -161,6 +190,18 @@ int fsu_delete_files(const char *path, const char *name);
  * @retval negative error code, 0 on success
  */
 int fsu_mkdir(const char *path, const char *name);
+
+/**
+ * @brief Opens file, writes data, and closes file.
+ *
+ * @param path directory path
+ * @param name file name
+ * @param data pointer to data
+ * @param size maximum number of bytes to read
+ *
+ * @retval negative error code, number of bytes read on success.
+ */
+ssize_t fsu_read(const char *path, const char *name, void *data, size_t size);
 
 #ifdef __cplusplus
 }
