@@ -26,6 +26,9 @@ config BT_SCAN_VERBOSE_ADV_HANDLER
 	bool "Enable Verbose logging of advertisements"
 	depends on LCZ_BT_SCAN
 
+config LCZ_SENSOR_ADV_FORMAT
+	bool "Enable BLE Sensor Advertisement Format Module"
+
 endmenu
 
 endif
