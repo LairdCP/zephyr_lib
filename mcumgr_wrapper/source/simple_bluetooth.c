@@ -19,7 +19,7 @@ LOG_MODULE_REGISTER(simple_bluetooth);
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
 #include <bluetooth/gatt.h>
-#include <mgmt/smp_bt.h>
+#include <mgmt/mcumgr/smp_bt.h>
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */

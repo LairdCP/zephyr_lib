@@ -36,7 +36,7 @@ LOG_MODULE_REGISTER(mcumgr_wrapper);
 #include "stat_mgmt/stat_mgmt.h"
 #endif
 #ifdef CONFIG_MCUMGR_SMP_BT
-#include <mgmt/smp_bt.h>
+#include <mgmt/mcumgr/smp_bt.h>
 #endif
 #ifdef CONFIG_SIMPLE_BLUETOOTH
 #include "simple_bluetooth.h"

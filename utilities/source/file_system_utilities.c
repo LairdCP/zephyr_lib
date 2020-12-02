@@ -60,10 +60,11 @@ int fsu_lfs_mount(void)
 	k_mutex_lock(&lfs_init_mutex, K_FOREVER);
 	if (!lfs_mounted) {
 		rc = fs_mount(&littlefs_mnt);
-		if (rc < 0) {
+		if (rc != 0) {
 			LOG_ERR("Error mounting littlefs [%d]", rc);
+		} else {
+			lfs_mounted = true;
 		}
-		lfs_mounted = (rc == 0);
 
 		if (lfs_mounted) {
 			struct fs_statvfs stats;
@@ -298,16 +299,9 @@ int fsu_append_abs(const char *abs_path, void *data, size_t size)
 	}
 
 	struct fs_file_t handle;
-	int rc = fs_open(&handle, abs_path);
+	int rc = fs_open(&handle, abs_path, FS_O_CREATE | FS_O_APPEND);
 	if (rc < 0) {
 		LOG_ERR("Unable to open file %s for append",
-			log_strdup(abs_path));
-		return rc;
-	}
-
-	rc = fs_seek(&handle, 0, FS_SEEK_END);
-	if (rc < 0) {
-		LOG_ERR("Unable to seek file %s for append",
 			log_strdup(abs_path));
 		return rc;
 	}
