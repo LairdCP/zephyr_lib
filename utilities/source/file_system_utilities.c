@@ -131,22 +131,24 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 	/* Count matching items */
 	int rc = fs_opendir(&dir, path);
 	LOG_DBG("%s opendir: %d", log_strdup(path), rc);
-	struct fs_dirent entry;
-	while (rc >= 0) {
-		memset(&entry, 0, sizeof(struct fs_dirent));
-		rc = fs_readdir(&dir, &entry);
+	/* Use malloc because entry is 264 bytes when using LFS */
+	struct fs_dirent *entry = k_malloc(sizeof(struct fs_dirent));
+	while (rc >= 0 && (entry != NULL)) {
+		memset(entry, 0, sizeof(struct fs_dirent));
+		rc = fs_readdir(&dir, entry);
 		if (rc < 0) {
 			break;
 		}
-		if (entry.name[0] == 0) {
+		if (entry->name[0] == 0) {
 			LOG_DBG("End of files");
 			break;
 		}
-		if ((entry.type == entry_type) &&
-		    (strstr(entry.name, name) != NULL)) {
+		if ((entry->type == entry_type) &&
+		    (strstr(entry->name, name) != NULL)) {
 			(*count)++;
 		}
 	}
+	(void)k_free(entry);
 	(void)fs_closedir(&dir);
 
 	/* Make an array of matching items. */
