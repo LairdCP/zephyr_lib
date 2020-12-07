@@ -409,8 +409,8 @@ ssize_t fsu_read(const char *path, const char *name, void *data, size_t size)
 /* Local Function Definitions                                                 */
 /******************************************************************************/
 /* write or append */
-static int fsu_wa(const char *path, const char *name, void *data, size_t size,
-		  bool append)
+static ssize_t fsu_wa(const char *path, const char *name, void *data,
+		      size_t size, bool append)
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
@@ -436,7 +436,7 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 		}
 
 		struct fs_file_t handle;
-		ssize_t rc = fs_open(&handle, abs_path, flags);
+		rc = fs_open(&handle, abs_path, flags);
 		if (rc < 0) {
 			LOG_ERR("Unable to open file %s for %s",
 				log_strdup(abs_path), desc);
