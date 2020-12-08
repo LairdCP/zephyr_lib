@@ -45,6 +45,14 @@ ssize_t lcz_settings_write(char *name, void *data, size_t size);
  */
 ssize_t lcz_settings_read(char *name, void *data, size_t size);
 
+/**
+ * @brief Override in application to use a different file system mount
+ * point than the one used by the FSU module.
+ *
+ * @retval negative error code, 0 on success
+ */
+int lcz_settings_mount_fs(void);
+
 #ifdef __cplusplus
 }
 #endif

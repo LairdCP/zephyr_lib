@@ -32,7 +32,7 @@ LOG_MODULE_REGISTER(lcz_settings, CONFIG_LCZ_SETTINGS_LOG_LEVEL);
 /******************************************************************************/
 static bool settings_ready;
 const char settings_path[] =
-	CONFIG_FSU_MOUNT_POINT "/" CONFIG_LCZ_SETTINGS_PATH;
+	CONFIG_LCZ_SETTINGS_MOUNT_POINT "/" CONFIG_LCZ_SETTINGS_PATH;
 
 BUILD_ASSERT(sizeof(settings_path) <= CONFIG_FSU_MAX_PATH_SIZE,
 	     "Settings path too long");
@@ -74,10 +74,11 @@ static int lcz_settings_init(const struct device *device)
 	ARG_UNUSED(device);
 	int r = -EPERM;
 	do {
-		r = fsu_lfs_mount();
+		r = lcz_settings_mount_fs();
 		BREAK_ON_ERROR(r);
 
-		r = fsu_mkdir(CONFIG_FSU_MOUNT_POINT, CONFIG_LCZ_SETTINGS_PATH);
+		r = fsu_mkdir(CONFIG_LCZ_SETTINGS_MOUNT_POINT,
+			      CONFIG_LCZ_SETTINGS_PATH);
 		BREAK_ON_ERROR(r);
 
 		settings_ready = true;
@@ -86,4 +87,17 @@ static int lcz_settings_init(const struct device *device)
 
 	LOG_DBG("Init status: %d", r);
 	return r;
+}
+
+/******************************************************************************/
+/* If desired, override in application                                        */
+/******************************************************************************/
+__weak int lcz_settings_mount_fs(void)
+{
+	if (strcmp(CONFIG_LCZ_SETTINGS_MOUNT_POINT, CONFIG_FSU_MOUNT_POINT) ==
+	    0) {
+		return fsu_lfs_mount();
+	} else {
+		return -EPERM;
+	}
 }

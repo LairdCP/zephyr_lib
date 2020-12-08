@@ -17,8 +17,12 @@ config LCZ_SETTINGS_LOG_LEVEL
     range 0 4
 	default 3
 
+config LCZ_SETTINGS_MOUNT_POINT
+	string "File system mount point for Laird Connectivity settings"
+	default "/lfs"
+
 config LCZ_SETTINGS_PATH
 	string "Path to folder for settings"
-	default "settings"
+	default ""
 
 endif # LCZ_SETTINGS
