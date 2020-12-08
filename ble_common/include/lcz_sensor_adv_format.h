@@ -33,16 +33,13 @@ extern "C" {
 #define LAIRD_CONNECTIVITY_MANUFACTURER_SPECIFIC_COMPANY_ID2 0x00E4
 
 /* clang-format off */
-#define BT510_1M_PHY_AD_PROTOCOL_ID      0x0001
-#define BT510_CODED_PHY_AD_PROTOCOL_ID   0x0002
-#define BT510_1M_PHY_RSP_PROTOCOL_ID     0x0003
+#define BTXXX_1M_PHY_AD_PROTOCOL_ID      0x0001
+#define BTXXX_CODED_PHY_AD_PROTOCOL_ID   0x0002
+#define BTXXX_1M_PHY_RSP_PROTOCOL_ID     0x0003
 #define RS1XX_BOOTLOADER_AD_PROTOCOL_ID  0x0004
 #define RS1XX_BOOTLOADER_RSP_PROTOCOL_ID 0x0005
 #define RS1XX_SENSOR_AD_PROTOCOL_ID      0x0006
 #define RS1XX_SENSOR_RSP_PROTOCOL_ID     0x0007
-#define BT610_1M_PHY_AD_PROTOCOL_ID      0x0008
-#define BT610_1M_PHY_RSP_PROTOCOL_ID     0x0009
-#define BT610_EXT_AD_PROTOCOL_ID         0x000A
 /* clang-format on */
 
 #define ADV_FORMAT_HW_VERSION(major, minor) ((uint8_t)(((((uint32_t)(major)) << 3) & 0x000000F8) | ((((uint32_t)(minor)) << 0 ) & 0x00000007))
@@ -59,6 +56,11 @@ extern "C" {
 #define SENSOR_MAX_NAME_LENGTH                             12
 #define SENSOR_MAX_NAME_LENGTH_EXTENDED                    23
 #define SENSOR_RSP_LENGTH_MANUFACTURER_SPECIFIC            13
+/* clang-format on */
+
+/* clang-format off */
+#define BT510_PRODUCT_ID 0
+#define BT6XX_PRODUCT_ID 1
 /* clang-format on */
 
 /* Format of the Manufacturer Specific Data (MSD) using 1M PHY.
@@ -142,12 +144,9 @@ BUILD_ASSERT(sizeof(LczSensorAdCoded_t) == LCZ_SENSOR_MSD_CODED_PAYLOAD_LENGTH,
 
 /* Bytes used to differentiate advertisement types/sensors. */
 #define LCZ_SENSOR_AD_HEADER_SIZE 4
-extern const uint8_t BT510_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BT510_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BT510_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BT610_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BT610_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BT610_EXT_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BTXXX_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BTXXX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BTXXX_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 
 #ifdef __cplusplus
 }
