@@ -111,7 +111,7 @@ int lcz_params_parse_from_file(const char *fname, size_t *fsize, char **fstr,
 	do {
 		if (entry == NULL) {
 			r = -ENOMEM;
-			LOG_ERR("Alline failure");
+			LOG_ERR("Allocation failure");
 			break;
 		}
 
