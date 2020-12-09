@@ -127,6 +127,6 @@ config LCZ_RESET_ON_EXIT
 	help
 		Default Zephyr behavior is to wait forever.
 
-rsource "Kconfig.lcz_settings"
+rsource "Kconfig.lcz_params"
 
 endmenu

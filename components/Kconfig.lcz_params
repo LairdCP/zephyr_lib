@@ -1,0 +1,40 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# It is provided "as is", without warranty/guarantee of any kind, express of
+# implied, including but not limited to the warranties of merchantability,
+# fitness for a particular purpose and non-infringement.
+#
+
+menuconfig LCZ_PARAMS
+    bool "Enable Laird Connectivity Parameters Module"
+    depends on FILE_SYSTEM
+    depends on FILE_SYSTEM_UTILITIES
+    depends on CONFIG_HEAP_MEM_POOL_SIZE > 0
+
+if LCZ_PARAMS
+
+config LCZ_PARAMS_LOG_LEVEL
+    int "Log level for Parameters Module"
+    range 0 4
+    default 3
+
+config LCZ_PARAMS_LOG_VERBOSE
+    bool "Enable verbose debug logging for Parameters Module"
+    depends on LCZ_PARAMS_LOG_LEVEL = 4
+
+config LCZ_PARAMS_MOUNT_POINT
+    string "File system mount point for Laird Connectivity parameters"
+    default "/lfs"
+
+config LCZ_PARAMS_PATH
+    string "Folder (partial path) for parameters"
+    default ""
+    help
+        The default location for parameters written by the cloud is
+        "/lfs/params.txt".
+
+config LCZ_PARAMS_SHELL
+	bool "Enable parameters shell"
+
+endif # LCZ_PARAMS
