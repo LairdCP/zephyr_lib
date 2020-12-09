@@ -1,23 +1,16 @@
 #
 # Copyright (c) 2020 Laird Connectivity
 #
-menuconfig COMPONENT_LIB
-    bool "Component Library"
-        default y
-        help
-            Component Library
+menuconfig LCZ
+    bool "Laird Connectivity Zephyr Library"
 
-if COMPONENT_LIB
+if LCZ
 
-    rsource "drivers/piezo/Kconfig"
-    rsource "drivers/vibemotor/Kconfig"
-    rsource "drivers/accelerometer/Kconfig"
-    rsource "drivers/mg100_lis2dh/Kconfig"
-
-endif # COMPONENT_LIB
-
+rsource "drivers/Kconfig"
 rsource "ble_common/Kconfig"
 rsource "ble_services/Kconfig"
 rsource "components/Kconfig"
 rsource "utilities/Kconfig"
 rsource "mcumgr_wrapper/Kconfig"
+
+endif # LCZ

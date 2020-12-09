@@ -1,6 +1,11 @@
 #
 # Laird Connectivity Zephyr Utilities
 #
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
 zephyr_include_directories(include)
 
 zephyr_sources(source/hexcode.c)

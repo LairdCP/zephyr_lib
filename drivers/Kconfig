@@ -1,0 +1,17 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_DRIVER
+    bool "Laird Connectivity Zephyr Driver Library"
+
+if LCZ_DRIVER
+
+	rsource "piezo/Kconfig"
+	rsource "vibemotor/Kconfig"
+	rsource "accelerometer/Kconfig"
+	rsource "mg100_lis2dh/Kconfig"
+
+endif # LCZ_DRIVER

@@ -1,9 +1,7 @@
 #
 # Copyright (c) 2020 Laird Connectivity
 #
-# It is provided "as is", without warranty/guarantee of any kind, express of
-# implied, including but not limited to the warranties of merchantability,
-# fitness for a particular purpose and non-infringement.
+# SPDX-License-Identifier: Apache-2.0
 #
 
 menu "Laird Connectivity Zephyr Utilities"

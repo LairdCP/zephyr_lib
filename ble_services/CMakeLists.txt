@@ -1,6 +1,11 @@
 #
 # Laird Connectivity Zephyr BLE Services
 #
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
 zephyr_include_directories(../ble_common/include)
 zephyr_include_directories(../components/include)
 zephyr_include_directories(../utilities/include)

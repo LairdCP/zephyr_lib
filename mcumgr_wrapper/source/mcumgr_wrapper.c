@@ -8,16 +8,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#define LOG_LEVEL LOG_LEVEL_DBG
+
 #include <logging/log.h>
-LOG_MODULE_REGISTER(mcumgr_wrapper);
+LOG_MODULE_REGISTER(mcumgr_wrapper, LOG_LEVEL_DBG);
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
 #include <zephyr.h>
-#include <stats/stats.h>
 
+#ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
+#include <stats/stats.h>
+#endif
 #ifdef CONFIG_MCUMGR_CMD_FS_MGMT
 #include "fs_mgmt/fs_mgmt.h"
 #endif
@@ -38,35 +40,37 @@ LOG_MODULE_REGISTER(mcumgr_wrapper);
 #ifdef CONFIG_MCUMGR_SMP_BT
 #include <mgmt/mcumgr/smp_bt.h>
 #endif
-#ifdef CONFIG_SIMPLE_BLUETOOTH
+#ifdef CONFIG_LCZ_MCUMGR_SIMPLE_BLUETOOTH
 #include "simple_bluetooth.h"
 #endif
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
-
+#ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
 /* Define an example stats group; approximates time since boot. */
-STATS_SECT_START(smp_svr_stats)
+STATS_SECT_START(lcz_mcumgr_stats)
 STATS_SECT_ENTRY(timer_ticks)
 STATS_SECT_END;
 
 /* Assign a name to the `ticks` stat. */
-STATS_NAME_START(smp_svr_stats)
-STATS_NAME(smp_svr_stats, timer_ticks)
-STATS_NAME_END(smp_svr_stats);
+STATS_NAME_START(lcz_mcumgr_stats)
+STATS_NAME(lcz_mcumgr_stats, timer_ticks)
+STATS_NAME_END(lcz_mcumgr_stats);
 
 /* Define an instance of the stats group. */
-STATS_SECT_DECL(smp_svr_stats) smp_svr_stats;
+STATS_SECT_DECL(lcz_mcumgr_stats) lcz_mcumgr_stats;
 
-#if CONFIG_STATS_TICK_RATE_MS > 0
+#if CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0
 struct k_timer tick_timer;
+#endif
 #endif
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-#if CONFIG_STATS_TICK_RATE_MS > 0
+#if defined(CONFIG_MCUMGR_CMD_STAT_MGMT) &&                                    \
+	(CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0)
 static void tick_timer_callback_isr(struct k_timer *timer_id);
 #endif
 
@@ -75,12 +79,14 @@ static void tick_timer_callback_isr(struct k_timer *timer_id);
 /******************************************************************************/
 void mcumgr_wrapper_register_subsystems(void)
 {
-	int rc = STATS_INIT_AND_REG(smp_svr_stats, STATS_SIZE_32,
-				    "smp_svr_stats");
+#ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
+	int rc = STATS_INIT_AND_REG(lcz_mcumgr_stats, STATS_SIZE_32,
+				    "lcz_mcumgr_stats");
 
 	if (rc < 0) {
 		LOG_ERR("Error initializing stats system [%d]", rc);
 	}
+#endif
 
 	/* Register the built-in mcumgr command handlers. */
 #ifdef CONFIG_FILE_SYSTEM_LITTLEFS
@@ -99,10 +105,10 @@ void mcumgr_wrapper_register_subsystems(void)
 #endif
 #ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
 	stat_mgmt_register_group();
-#if CONFIG_STATS_TICK_RATE_MS > 0
+#if CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0
 	k_timer_init(&tick_timer, tick_timer_callback_isr, NULL);
-	k_timer_start(&tick_timer, K_MSEC(CONFIG_STATS_TICK_RATE_MS),
-		      K_MSEC(CONFIG_STATS_TICK_RATE_MS));
+	k_timer_start(&tick_timer, K_MSEC(CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS),
+		      K_MSEC(CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS));
 #endif
 #endif
 #ifdef CONFIG_MCUMGR_SMP_BT
@@ -116,10 +122,11 @@ void mcumgr_wrapper_register_subsystems(void)
 /******************************************************************************/
 /* Interrupt Service Routines                                                 */
 /******************************************************************************/
-#if CONFIG_STATS_TICK_RATE_MS > 0
+#if defined(CONFIG_MCUMGR_CMD_STAT_MGMT) &&                                    \
+	(CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0)
 static void tick_timer_callback_isr(struct k_timer *timer_id)
 {
 	ARG_UNUSED(timer_id);
-	STATS_INC(smp_svr_stats, timer_ticks);
+	STATS_INC(lcz_mcumgr_stats, timer_ticks);
 }
 #endif

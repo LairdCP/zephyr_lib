@@ -1,16 +1,14 @@
 #
 # Copyright (c) 2020 Laird Connectivity
 #
-# It is provided "as is", without warranty/guarantee of any kind, express of
-# implied, including but not limited to the warranties of merchantability,
-# fitness for a particular purpose and non-infringement.
+# SPDX-License-Identifier: Apache-2.0
 #
 
 menuconfig LCZ_PARAMS
     bool "Enable Laird Connectivity Parameters Module"
     depends on FILE_SYSTEM
     depends on FILE_SYSTEM_UTILITIES
-    depends on CONFIG_HEAP_MEM_POOL_SIZE > 0
+    depends on HEAP_MEM_POOL_SIZE > 0
 
 if LCZ_PARAMS
 
