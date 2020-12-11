@@ -1,0 +1,16 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_NO_INIT_RAM_VAR
+    bool "Enable non-initialized RAM variable module"
+
+if LCZ_NO_INIT_RAM_VAR
+
+config LCZ_NO_INIT_RAM_VAR_VALID_KEY
+    hex "Key used for determining if data is valid"
+    default 0xc0de1eaf
+
+endif # LCZ_NO_INIT_RAM_VAR

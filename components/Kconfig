@@ -127,5 +127,6 @@ config LCZ_RESET_ON_EXIT
 
 rsource "Kconfig.lcz_params"
 rsource "Kconfig.lcz_pwm_led"
+rsource "Kconfig.lcz_no_init_ram_var"
 
 endmenu
