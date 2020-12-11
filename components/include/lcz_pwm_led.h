@@ -1,22 +1,19 @@
 /**
- * @file LedPwm.h
- * @brief
+ * @file lcz_pwm_led.h
+ * @brief PWM LED Driver
  *
  * Copyright (c) 2020 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __LED_PWM_H__
-#define __LED_PWM_H__
+#ifndef __PWM_LED_H__
+#define __PWM_LED_H__
 
-/* (Remove Empty Sections) */
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
 #include <zephyr/types.h>
-#include <stddef.h>
-#include <kernel.h>
-#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,34 +21,38 @@ extern "C" {
 /******************************************************************************/
 /* Global Constants, Macros and Type Definitions                              */
 /******************************************************************************/
-typedef struct LedPwm
-{
-    uint8_t redDutyValue;
-    uint8_t greenDutyValue;
-    uint8_t blueDutyValue;
-}rgbLedColor_t;
-
-/******************************************************************************/
-/* Global Data Definitions                                                    */
-/******************************************************************************/
+typedef size_t pwm_led_index_t;
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
+
 /**
- * @brief
+ * @brief Turn on LED
  *
- * @param
- * @param
+ * @param index of PWM
+ * @param period in microseconds
+ * @param pulse_width i microseconds
  *
- * @retval
+ * @note A valid index is determined by DT aliases during compilation.
+ * If dts has led1pwm, led2pwm, and led3pwm then valid indices are 0, 1, 2.
+ *
+ * @retval negative error code, 0 on success
  */
-bool LedPwm_on(uint16_t ledNumber, uint32_t period, uint32_t pulseWidth);
-bool LedPwm_off(uint16_t ledNumber);
-void LedPwm_shutdown(void);
+int lcz_pwm_led_on(pwm_led_index_t index, uint32_t period,
+		   uint32_t pulse_width);
+
+/**
+ * @brief Turn off LED
+ *
+ * @param index of PWM
+ *
+ * @retval negative error code, 0 on success
+ */
+int lcz_pwm_led_off(pwm_led_index_t index);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TEMPLATE_H__ */
+#endif /* __PWM_LED_H__ */

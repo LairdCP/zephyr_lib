@@ -1,0 +1,23 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_PWM_LED
+    bool "Enable LCZ PWM Led driver"
+    depends on PWM
+
+if LCZ_PWM_LED
+
+config LCZ_PWM_LED_PINS
+    int "The number of PWM LEDs pins"
+    range 1 9
+    default 8
+
+config LCZ_PWM_LED_LOG_LEVEL
+    int "Log level for PWM LED Module"
+    range 0 4
+    default 3
+
+endif # LCZ_PWM_LED
