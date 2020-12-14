@@ -68,7 +68,7 @@ static struct adc_channel_cfg m_1st_channel_cfg = {
 #elif defined CONFIG_BOARD_MG100
 	.input_positive = NRF_SAADC_INPUT_AIN0
 #else
-	#error "An ADC input must be defined for this hardware variant."
+#error "An ADC input must be defined for this hardware variant."
 #endif
 };
 
@@ -84,7 +84,7 @@ static bool timer_enabled;
 
 static void power_adc_to_voltage(int16_t adc, float scaling,
 				 uint8_t *voltage_int, uint8_t *voltage_dec);
-static bool power_measure_adc(struct device *adc_dev, enum adc_gain gain,
+static bool power_measure_adc(const struct device *adc_dev, enum adc_gain gain,
 			      const struct adc_sequence sequence);
 static void power_run(void);
 static void system_workq_power_timer_handler(struct k_work *item);
@@ -169,7 +169,7 @@ static void power_adc_to_voltage(int16_t adc, float scaling,
 			ADC_DECIMAL_DIVISION_FACTOR);
 }
 
-static bool power_measure_adc(struct device *adc_dev, enum adc_gain gain,
+static bool power_measure_adc(const struct device *adc_dev, enum adc_gain gain,
 			      const struct adc_sequence sequence)
 {
 	int ret = 0;
@@ -200,7 +200,7 @@ static void power_run(void)
 	bool finished = false;
 
 	/* Find the ADC device */
-	struct device *adc_dev = device_get_binding(ADC0);
+	const struct device *adc_dev = device_get_binding(ADC0);
 	if (adc_dev == NULL) {
 		LOG_ERR("ADC device name %s not found", ADC0);
 		return;
