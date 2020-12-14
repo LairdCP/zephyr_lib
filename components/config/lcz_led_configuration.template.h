@@ -1,18 +1,18 @@
 /**
- * @file led_configuration.h
+ * @file lcz_led_configuration.h
  * @brief Example LED configuration file.
  *
  * Copyright (c) 2020 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __LED_CONFIGURATION_H__
-#define __LED_CONFIGURATION_H__
+#ifndef __LCZ_LED_CONFIGURATION_H__
+#define __LCZ_LED_CONFIGURATION_H__
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include "laird_led.h"
+#include "lcz_led.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,10 +37,10 @@ enum led_index {
 	RED_LED3,
 	GREEN_LED4, /* not recommended for use - reserved for bootloader */
 };
-BUILD_ASSERT(CONFIG_NUMBER_OF_LEDS > GREEN_LED4, "LED object too small");
+BUILD_ASSERT(CONFIG_LCZ_NUMBER_OF_LEDS > GREEN_LED4, "LED object too small");
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __LED_CONFIGURATION_H__ */
+#endif /* __LCZ_LED_CONFIGURATION_H__ */

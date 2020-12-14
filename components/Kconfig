@@ -12,28 +12,6 @@ config LCZ_QRTC
 	help
 		Uses an offset with uptime to replicate functionality of an RTC
 
-config LCZ_LED
-	bool "Enable the LED component"
-	help
-		Simple on/off and pattern control for multiple LEDs.
-		Doesn't use PWM.
-
-config DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK
-	int "On time in milliseconds"
-	range 1 999
-	default 100
-
-config DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK
-	int "Off time in milliseconds"
-	range 1 999
-	default 900
-
-config NUMBER_OF_LEDS
-	int "Number of LEDS"
-	depends on LCZ_LED
-	default 4
-	range 1 31
-
 config LCZ_DNS
 	bool "Wrapper for DNS resolver that provides retries and debug printing"
 	depends on DNS_RESOLVER
@@ -97,6 +75,7 @@ config LCZ_NFC
 	select NFC_NDEF_TNEP_RECORD
 
 if LCZ_NFC
+
 config LCZ_NFC_REC1_STR
 	string "NFC Record 1 String"
 	default "https://apps.apple.com/us/app/laird-pinnacle-connect/id1481075861?ls=1"
@@ -104,7 +83,8 @@ config LCZ_NFC_REC1_STR
 config LCZ_NFC_REC2_STR
 	string "NFC Record 2 String"
 	default "http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect"
-endif
+
+endif # LCZ_NFC
 
 config LCZ_SOCK
 	bool "Wrapper for single socket"
@@ -126,6 +106,7 @@ config LCZ_RESET_ON_EXIT
 		Default Zephyr behavior is to wait forever.
 
 rsource "Kconfig.lcz_params"
+rsource "Kconfig.lcz_led"
 rsource "Kconfig.lcz_pwm_led"
 rsource "Kconfig.lcz_no_init_ram_var"
 

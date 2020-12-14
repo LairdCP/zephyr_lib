@@ -1,0 +1,39 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_LED
+	bool "Enable the LED component"
+	help
+		Simple on/off and pattern control for multiple LEDs.
+
+if LCZ_LED
+
+config LCZ_LED_LOG_LEVEL
+    int "Log level for LED Module"
+    range 0 4
+    default 3
+
+config LCZ_LED_CUSTOM_ON_OFF
+	bool "Allow custom on/off functions"
+	help
+		When this is selected the LED driver will not initialize pins.
+
+config DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK
+	int "On time in milliseconds"
+	range 1 999
+	default 100
+
+config DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK
+	int "Off time in milliseconds"
+	range 1 999
+	default 900
+
+config LCZ_NUMBER_OF_LEDS
+	int "Number of LEDS"
+	default 4
+	range 1 31
+
+endif # LCZ_LED

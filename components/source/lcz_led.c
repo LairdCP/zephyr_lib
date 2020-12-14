@@ -1,5 +1,5 @@
 /**
- * @file laird_led.c
+ * @file lcz_led.c
  * @brief LED control
  *
  * Copyright (c) 2020 Laird Connectivity
@@ -8,10 +8,7 @@
  */
 
 #include <logging/log.h>
-#define LOG_LEVEL LOG_LEVEL_INF
-LOG_MODULE_REGISTER(laird_led);
-
-#define LED_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
+LOG_MODULE_REGISTER(lcz_led, CONFIG_LCZ_LED_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -19,7 +16,7 @@ LOG_MODULE_REGISTER(laird_led);
 #include <drivers/gpio.h>
 #include <kernel.h>
 
-#include "laird_led.h"
+#include "lcz_led.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -42,11 +39,16 @@ enum led_blink_state {
 
 struct led {
 	enum led_state state;
-	struct device *device_handle;
+#ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+	void (*on)(void);
+	void (*off)(void);
+#else
+	const struct device *device_handle;
 	uint32_t pin;
 	bool on_when_high;
+#endif
 	bool pattern_busy;
-	struct led_blink_pattern pattern;
+	struct lcz_led_blink_pattern pattern;
 	struct k_timer timer;
 	struct k_work work;
 	void (*pattern_complete_function)(void);
@@ -56,7 +58,7 @@ struct led {
 /* Local Data Definitions                                                     */
 /******************************************************************************/
 static struct k_mutex led_mutex;
-static struct led led[CONFIG_NUMBER_OF_LEDS];
+static struct led led[CONFIG_LCZ_NUMBER_OF_LEDS];
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -66,30 +68,43 @@ static void system_workq_led_timer_handler(struct k_work *item);
 static void turn_on(struct led *pLed);
 static void turn_off(struct led *pLed);
 static void change_state(struct led *pLed, bool state, bool blink);
-static void led_bind_and_configure(struct led_configuration *pConfig);
+
+#ifndef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+static void led_bind_and_configure(struct lcz_led_configuration *pConfig);
 static void led_bind_device(led_index_t index, const char *name);
 static void led_configure_pin(led_index_t index, uint32_t pin);
+#endif
 
 static bool valid_index(led_index_t index);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void led_init(struct led_configuration *pConfig, size_t size)
+void lcz_led_init(struct lcz_led_configuration *pConfig, size_t size)
 {
+	size_t i;
+	struct lcz_led_configuration *pc = pConfig;
+
 	k_mutex_init(&led_mutex);
 	TAKE_MUTEX(led_mutex);
-	size_t i;
-	for (i = 0; i < MIN(size, CONFIG_NUMBER_OF_LEDS); i++) {
+
+	for (i = 0; i < MIN(size, CONFIG_LCZ_NUMBER_OF_LEDS); i++) {
 		k_timer_init(&led[i].timer, led_timer_callback, NULL);
 		k_timer_user_data_set(&led[i].timer, &led[i]);
 		k_work_init(&led[i].work, system_workq_led_timer_handler);
-		led_bind_and_configure(pConfig + i);
+#ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+		led[i].on = pc->on;
+		led[i].off = pc->off;
+		turn_off(&led[i]);
+#else
+		led_bind_and_configure(pc);
+#endif
+		pc += 1;
 	}
 	GIVE_MUTEX(led_mutex);
 }
 
-void led_turn_on(led_index_t index)
+void lcz_led_turn_on(led_index_t index)
 {
 	if (!valid_index(index)) {
 		return;
@@ -99,7 +114,7 @@ void led_turn_on(led_index_t index)
 	GIVE_MUTEX(led_mutex);
 }
 
-void led_turn_off(led_index_t index)
+void lcz_led_turn_off(led_index_t index)
 {
 	if (!valid_index(index)) {
 		return;
@@ -109,7 +124,8 @@ void led_turn_off(led_index_t index)
 	GIVE_MUTEX(led_mutex);
 }
 
-void led_blink(led_index_t index, struct led_blink_pattern const *pPattern)
+void lcz_led_blink(led_index_t index,
+		   struct lcz_led_blink_pattern const *pPattern)
 {
 	if (!valid_index(index)) {
 		return;
@@ -118,7 +134,7 @@ void led_blink(led_index_t index, struct led_blink_pattern const *pPattern)
 		TAKE_MUTEX(led_mutex);
 		led[index].pattern_busy = true;
 		memcpy(&led[index].pattern, pPattern,
-		       sizeof(struct led_blink_pattern));
+		       sizeof(struct lcz_led_blink_pattern));
 		led[index].pattern.on_time =
 			MAX(led[index].pattern.on_time, MINIMUM_ON_TIME_MSEC);
 		led[index].pattern.off_time =
@@ -130,8 +146,8 @@ void led_blink(led_index_t index, struct led_blink_pattern const *pPattern)
 	}
 }
 
-void led_register_pattern_complete_function(led_index_t index,
-					    void (*function)(void))
+void lcz_led_register_pattern_complete_function(led_index_t index,
+						void (*function)(void))
 {
 	if (!valid_index(index)) {
 		return;
@@ -141,7 +157,7 @@ void led_register_pattern_complete_function(led_index_t index,
 	GIVE_MUTEX(led_mutex);
 }
 
-bool led_pattern_busy(led_index_t index)
+bool lcz_led_pattern_busy(led_index_t index)
 {
 	bool result = false;
 	if (!valid_index(index)) {
@@ -156,9 +172,10 @@ bool led_pattern_busy(led_index_t index)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void led_bind_and_configure(struct led_configuration *pConfig)
+#ifndef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+static void led_bind_and_configure(struct lcz_led_configuration *pConfig)
 {
-	if (pConfig->index >= CONFIG_NUMBER_OF_LEDS) {
+	if (pConfig->index >= CONFIG_LCZ_NUMBER_OF_LEDS) {
 		__ASSERT(false, "Invalid LED Index");
 		return;
 	}
@@ -171,7 +188,7 @@ static void led_bind_device(led_index_t index, const char *name)
 {
 	led[index].device_handle = device_get_binding(name);
 	if (!led[index].device_handle) {
-		LED_LOG_ERR("Cannot find %s!", name);
+		LOG_ERR("Cannot find %s!", name);
 	}
 }
 
@@ -182,14 +199,15 @@ static void led_configure_pin(led_index_t index, uint32_t pin)
 	ret = gpio_pin_configure(led[index].device_handle, led[index].pin,
 				 (GPIO_OUTPUT));
 	if (ret) {
-		LED_LOG_ERR("Error configuring GPIO");
+		LOG_ERR("Error configuring GPIO");
 	}
 	ret = gpio_pin_set(led[index].device_handle, led[index].pin,
 			   led[index].on_when_high ? 0 : 1);
 	if (ret) {
-		LED_LOG_ERR("Error setting GPIO state");
+		LOG_ERR("Error setting GPIO state");
 	}
 }
+#endif
 
 static void system_workq_led_timer_handler(struct k_work *item)
 {
@@ -246,19 +264,31 @@ static void change_state(struct led *pLed, bool state, bool blink)
 
 static void turn_on(struct led *pLed)
 {
+#ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+	if (pLed->on != NULL) {
+		pLed->on();
+	}
+#else
 	gpio_pin_set(pLed->device_handle, pLed->pin,
 		     pLed->on_when_high ? 1 : 0);
+#endif
 }
 
 static void turn_off(struct led *pLed)
 {
+#ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+	if (pLed->off != NULL) {
+		pLed->off();
+	}
+#else
 	gpio_pin_set(pLed->device_handle, pLed->pin,
 		     pLed->on_when_high ? 0 : 1);
+#endif
 }
 
 static bool valid_index(led_index_t index)
 {
-	if (index < CONFIG_NUMBER_OF_LEDS) {
+	if (index < CONFIG_LCZ_NUMBER_OF_LEDS) {
 		return true;
 	} else {
 		__ASSERT(false, "Invalid LED Index");

@@ -1,13 +1,13 @@
 /**
- * @file laird_led.h
+ * @file lcz_led.h
  * @brief On/Off and simple blink patterns for LED.
  *
  * Copyright (c) 2020 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __LED_H__
-#define __LED_H__
+#ifndef __LCZ_LED_H__
+#define __LCZ_LED_H__
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -31,24 +31,31 @@ typedef size_t led_index_t;
  * If the repeat count is 2 the pattern will be displayed 3
  * times (repeated twice).
  */
-struct led_blink_pattern {
+typedef struct lcz_led_blink_pattern {
 	uint32_t on_time;
 	uint32_t off_time;
 	uint32_t repeat_count;
-};
+} lcz_led_blink_pattern_;
 
 #define REPEAT_INDEFINITELY (0xFFFFFFFF)
 
-struct led_configuration {
-	/* LED often (may be enumerated in led_configuration.h) */
+typedef struct lcz_led_configuration {
+	/* LED index may be enumerated in lcz_led_configuration.h */
 	led_index_t index;
+
+#ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
+	void (*on)(void);
+	void (*off)(void);
+#else
 	/* from device tree */
-	char *dev_name;
+	const char *const dev_name;
 	/* from device tree */
 	uint32_t pin;
 	/* polarity.  on_when_high should be true when '1' turns on LED */
 	bool on_when_high;
-};
+#endif
+
+} lcz_led_configuration_t;
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
@@ -60,40 +67,41 @@ struct led_configuration {
  * Creates mutex used by on/off/blink functions.
  *
  */
-void led_init(struct led_configuration *pConfig, size_t size);
+void lcz_led_init(struct lcz_led_configuration *pConfig, size_t size);
 
 /**
  * @param index is a Valid LED
  */
-void led_turn_on(led_index_t index);
+void lcz_led_turn_on(led_index_t index);
 
 /**
  * @param index is a Valid LED
  */
-void led_turn_off(led_index_t index);
+void lcz_led_turn_off(led_index_t index);
 
 /**
  * @param index is a Valid LED
- * @param led_blink_pattern @ref struct led_blink_pattern
+ * @param lcz_led_blink_pattern @ref struct lcz_led_blink_pattern
  *
  * @note The pattern is copied by the LED driver.
  */
-void led_blink(led_index_t index, struct led_blink_pattern const *pPattern);
+void lcz_led_blink(led_index_t index,
+		   struct lcz_led_blink_pattern const *pPattern);
 
 /**
  * @param param function called in system work queue context
  * when pattern is complete (use NULL to disable).
  */
-void led_register_pattern_complete_function(led_index_t index,
-					    void (*function)(void));
+void lcz_led_register_pattern_complete_function(led_index_t index,
+						void (*function)(void));
 
 /**
  * @param retval true if a blink pattern is running, false if it is complete
  */
-bool led_pattern_busy(led_index_t index);
+bool lcz_led_pattern_busy(led_index_t index);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __LED_H__ */
+#endif /* __LCZ_LED_H__ */
