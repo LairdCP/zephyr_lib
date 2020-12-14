@@ -25,9 +25,11 @@ LOG_MODULE_REGISTER(lairdconnect_nfc);
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-#define NFC_HEADER			16
-#define REC_OVERHEAD		5
-#define NDEF_MSG_BUF_SIZE	(NFC_HEADER + (MAX_REC_PAYLOAD * MAX_REC_COUNT) + (REC_OVERHEAD * MAX_REC_COUNT))
+#define NFC_HEADER 16
+#define REC_OVERHEAD 5
+#define NDEF_MSG_BUF_SIZE                                                      \
+	(NFC_HEADER + (MAX_REC_PAYLOAD * MAX_REC_COUNT) +                      \
+	 (REC_OVERHEAD * MAX_REC_COUNT))
 
 /******************************************************************************/
 /* Global Data Definitions                                                    */
@@ -51,7 +53,7 @@ static uint8_t ndef_msg_buf[NDEF_MSG_BUF_SIZE];
 /******************************************************************************/
 static void nfc_callback(void *context, enum nfc_t2t_event event,
 			 const uint8_t *data, size_t data_length);
-static int device_msg_encode(uint8_t *buffer, u32_t *len);
+static int device_msg_encode(uint8_t *buffer, uint32_t *len);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -89,10 +91,8 @@ int laird_connectivity_nfc_init()
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void nfc_callback(void *context,
-			 enum nfc_t2t_event event,
-			 const uint8_t *data,
-			 size_t data_length)
+static void nfc_callback(void *context, enum nfc_t2t_event event,
+			 const uint8_t *data, size_t data_length)
 {
 	ARG_UNUSED(context);
 	ARG_UNUSED(data);
@@ -111,45 +111,35 @@ static void nfc_callback(void *context,
 	}
 }
 
-static int device_msg_encode(uint8_t *buffer, u32_t *len)
+static int device_msg_encode(uint8_t *buffer, uint32_t *len)
 {
 	int err;
 
 	NFC_NDEF_MSG_DEF(nfc_text_msg, MAX_REC_COUNT);
 
+	NFC_NDEF_TEXT_RECORD_DESC_DEF(payload_1_rec, UTF_8, en_code,
+				      sizeof(en_code), p1_str, strlen(p1_str));
+	NFC_NDEF_TEXT_RECORD_DESC_DEF(payload_2_rec, UTF_8, en_code,
+				      sizeof(en_code), p2_str, strlen(p2_str));
 
-	NFC_NDEF_TEXT_RECORD_DESC_DEF(payload_1_rec,
-				UTF_8,
-				en_code,
-				sizeof(en_code),
-				p1_str,
-				strlen(p1_str));
-	NFC_NDEF_TEXT_RECORD_DESC_DEF(payload_2_rec,
-				UTF_8,
-				en_code,
-				sizeof(en_code),
-				p2_str,
-				strlen(p2_str));
-
-	err = nfc_ndef_msg_record_add(&NFC_NDEF_MSG(nfc_text_msg),
-			&NFC_NDEF_TEXT_RECORD_DESC(payload_1_rec));
+	err = nfc_ndef_msg_record_add(
+		&NFC_NDEF_MSG(nfc_text_msg),
+		&NFC_NDEF_TEXT_RECORD_DESC(payload_1_rec));
 	if (err < 0) {
 		LOG_ERR("Failed to add payload_1 record. Error = %d", err);
 	}
 
-	err = nfc_ndef_msg_record_add(&NFC_NDEF_MSG(nfc_text_msg),
-			&NFC_NDEF_TEXT_RECORD_DESC(payload_2_rec));
+	err = nfc_ndef_msg_record_add(
+		&NFC_NDEF_MSG(nfc_text_msg),
+		&NFC_NDEF_TEXT_RECORD_DESC(payload_2_rec));
 	if (err < 0) {
 		LOG_ERR("Failed to add payload_2 record. Error = %d", err);
 	}
 
-	err = nfc_ndef_msg_encode(&NFC_NDEF_MSG(nfc_text_msg),
-				      buffer,
-				      len);
+	err = nfc_ndef_msg_encode(&NFC_NDEF_MSG(nfc_text_msg), buffer, len);
 	if (err < 0) {
 		LOG_ERR("Failed to encode message. Error = %d", err);
 	}
 
 	return (err);
 }
-
