@@ -19,36 +19,27 @@
 
 LOG_MODULE_DECLARE(lis2dh, CONFIG_SENSOR_LOG_LEVEL);
 
-static int lis2dh_raw_read(struct device *dev, u8_t reg_addr,
-			    u8_t *value, u8_t len)
+static int lis2dh_raw_read(const struct device *dev, uint8_t reg_addr,
+			   uint8_t *value, uint8_t len)
 {
 	struct lis2dh_data *data = dev->driver_data;
 	const struct lis2dh_config *cfg = dev->config_info;
 	const struct spi_config *spi_cfg = &cfg->spi_conf;
-	u8_t buffer_tx[2] = { reg_addr | LIS2DH_SPI_READ_BIT, 0 };
+	uint8_t buffer_tx[2] = { reg_addr | LIS2DH_SPI_READ_BIT, 0 };
 	const struct spi_buf tx_buf = {
-			.buf = buffer_tx,
-			.len = 2,
+		.buf = buffer_tx,
+		.len = 2,
 	};
-	const struct spi_buf_set tx = {
-		.buffers = &tx_buf,
-		.count = 1
-	};
-	const struct spi_buf rx_buf[2] = {
-		{
-			.buf = NULL,
-			.len = 1,
-		},
-		{
-			.buf = value,
-			.len = len,
-		}
-	};
-	const struct spi_buf_set rx = {
-		.buffers = rx_buf,
-		.count = 2
-	};
-
+	const struct spi_buf_set tx = { .buffers = &tx_buf, .count = 1 };
+	const struct spi_buf rx_buf[2] = { {
+						   .buf = NULL,
+						   .len = 1,
+					   },
+					   {
+						   .buf = value,
+						   .len = len,
+					   } };
+	const struct spi_buf_set rx = { .buffers = rx_buf, .count = 2 };
 
 	if (len > 64) {
 		return -EIO;
@@ -65,28 +56,22 @@ static int lis2dh_raw_read(struct device *dev, u8_t reg_addr,
 	return 0;
 }
 
-static int lis2dh_raw_write(struct device *dev, u8_t reg_addr,
-			     u8_t *value, u8_t len)
+static int lis2dh_raw_write(const struct device *dev, uint8_t reg_addr,
+			    uint8_t *value, uint8_t len)
 {
 	struct lis2dh_data *data = dev->driver_data;
 	const struct lis2dh_config *cfg = dev->config_info;
 	const struct spi_config *spi_cfg = &cfg->spi_conf;
-	u8_t buffer_tx[1] = { reg_addr & ~LIS2DH_SPI_READ_BIT };
-	const struct spi_buf tx_buf[2] = {
-		{
-			.buf = buffer_tx,
-			.len = 1,
-		},
-		{
-			.buf = value,
-			.len = len,
-		}
-	};
-	const struct spi_buf_set tx = {
-		.buffers = tx_buf,
-		.count = 2
-	};
-
+	uint8_t buffer_tx[1] = { reg_addr & ~LIS2DH_SPI_READ_BIT };
+	const struct spi_buf tx_buf[2] = { {
+						   .buf = buffer_tx,
+						   .len = 1,
+					   },
+					   {
+						   .buf = value,
+						   .len = len,
+					   } };
+	const struct spi_buf_set tx = { .buffers = tx_buf, .count = 2 };
 
 	if (len > 64) {
 		return -EIO;
@@ -103,36 +88,36 @@ static int lis2dh_raw_write(struct device *dev, u8_t reg_addr,
 	return 0;
 }
 
-static int lis2dh_spi_read_data(struct device *dev, u8_t reg_addr,
-				 u8_t *value, u8_t len)
+static int lis2dh_spi_read_data(const struct device *dev, uint8_t reg_addr,
+				uint8_t *value, uint8_t len)
 {
 	return lis2dh_raw_read(dev, reg_addr, value, len);
 }
 
-static int lis2dh_spi_write_data(struct device *dev, u8_t reg_addr,
-				  u8_t *value, u8_t len)
+static int lis2dh_spi_write_data(const struct device *dev, uint8_t reg_addr,
+				 uint8_t *value, uint8_t len)
 {
 	return lis2dh_raw_write(dev, reg_addr, value, len);
 }
 
-static int lis2dh_spi_read_reg(struct device *dev, u8_t reg_addr,
-				u8_t *value)
+static int lis2dh_spi_read_reg(const struct device *dev, uint8_t reg_addr,
+			       uint8_t *value)
 {
 	return lis2dh_raw_read(dev, reg_addr, value, 1);
 }
 
-static int lis2dh_spi_write_reg(struct device *dev, u8_t reg_addr,
-				u8_t value)
+static int lis2dh_spi_write_reg(const struct device *dev, uint8_t reg_addr,
+				uint8_t value)
 {
-	u8_t tmp_val = value;
+	uint8_t tmp_val = value;
 
 	return lis2dh_raw_write(dev, reg_addr, &tmp_val, 1);
 }
 
-static int lis2dh_spi_update_reg(struct device *dev, u8_t reg_addr,
-				  u8_t mask, u8_t value)
+static int lis2dh_spi_update_reg(const struct device *dev, uint8_t reg_addr,
+				 uint8_t mask, uint8_t value)
 {
-	u8_t tmp_val;
+	uint8_t tmp_val;
 
 	lis2dh_raw_read(dev, reg_addr, &tmp_val, 1);
 	tmp_val = (tmp_val & ~mask) | (value & mask);
@@ -143,12 +128,12 @@ static int lis2dh_spi_update_reg(struct device *dev, u8_t reg_addr,
 static const struct lis2dh_transfer_function lis2dh_spi_transfer_fn = {
 	.read_data = lis2dh_spi_read_data,
 	.write_data = lis2dh_spi_write_data,
-	.read_reg  = lis2dh_spi_read_reg,
-	.write_reg  = lis2dh_spi_write_reg,
+	.read_reg = lis2dh_spi_read_reg,
+	.write_reg = lis2dh_spi_write_reg,
 	.update_reg = lis2dh_spi_update_reg,
 };
 
-int lis2dh_spi_init(struct device *dev)
+int lis2dh_spi_init(const struct device *dev)
 {
 	struct lis2dh_data *data = dev->driver_data;
 
@@ -167,8 +152,8 @@ int lis2dh_spi_init(struct device *dev)
 	data->cs_ctrl.gpio_pin = cfg->cs_gpio;
 	data->cs_ctrl.delay = 0;
 
-	LOG_DBG("SPI GPIO CS configured on %s:%u",
-		cfg->gpio_cs_port, cfg->cs_gpio);
+	LOG_DBG("SPI GPIO CS configured on %s:%u", cfg->gpio_cs_port,
+		cfg->cs_gpio);
 #endif
 
 	return 0;
