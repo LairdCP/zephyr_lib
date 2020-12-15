@@ -32,6 +32,18 @@ config LCZ_PARAMS_PATH
         The default location for parameters written by the cloud is
         "/lfs/params.txt".
 
+config PARAMS_MAX_FILE_LENGTH
+    int "Maximum length of the parameter file"
+    default 1000
+    help
+        This should be set by the code generator.
+
+config PARAMS_MAX_VALUE_LENGTH
+    int "Maximum value of a parameter in hex/string form"
+    default 96
+    help
+        This should be set by the code generator.
+
 config LCZ_PARAMS_SHELL
 	bool "Enable parameters shell"
 

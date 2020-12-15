@@ -38,11 +38,7 @@ LOG_MODULE_REGISTER(lcz_params, CONFIG_LCZ_PARAMS_LOG_LEVEL);
 #define EOL_CHAR '\n'
 #define CR_CHAR '\r'
 
-/* todo: these need to be configurable and set by our tool/code generator. */
-#define PARAMS_MAX_FILE_LENGTH 1000
-#define PARAMS_MAX_VALUE_LENGTH 96
-
-#define PARAMS_MAX_FILE_SIZE (PARAMS_MAX_FILE_LENGTH + 1)
+#define PARAMS_MAX_FILE_SIZE (CONFIG_PARAMS_MAX_FILE_LENGTH + 1)
 
 #define PARAMS_MAX_ID_BYTES sizeof(param_id_t)
 #define PARAMS_MAX_ID_LENGTH (PARAMS_MAX_ID_BYTES * 2)
@@ -209,7 +205,7 @@ int lcz_params_validate_file(const char *str, size_t length)
 			}
 		} else if (str[i] == EOL_CHAR) {
 			newlines += 1;
-			if (distance > PARAMS_MAX_VALUE_LENGTH) {
+			if (distance > CONFIG_PARAMS_MAX_VALUE_LENGTH) {
 				r = -EINVAL;
 				LOG_ERR("Invalid Size of %d at %u", distance,
 					i);
@@ -369,7 +365,7 @@ static int append_parameter(param_id_t id, param_t type, const void *data,
 static bool room_for_id(size_t current_length)
 {
 	return ((current_length + PARAMS_MAX_ID_LENGTH + SIZE_OF_DELIMITER) <
-		PARAMS_MAX_FILE_LENGTH);
+		CONFIG_PARAMS_MAX_FILE_LENGTH);
 }
 
 static int append_id(char *str, size_t *length, param_id_t id)
@@ -402,9 +398,9 @@ static int append_id(char *str, size_t *length, param_id_t id)
  */
 static bool room_for_value(size_t current_length, size_t dsize)
 {
-	return ((dsize < PARAMS_MAX_VALUE_LENGTH) &&
+	return ((dsize < CONFIG_PARAMS_MAX_VALUE_LENGTH) &&
 		((current_length + dsize + SIZE_OF_DELIMITER + SIZE_OF_NUL) <
-		 PARAMS_MAX_FILE_LENGTH));
+		 CONFIG_PARAMS_MAX_FILE_LENGTH));
 }
 
 static int append_value(char *str, size_t *length, param_t type,
@@ -415,9 +411,9 @@ static int append_value(char *str, size_t *length, param_t type,
 	if (room_for_value(*length, dsize)) {
 		switch (type) {
 		case PARAM_BIN:
-			val_len =
-				bin2hex(data, dsize, &str[*length],
-					PARAMS_MAX_VALUE_LENGTH + SIZE_OF_NUL);
+			val_len = bin2hex(data, dsize, &str[*length],
+					  CONFIG_PARAMS_MAX_VALUE_LENGTH +
+						  SIZE_OF_NUL);
 			if (val_len == 0) {
 				r = -EINVAL;
 				LOG_ERR("Value conversion error");
