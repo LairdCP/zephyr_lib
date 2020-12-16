@@ -8,8 +8,7 @@
  */
 
 #include <logging/log.h>
-#define LOG_LEVEL LOG_LEVEL_INF
-LOG_MODULE_REGISTER(fsu);
+LOG_MODULE_REGISTER(fsu, CONFIG_FSU_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -405,6 +404,54 @@ ssize_t fsu_read(const char *path, const char *name, void *data, size_t size)
 	return rc;
 }
 
+ssize_t fsu_get_file_size_abs(const char *abs_path)
+{
+	ssize_t r = -EPERM;
+	struct fs_dirent *entry = k_malloc(sizeof(struct fs_dirent));
+
+	do {
+		if (entry == NULL) {
+			r = -ENOMEM;
+			LOG_ERR("Allocation failure");
+			break;
+		}
+
+		r = fs_stat(abs_path, entry);
+		if (r < 0) {
+			LOG_ERR("%s not found", log_strdup(abs_path));
+			break;
+		} else {
+			r = entry->size;
+		}
+
+	} while (0);
+
+	k_free(entry);
+
+	return r;
+}
+
+ssize_t fsu_get_file_size(const char *path, const char *name)
+{
+	ssize_t r = -EPERM;
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+
+	do {
+		if (path == NULL || name == NULL) {
+			LOG_ERR("Invalid path or name");
+			break;
+		}
+
+		r = fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+		BREAK_ON_ERROR(r);
+
+		r = fsu_get_file_size_abs(abs_path);
+
+	} while (0);
+
+	return r;
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -429,6 +476,7 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 	fs_mode_t flags = FS_O_CREATE | (append ? FS_O_APPEND : FS_O_WRITE);
 	const char *desc = append ? "append" : "write";
 	ssize_t rc = -EPERM;
+
 	do {
 		if (abs_path == NULL) {
 			LOG_ERR("Invalid path + file name");
@@ -443,21 +491,44 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 		}
 		BREAK_ON_ERROR(rc);
 
+		/* When rewriting a file the size must be updated. */
+		if (rc >= 0 && !append) {
+			rc = fs_truncate(&handle, size);
+		}
+
 		rc = fs_write(&handle, data, size);
 		if (rc < 0) {
 			LOG_ERR("Unable to %s file %s", desc,
 				log_strdup(abs_path));
+		} else if (rc != size) {
+			rc = -ENOSPC;
+			LOG_ERR("Disk Full: Unable to %s file %s", desc,
+				log_strdup(abs_path));
 		} else {
 			LOG_DBG("%s %s (%d)", log_strdup(abs_path), desc, rc);
 		}
-		BREAK_ON_ERROR(rc);
 
 		int rc2 = fs_close(&handle);
 		if (rc2 < 0) {
 			LOG_ERR("Unable to close file");
+			/* Don't mask other errors */
+			if (rc >= 0) {
+				rc = rc2;
+			}
 		}
 
 	} while (0);
+
+#ifdef CONFIG_FSU_REWRITE_SIZE_CHECK
+	if (rc >= 0 && !append) {
+		ssize_t read_size = fsu_get_file_size_abs(abs_path);
+		if (read_size != size) {
+			LOG_ERR("Unexpected file size (actual) %d != %d (desired)",
+				read_size, size);
+			rc = -EIO;
+		}
+	}
+#endif
 
 	return rc;
 }

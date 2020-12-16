@@ -19,6 +19,11 @@ config FILE_SYSTEM_UTILITIES
 
 if FILE_SYSTEM_UTILITIES
 
+config FSU_LOG_LEVEL
+    int "Log level for Parameters Module"
+    range 0 4
+    default 3
+
 config FSU_HASH
 	bool "Enable hash generation functions"
 	depends on MBEDTLS
@@ -73,6 +78,9 @@ config FSU_SHELL
 	help
 		The built-in file system shell is often sufficient.
 		This shell exposes features like pattern list and delete.
+
+config FSU_REWRITE_SIZE_CHECK
+	bool "Enable size check when rewriting a file (truncate)"
 
 endif # FILE_SYSTEM_UTILITIES
 

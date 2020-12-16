@@ -43,7 +43,7 @@ BUILD_ASSERT(CONFIG_FSU_MAX_FILE_NAME_SIZE >=
  * for directory operations.
  */
 BUILD_ASSERT(CONFIG_FSU_MAX_FILE_NAME_SIZE < MAX_FILE_NAME,
-             "File name too large");
+	     "File name too large");
 
 /* An empty string will match everything */
 #define FSU_EMPTY_STRING ""
@@ -202,6 +202,25 @@ int fsu_mkdir(const char *path, const char *name);
  * @retval negative error code, number of bytes read on success.
  */
 ssize_t fsu_read(const char *path, const char *name, void *data, size_t size);
+
+/**
+ * @brief Get size of file
+ *
+ * @param abs_path directory path and name
+ *
+ * @retval negative error code, size of file on success
+ */
+ssize_t fsu_get_file_size_abs(const char *abs_path);
+
+/**
+ * @brief Get size of file
+ *
+ * @param path directory path
+ * @param name file name
+ *
+ * @retval negative error code, size of file on success
+ */
+ssize_t fsu_get_file_size(const char *path, const char *name);
 
 #ifdef __cplusplus
 }
