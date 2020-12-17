@@ -204,6 +204,17 @@ int fsu_mkdir(const char *path, const char *name);
 ssize_t fsu_read(const char *path, const char *name, void *data, size_t size);
 
 /**
+ * @brief Opens file, writes data, and closes file.
+ *
+ * @param abs_path directory path and name
+ * @param data pointer to data
+ * @param size maximum number of bytes to read
+ *
+ * @retval negative error code, number of bytes read on success.
+ */
+ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size);
+
+/**
  * @brief Get size of file
  *
  * @param abs_path directory path and name

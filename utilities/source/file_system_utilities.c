@@ -376,32 +376,54 @@ int fsu_mkdir(const char *path, const char *name)
 
 ssize_t fsu_read(const char *path, const char *name, void *data, size_t size)
 {
-	ssize_t rc = -EPERM;
+	ssize_t r = -EPERM;
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+
 	do {
 		if (path == NULL || name == NULL) {
 			LOG_ERR("Invalid path or name");
 			break;
 		}
 
-		char abs_path[FSU_MAX_ABS_PATH_SIZE];
-		rc = fsu_build_full_name(abs_path, sizeof(abs_path), path,
-					 name);
-		BREAK_ON_ERROR(rc);
+		r = fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+		BREAK_ON_ERROR(r);
+
+		r = fsu_read_abs(abs_path, data, size);
+
+	} while (0);
+
+	return r;
+}
+
+ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size)
+{
+	ssize_t r = -EPERM;
+
+	do {
+		if (abs_path == NULL) {
+			LOG_ERR("Invalid absolute path");
+			break;
+		}
 
 		/* It is quicker to try to open the file than checking if it exists. */
 		struct fs_file_t f;
-		rc = fs_open(&f, abs_path, FS_O_READ);
-		BREAK_ON_ERROR(rc);
+		r = fs_open(&f, abs_path, FS_O_READ);
+		BREAK_ON_ERROR(r);
 
-		rc = fs_read(&f, data, size);
+		r = fs_read(&f, data, size);
 
 		int rc2 = fs_close(&f);
 		if (rc2 < 0) {
 			LOG_ERR("Unable to close file");
+			/* Don't mask other errors */
+			if (r >= 0) {
+				r = rc2;
+			}
 		}
+
 	} while (0);
 
-	return rc;
+	return r;
 }
 
 ssize_t fsu_get_file_size_abs(const char *abs_path)
