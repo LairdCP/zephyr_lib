@@ -277,6 +277,7 @@ int lis2dh_init_interrupt(const struct device *dev)
 		return -EINVAL;
 	}
 
+	lis2dh->dev = dev;
 #if defined(CONFIG_MG100_LIS2DH_TRIGGER_OWN_THREAD)
 	k_sem_init(&lis2dh->gpio_sem, 0, UINT_MAX);
 
@@ -287,7 +288,6 @@ int lis2dh_init_interrupt(const struct device *dev)
 			K_NO_WAIT);
 #elif defined(CONFIG_MG100_LIS2DH_TRIGGER_GLOBAL_THREAD)
 	lis2dh->work.handler = lis2dh_work_cb;
-	lis2dh->dev = dev;
 #endif
 
 	/* any motion int1 gpio configuration */
