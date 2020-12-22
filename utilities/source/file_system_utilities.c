@@ -440,7 +440,7 @@ ssize_t fsu_get_file_size_abs(const char *abs_path)
 
 		r = fs_stat(abs_path, entry);
 		if (r < 0) {
-			LOG_ERR("%s not found", log_strdup(abs_path));
+			LOG_WRN("%s not found", log_strdup(abs_path));
 			break;
 		} else {
 			r = entry->size;

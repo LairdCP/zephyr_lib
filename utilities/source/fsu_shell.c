@@ -76,7 +76,7 @@ static int fsu_shell_init(const struct device *device);
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	sub_fsu, SHELL_CMD(set, NULL, SET_DESCRIPTION, fsu_set_cmd),
 	SHELL_CMD(query, NULL, "List shell parameters", fsu_query_cmd),
-	SHELL_CMD(ls, NULL, "List files", fsu_ls_cmd),
+	SHELL_CMD(ls, NULL, "List files (with size)", fsu_ls_cmd),
 	SHELL_CMD(sha, NULL, "Get SHA256 of file(s)", fsu_sha_cmd),
 	SHELL_CMD(del, NULL, "Delete file(s) [-f is delete all]", fsu_del_cmd),
 	SHELL_SUBCMD_SET_END);

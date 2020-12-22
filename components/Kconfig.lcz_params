@@ -44,6 +44,9 @@ config LCZ_PARAMS_MAX_VALUE_LENGTH
     help
         This should be set by the code generator.
 
+config LCZ_PARAMS_4_DIGIT_ID
+    bool "Generate all 4 digits of parameter ID for backward compatibility"
+
 config LCZ_PARAMS_SHELL
 	bool "Enable parameters shell"
 

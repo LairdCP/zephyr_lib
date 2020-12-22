@@ -120,6 +120,9 @@ int fsu_build_full_name(char *result, size_t max_size, const char *path,
  * @param name file or folder name
  * @param entry_type file or folder
  *
+ * @note It is more efficient to use get_file_size to determine
+ * if a file exists.
+ *
  * @retval negative error code; if found, size of file.
  */
 int fsu_single_entry_exists(const char *path, const char *name,

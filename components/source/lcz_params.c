@@ -19,6 +19,7 @@ LOG_MODULE_REGISTER(lcz_params, CONFIG_LCZ_PARAMS_LOG_LEVEL);
 #include <sys/util.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include "file_system_utilities.h"
 #include "lcz_params.h"
@@ -369,14 +370,17 @@ static bool room_for_id(size_t current_length)
 static int append_id(char *str, size_t *length, param_id_t id)
 {
 	int r = -EPERM;
-	size_t id_len;
+	int id_len;
 	/* id is big endian hex */
-	param_id_t local = (id << 8) | (id >> 8);
 	if (room_for_id(*length)) {
-		id_len = bin2hex((uint8_t *)&local, PARAMS_MAX_ID_BYTES,
-				 &str[*length],
-				 PARAMS_MAX_ID_BYTES + SIZE_OF_NUL);
-		if (id_len == 0) {
+		if (IS_ENABLED(CONFIG_LCZ_PARAMS_4_DIGIT_ID)) {
+			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH,
+					  "%04x", id);
+		} else {
+			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH,
+					  "%x", id);
+		}
+		if (id_len <= 0) {
 			r = -EINVAL;
 			LOG_ERR("Id conversion error");
 		} else {

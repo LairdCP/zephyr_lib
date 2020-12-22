@@ -35,7 +35,7 @@ typedef struct lcz_led_blink_pattern {
 	uint32_t on_time;
 	uint32_t off_time;
 	uint32_t repeat_count;
-} lcz_led_blink_pattern_;
+} lcz_led_blink_pattern_t;
 
 #define REPEAT_INDEFINITELY (0xFFFFFFFF)
 
