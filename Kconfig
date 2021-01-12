@@ -12,5 +12,6 @@ rsource "ble_services/Kconfig"
 rsource "components/Kconfig"
 rsource "utilities/Kconfig"
 rsource "mcumgr_wrapper/Kconfig"
+rsource "memfault/Kconfig"
 
 endif # LCZ

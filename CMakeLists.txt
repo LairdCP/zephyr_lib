@@ -8,5 +8,6 @@ add_subdirectory(components)
 add_subdirectory(utilities)
 add_subdirectory(mcumgr_wrapper)
 add_subdirectory(drivers)
+add_subdirectory(memfault)
 
 endif()

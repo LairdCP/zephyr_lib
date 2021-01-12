@@ -1,0 +1,11 @@
+#
+# Laird Connectivity Zephyr Memfault Components
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+zephyr_include_directories_ifdef(CONFIG_LCZ_MEMFAULT include)
+
+zephyr_sources_ifdef(CONFIG_LCZ_MEMFAULT source/lcz_memfault.c)
