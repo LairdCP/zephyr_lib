@@ -42,6 +42,25 @@ typedef enum SENSOR_EVENT {
 	SENSOR_EVENT_IMPACT = 15,
 	SENSOR_EVENT_BATTERY_BAD = 16,
 	SENSOR_EVENT_RESET = 17,
+	/* BT6x */
+	SENSOR_EVENT_TEMPERATURE_1 = 18,
+	SENSOR_EVENT_TEMPERATURE_2 = 19,
+	SENSOR_EVENT_TEMPERATURE_3 = 20,
+	SENSOR_EVENT_TEMPERATURE_4 = 21,
+	SENSOR_EVENT_VOLTAGE_1 = 22,
+	SENSOR_EVENT_VOLTAGE_2 = 23,
+	SENSOR_EVENT_VOLTAGE_3 = 24,
+	SENSOR_EVENT_VOLTAGE_4 = 25,
+	SENSOR_EVENT_CURRENT_1 = 26,
+	SENSOR_EVENT_CURRENT_2 = 27,
+	SENSOR_EVENT_CURRENT_3 = 28,
+	SENSOR_EVENT_CURRENT_4 = 29,
+	SENSOR_EVENT_PRESSURE_1 = 30,
+	SENSOR_EVENT_PRESSURE_2 = 31,
+	SENSOR_EVENT_ULTRASONIC_1 = 32,
+	SENSOR_EVENT_TEMPERATURE_ALARM = 33,
+	SENSOR_EVENT_ANALOG_ALARM = 34,
+	SENSOR_EVENT_DIGITAL_ALARM = 35,
 
 	NUMBER_OF_SENSOR_EVENTS
 } SensorEventType_t;
@@ -60,10 +79,12 @@ BUILD_ASSERT(sizeof(SensorEventType_t) <= sizeof(uint8_t),
 #define IG60_GENERATED_EVENT_STR_ALARM_DELTA_TEMP "alarmDeltaTemp"
 #define IG60_GENERATED_EVENT_STR_ADVERTISE_ON_BUTTON "advertiseOnButton"
 
-/* Salt is used internally by BT510 Sensor Log to differentiate
+/* This is the format in the sensor event log for the BT510.
+ *
+ * Salt is used internally by BT510 Sensor Log to differentiate
  * events with the same timestamp.
  */
-struct SensorEvent {
+struct SensorEventBt510 {
 	uint32_t timestamp;
 	union {
 		uint16_t u16;
@@ -74,8 +95,23 @@ struct SensorEvent {
 	SensorEventType_t type;
 	uint8_t salt;
 } __packed;
+typedef struct SensorEventBt510 SensorEventBt510_t;
+BUILD_ASSERT(sizeof(SensorEventBt510_t) == 8, "Sensor event NOT packed");
+
+struct SensorEvent {
+	uint32_t timestamp;
+	union {
+		float f;
+		uint32_t u32;
+		int32_t s32;
+	} data;
+	SensorEventType_t type;
+	uint8_t salt;
+	uint8_t reserved1;
+	uint8_t reserved2;
+} __packed;
 typedef struct SensorEvent SensorEvent_t;
-BUILD_ASSERT(sizeof(SensorEvent_t) == 8, "Sensor event NOT packed");
+BUILD_ASSERT(sizeof(SensorEvent_t) == 12, "Sensor event NOT packed");
 
 #ifdef __cplusplus
 }
