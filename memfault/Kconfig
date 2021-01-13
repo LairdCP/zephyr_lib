@@ -6,6 +6,7 @@
 
 config LCZ_MEMFAULT
     bool "Enable Memfault integration"
+	select MEMFAULT
 	select MEMFAULT_HTTP_ENABLE
 
 if LCZ_MEMFAULT
