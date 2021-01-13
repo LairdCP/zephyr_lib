@@ -1,0 +1,35 @@
+#
+# Copyright (c) 2020 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_QRTC
+	bool "Enable the Quasi-RTC component"
+	help
+		Uses an offset with uptime to replicate functionality of an RTC
+
+if LCZ_QRTC
+
+config LCZ_QRTC_INIT_PRIORITY
+	int "Init priority (POST_KERNEL)"
+	range 1 99
+	default 99
+
+config LCZ_QRTC_MINIMUM_EPOCH
+	int "Minimum value of epoch that is allowed to be set"
+	default 0
+
+config LCZ_QRTC_LOG_LEVEL
+	int "Log level for QRTC module"
+	range 0 4
+	default 3
+
+config LCZ_QRTC_SYNC_INTERVAL_SECONDS
+    int "Interval between sync attempts"
+    default 0
+	help
+		Disabled when 0
+		Handler must be defined in application
+
+endif

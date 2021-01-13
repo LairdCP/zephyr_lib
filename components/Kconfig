@@ -7,11 +7,6 @@
 menu "Laird Connectivity Zephyr Components"
 	 default y
 
-config LCZ_QRTC
-	bool "Enable the Quasi-RTC component"
-	help
-		Uses an offset with uptime to replicate functionality of an RTC
-
 config LCZ_DNS
 	bool "Wrapper for DNS resolver that provides retries and debug printing"
 	depends on DNS_RESOLVER
@@ -105,6 +100,7 @@ config LCZ_RESET_ON_EXIT
 	help
 		Default Zephyr behavior is to wait forever.
 
+rsource "Kconfig.lcz_qrtc"
 rsource "Kconfig.lcz_params"
 rsource "Kconfig.lcz_led"
 rsource "Kconfig.lcz_pwm_led"

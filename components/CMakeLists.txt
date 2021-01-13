@@ -8,7 +8,7 @@
 
 zephyr_include_directories(include)
 
-zephyr_sources_ifdef(CONFIG_LCZ_QRTC source/qrtc.c)
+zephyr_sources_ifdef(CONFIG_LCZ_QRTC source/lcz_qrtc.c)
 zephyr_sources_ifdef(CONFIG_LCZ_LED source/lcz_led.c)
 zephyr_sources_ifdef(CONFIG_LCZ_DNS source/lcz_dns.c)
 zephyr_sources_ifdef(CONFIG_LCZ_POWER source/laird_power.c)
