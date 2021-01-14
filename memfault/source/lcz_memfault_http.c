@@ -1,6 +1,6 @@
 /**
- * @file lcz_memfault.c
- * @brief Memfault integration
+ * @file lcz_memfault_http.c
+ * @brief Memfault HTTP integration
  *
  * Copyright (c) 2021 Laird Connectivity
  *
@@ -8,7 +8,7 @@
  */
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(lcz_mflt, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
+LOG_MODULE_REGISTER(lcz_mflt_http, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -31,7 +31,7 @@ K_MUTEX_DEFINE(post_data_mutex);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 
-int lcz_memfault_init(char *api_key)
+int lcz_memfault_http_init(char *api_key)
 {
 	int rc;
 

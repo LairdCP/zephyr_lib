@@ -8,4 +8,6 @@
 
 zephyr_include_directories_ifdef(CONFIG_LCZ_MEMFAULT include)
 
-zephyr_sources_ifdef(CONFIG_LCZ_MEMFAULT source/lcz_memfault.c)
+zephyr_sources_ifdef(CONFIG_LCZ_MEMFAULT_HTTP_TRANSPORT source/lcz_memfault_http.c)
+
+zephyr_sources_ifdef(CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT source/lcz_memfault_mqtt.c)

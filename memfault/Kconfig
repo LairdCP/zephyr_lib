@@ -7,7 +7,6 @@
 config LCZ_MEMFAULT
     bool "Enable Memfault integration"
 	select MEMFAULT
-	select MEMFAULT_HTTP_ENABLE
 
 if LCZ_MEMFAULT
 
@@ -15,5 +14,29 @@ config LCZ_MEMFAULT_LOG_LEVEL
 	int "Memfault log level"
 	default 4
 	range 0 4
+
+config LCZ_MEMFAULT_HTTP_TRANSPORT
+	bool "Enable HTTP data transport"
+	select MEMFAULT_HTTP_ENABLE
+
+if LCZ_MEMFAULT_HTTP_TRANSPORT
+
+config LCZ_MEMFAULT_PROJECT_API_KEY
+	string "API key to authentication to memfault"
+	default "lMq1riPv0YbLsfpCiUMfxClU1oLVVjH1"
+
+endif # LCZ_MEMFAULT_HTTP_TRANSPORT
+
+config LCZ_MEMFAULT_MQTT_TRANSPORT
+	bool "Enable MQTT data transport"
+	depends on MQTT_LIB
+
+if LCZ_MEMFAULT_MQTT_TRANSPORT
+
+config LCZ_MEMFAULT_MQTT_TOPIC
+	string "MQTT topic for publishing data"
+	default "prod/%s/%s/memfault/chunk"
+
+endif # LCZ_MEMFAULT_MQTT_TRANSPORT
 
 endif # LCZ_MEMFAULT

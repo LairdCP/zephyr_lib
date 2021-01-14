@@ -15,6 +15,10 @@
 #include "memfault/core/build_info.h"
 #include "memfault/core/platform/device_info.h"
 
+#ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
+#include <net/mqtt.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,13 +27,14 @@ extern "C" {
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 
+#ifdef CONFIG_LCZ_MEMFAULT_HTTP_TRANSPORT
 /**
  * @brief Initialize memfault SDK
  * 
  * @param api_key API key to communicate to Memfault
  * @return 0 on success 
  */
-int lcz_memfault_init(char *api_key);
+int lcz_memfault_http_init(char *api_key);
 
 /**
  * @brief Post any available data to memfault cloud via HTTPS
@@ -37,6 +42,16 @@ int lcz_memfault_init(char *api_key);
  * @return 0 on success 
  */
 int lcz_memfault_post_data();
+#endif
+
+#ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
+/**
+ * @brief Publish any available data to memfault cloud via MQTT
+ * 
+ * @return true if data was sent 
+ */
+bool lcz_memfault_publish_data(struct mqtt_client *client, char *topic);
+#endif
 
 #ifdef __cplusplus
 }
