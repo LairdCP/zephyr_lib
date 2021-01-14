@@ -1,0 +1,25 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_BT_SCAN
+	bool "Enable scan module for multi-user system"
+
+if LCZ_BT_SCAN
+
+config LCZ_BT_SCAN_MAX_USERS
+	int "Maximum number of users of the scan module"
+	range 1 32
+	default 2
+
+config LCZ_BT_SCAN_VERBOSE_ADV_HANDLER
+	bool "Enable Verbose logging of advertisements"
+
+config LCZ_BT_SCAN_LOG_LEVEL
+	int "Log level for Bluetooth Scan module"
+	range 0 4
+	default 3
+
+endif # LCZ_BT_SCAN
