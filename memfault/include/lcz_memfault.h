@@ -8,12 +8,16 @@
 #ifndef __LCZ_MEMFAULT_H__
 #define __LCZ_MEMFAULT_H__
 
-/* (Remove Empty Sections) */
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
+#ifdef CONFIG_LCZ_MEMFAULT
 #include "memfault/core/build_info.h"
 #include "memfault/core/platform/device_info.h"
+#endif
+#ifdef CONFIG_LCZ_MEMFAULT_METRICS
+#include "memfault/metrics/metrics.h"
+#endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
 #include <net/mqtt.h>
@@ -23,6 +27,19 @@
 extern "C" {
 #endif
 
+/******************************************************************************/
+/* Global Constants, Macros and Type Definitions                              */
+/******************************************************************************/
+
+#ifdef CONFIG_LCZ_MEMFAULT_METRICS
+#define MFLT_METRICS_ADD(key, val)                                             \
+	do {                                                                   \
+		memfault_metrics_heartbeat_add(MEMFAULT_METRICS_KEY(key),      \
+					       val);                           \
+	} while (false)
+#else
+#define MFLT_METRICS_ADD(key, val)
+#endif
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/

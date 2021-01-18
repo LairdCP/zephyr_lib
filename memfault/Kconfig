@@ -39,4 +39,8 @@ config LCZ_MEMFAULT_MQTT_TOPIC
 
 endif # LCZ_MEMFAULT_MQTT_TRANSPORT
 
+config LCZ_MEMFAULT_METRICS
+	bool "Enable Memfault metrics tracking"
+	select MEMFAULT_METRICS
+
 endif # LCZ_MEMFAULT
