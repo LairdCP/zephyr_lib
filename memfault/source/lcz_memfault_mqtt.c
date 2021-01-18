@@ -27,6 +27,12 @@ LOG_MODULE_REGISTER(lcz_mflt_mqtt, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
 K_MUTEX_DEFINE(publish_data_mutex);
 
 /******************************************************************************/
+/* Local Data Definitions                                                     */
+/******************************************************************************/
+
+static uint8_t data_buf[CONFIG_LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH];
+
+/******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
 static bool send_mqtt_data(struct mqtt_client *client, char *topic);
@@ -60,15 +66,15 @@ static bool send_mqtt_data(struct mqtt_client *client, char *topic)
 	bool data_available;
 
 	while (1) {
-		data_len = client->tx_buf_size;
-		data_available = memfault_packetizer_get_chunk(client->tx_buf,
-							       &data_len);
+		data_len = sizeof(data_buf);
+		data_available =
+			memfault_packetizer_get_chunk(data_buf, &data_len);
 		if (!data_available) {
 			LOG_DBG("No data to send");
 			break;
 		}
 		LOG_DBG("Send %d bytes to %s", data_len, log_strdup(topic));
-		rc = publish_data(client, client->tx_buf, data_len, topic);
+		rc = publish_data(client, data_buf, data_len, topic);
 		if (rc != 0) {
 			LOG_ERR("Could not publish data %d", rc);
 			return false;

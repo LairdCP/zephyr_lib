@@ -37,6 +37,12 @@ config LCZ_MEMFAULT_MQTT_TOPIC
 	string "MQTT topic for publishing data"
 	default "prod/%s/%s/memfault/chunk"
 
+config LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH
+	int "MQTT data buffer length"
+	default 1024
+	help
+	  Determines maximum size of data that can be sent at a time.
+
 endif # LCZ_MEMFAULT_MQTT_TRANSPORT
 
 config LCZ_MEMFAULT_METRICS
