@@ -37,9 +37,38 @@ extern "C" {
 		memfault_metrics_heartbeat_add(MEMFAULT_METRICS_KEY(key),      \
 					       val);                           \
 	} while (false)
+
+#define MFLT_METRICS_SET_UNSIGNED(key, val)                                    \
+	do {                                                                   \
+		memfault_metrics_heartbeat_set_unsigned(                       \
+			MEMFAULT_METRICS_KEY(key), val);                       \
+	} while (false)
+
+#define MFLT_METRICS_SET_SIGNED(key, val)                                      \
+	do {                                                                   \
+		memfault_metrics_heartbeat_set_signed(                         \
+			MEMFAULT_METRICS_KEY(key), val);                       \
+	} while (false)
+
+#define MFLT_METRICS_TIMER_START(key)                                          \
+	do {                                                                   \
+		memfault_metrics_heartbeat_timer_start(                        \
+			MEMFAULT_METRICS_KEY(key));                            \
+	} while (false)
+
+#define MFLT_METRICS_TIMER_STOP(key)                                           \
+	do {                                                                   \
+		memfault_metrics_heartbeat_timer_stop(                         \
+			MEMFAULT_METRICS_KEY(key));                            \
+	} while (false)
 #else
 #define MFLT_METRICS_ADD(key, val)
-#endif
+#define MFLT_METRICS_SET_UNSIGNED(key, val)
+#define MFLT_METRICS_SET_SIGNED(key, val)
+#define MFLT_METRICS_TIMER_START(key, val)
+#define MFLT_METRICS_TIMER_STOP(key, val)
+#endif /* CONFIG_LCZ_MEMFAULT_METRICS */
+
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
