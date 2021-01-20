@@ -100,6 +100,16 @@ config LCZ_RESET_ON_EXIT
 	help
 		Default Zephyr behavior is to wait forever.
 
+config LCZ_SOFTWARE_RESET
+	bool "Enable software reset module (wraps Zephyr reset with a delay)"
+	depends on REBOOT
+
+config LCZ_SOFTWARE_RESET_LOG_LEVEL
+    int "Log level"
+	depends on LCZ_SOFTWARE_RESET
+    range 0 4
+    default 3
+
 rsource "Kconfig.lcz_qrtc"
 rsource "Kconfig.lcz_params"
 rsource "Kconfig.lcz_led"
