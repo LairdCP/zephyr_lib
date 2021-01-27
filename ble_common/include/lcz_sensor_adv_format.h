@@ -2,7 +2,7 @@
  * @file lcz_sensor_adv_format.h
  * @brief Advertisement format for Laird BT sensors
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -40,6 +40,9 @@ extern "C" {
 #define RS1XX_BOOTLOADER_RSP_PROTOCOL_ID 0x0005
 #define RS1XX_SENSOR_AD_PROTOCOL_ID      0x0006
 #define RS1XX_SENSOR_RSP_PROTOCOL_ID     0x0007
+#define CT_TRACKER_AD_PROTOCOL_ID        0xFF81
+#define CT_GATEWAY_AD_PROTOCOL_ID        0xFF82
+#define CT_DATA_DOWNLOAD_AD_PROTOCOL_ID  0xFF83
 /* clang-format on */
 
 #define ADV_FORMAT_HW_VERSION(major, minor) ((uint8_t)(((((uint32_t)(major)) << 3) & 0x000000F8) | ((((uint32_t)(minor)) << 0 ) & 0x00000007))
@@ -61,6 +64,11 @@ extern "C" {
 /* clang-format off */
 #define BT510_PRODUCT_ID 0
 #define BT6XX_PRODUCT_ID 1
+/* clang-format on */
+
+/* clang-format off */
+#define BTXXX_DEFAULT_NETWORK_ID  0x0000
+#define CT_DEFAULT_NETWORK_ID     0xFFFF
 /* clang-format on */
 
 /* Format of the Manufacturer Specific Data (MSD) using 1M PHY.
@@ -110,21 +118,40 @@ struct LczSensorAdCoded {
 	struct LczSensorRsp rsp;
 } __packed;
 
+/* Contact Tracing */
+struct LczContactTracingAd {
+	uint16_t companyId;
+	uint16_t protocolId;
+	uint16_t networkId;
+	uint16_t flags;
+	bt_addr_t addr;
+	uint8_t recordType;
+	uint8_t deviceType;
+	uint32_t epoch;
+	int8_t txPower;
+	uint8_t motionMagnitude;
+	uint8_t modelId;
+	uint8_t reserved_1;
+	uint8_t reserved_2;
+	uint8_t reserved_3;
+} __packed;
+BUILD_ASSERT(sizeof(struct LczContactTracingAd) == 26, "Unexpected ad size");
+
 /* clang-format off */
 typedef struct LczSensorAdEvent       LczSensorAdEvent_t;
 typedef struct LczSensorRsp           LczSensorRsp_t;
 typedef struct LczSensorRspWithHeader LczSensorRspWithHeader_t;
 typedef struct LczSensorAdCoded       LczSensorAdCoded_t;
 typedef struct LczSensorAdCoded       LczSensorAdExt_t;
-/* clang-format off */
+typedef struct LczContactTracingAd    LczContactTracingAd_t;
+/* clang-format on */
 
 /*
  * This is the format for the 1M PHY.
  */
 #define LCZ_SENSOR_MSD_AD_FIELD_LENGTH 0x1b
 #define LCZ_SENSOR_MSD_AD_PAYLOAD_LENGTH (LCZ_SENSOR_MSD_AD_FIELD_LENGTH - 1)
-BUILD_ASSERT(sizeof(LczSensorAdEvent_t) ==
-		     LCZ_SENSOR_MSD_AD_PAYLOAD_LENGTH,
+BUILD_ASSERT(sizeof(LczSensorAdEvent_t) == LCZ_SENSOR_MSD_AD_PAYLOAD_LENGTH,
 	     "Advertisement data size mismatch (check packing)");
 
 #define LCZ_SENSOR_MSD_RSP_FIELD_LENGTH 0x10
@@ -147,6 +174,35 @@ BUILD_ASSERT(sizeof(LczSensorAdCoded_t) == LCZ_SENSOR_MSD_CODED_PAYLOAD_LENGTH,
 extern const uint8_t BTXXX_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BTXXX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BTXXX_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t CT_TRACKER_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t CT_GATEWAY_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t CT_DATA_DOWNLOAD_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+
+/* Format is the same for all versions,
+ * but they are needed for backward compatiblity.
+ */
+enum ContactTracingAdRecordType {
+	CT_ADV_REC_TYPE_V00 = 0x00,
+	CT_ADV_REC_TYPE_V10 = 0x10,
+	CT_ADV_REC_TYPE_V11 = 0x11
+};
+
+enum ContactTracingAdFlags {
+	CT_ADV_FLAGS_HAS_EPOCH_TIME = BIT(0),
+	CT_ADV_FLAGS_HAS_LOG_DATA = BIT(1),
+	CT_ADV_FLAGS_HAS_MOTION = BIT(2),
+	CT_ADV_FLAGS_LOW_BATTERY = BIT(3),
+	CT_ADV_FLAGS_DATALOG_FULL = BIT(4)
+};
+
+enum LczSensorModelId {
+	LCZ_SENSOR_MODEL_ID_BT510 = 0x00,
+	LCZ_SENSOR_MODEL_ID_BL654_DVK = 0x10,
+	LCZ_SENSOR_MODEL_ID_BL653_DVK = 0x20,
+	LCZ_SENSOR_MODEL_ID_BT710 = 0x30,
+	LCZ_SENSOR_MODEL_ID_MG100 = 0x40,
+	LCZ_SENSOR_MODEL_ID_IG60 = 0x50
+};
 
 #ifdef __cplusplus
 }
