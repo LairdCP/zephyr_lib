@@ -24,6 +24,11 @@ config BLE_POWER_SERVICE
 	bool "Enable BLE Power Service"
 	select LCZ_POWER
 
+config BLE_POWER_SERVICE_LOG_LEVEL
+    int "Log level"
+    range 0 4
+    default 3
+
 config LCZ_BLE_DIS
 	bool "Enable Custom Device Information BLE service"
 

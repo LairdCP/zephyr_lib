@@ -2,14 +2,13 @@
  * @file ble_power_service.c
  * @brief
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <logging/log.h>
-#define LOG_LEVEL LOG_LEVEL_DBG
-LOG_MODULE_REGISTER(oob_power_svc);
+LOG_MODULE_REGISTER(ble_power_svc, CONFIG_BLE_POWER_SERVICE_LOG_LEVEL);
 
 #define POWER_SVC_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
 #define POWER_SVC_LOG_WRN(...) LOG_WRN(__VA_ARGS__)
