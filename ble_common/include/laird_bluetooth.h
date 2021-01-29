@@ -2,7 +2,7 @@
  * @file laird_bluetooth.h
  * @brief Bluetooth helper functions
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -49,21 +49,6 @@ struct lbt_ccc_element {
 
 /** ATT_MTU - OpCode (1 byte) - Handle (2 bytes) */
 #define BT_MAX_PAYLOAD(x) ((x)-3)
-
-/** NRF52 reset reasons */
-enum { RESET_REASON_POWER_UP = 0,
-       RESET_REASON_RESETPIN,
-       RESET_REASON_DOG,
-       RESET_REASON_SREQ,
-       RESET_REASON_LOCKUP,
-       RESET_REASON_OFF,
-       RESET_REASON_LPCOMP,
-       RESET_REASON_DIF,
-       RESET_REASON_NFC,
-       RESET_REASON_VBUS,
-       RESET_REASON_UNKNOWN,
-
-       NUMBER_OF_REASON_REASONS };
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
@@ -130,8 +115,8 @@ ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
  * @brief Helper function for writing a uint16_t from the Bluetooth stack.
  */
 ssize_t lbt_write_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     const void *buf, uint16_t len, uint16_t offset,
-		     uint8_t flags);
+		      const void *buf, uint16_t len, uint16_t offset,
+		      uint8_t flags);
 
 /**
  * @brief Helper function for finding a characteristic handle in the GATT
@@ -151,9 +136,19 @@ const char *lbt_get_att_err_string(uint8_t code);
 const char *lbt_get_hci_err_string(uint8_t code);
 
 /**
- * @retval Reset reason code as a string.
+ * @retval Reset reason code
  */
-const char *lbt_get_nrf52_reset_reason_string(uint8_t code);
+uint32_t lbt_get_and_clear_nrf52_reset_reason_register(void);
+
+/**
+ * @brief The reset reason register can have multiple bits set.
+ * The reset reason should be cleared after it is used to prevent this.
+ * This function returns the code for the first bit that is set in its
+ * prioritized list.
+ *
+ * @retval Reset reason code as a string (from reset reason register).
+ */
+const char *lbt_get_nrf52_reset_reason_string_from_register(uint32_t reg);
 
 /**
  * @retval true if Master role, false if slave role or there

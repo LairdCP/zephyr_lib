@@ -15,6 +15,8 @@
 #include <zephyr/types.h>
 #include <bluetooth/bluetooth.h>
 
+#include "lcz_sensor_event.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -83,8 +85,7 @@ struct LczSensorAdEvent {
 	uint8_t recordType;
 	uint16_t id;
 	uint32_t epoch;
-	uint16_t data;
-	uint16_t dataReserved;
+	SensorEventData_t data;
 	uint8_t resetCount;
 } __packed;
 

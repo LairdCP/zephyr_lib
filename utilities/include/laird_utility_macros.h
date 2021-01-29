@@ -33,8 +33,13 @@ extern "C" {
 
 /* For state function pointers */
 #define IF_RETURN_STRING(x, val)                                               \
-	if ((x) == val) {                                                      \
+	if ((x) == (val)) {                                                    \
 		return #val;                                                   \
+	}
+
+#define IF_MASK_SET_RETURN_STRING(x, prefix, mask, suffix)                     \
+	if (((x) & (prefix##_##mask##_##suffix)) != 0) {                       \
+		return #mask;                                                  \
 	}
 
 #ifdef __cplusplus

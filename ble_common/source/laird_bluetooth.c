@@ -2,7 +2,7 @@
  * @file laird_bluetooth.c
  * @brief Common Bluetooth operations.
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -15,6 +15,11 @@ LOG_MODULE_REGISTER(laird_bluetooth);
 /* Includes                                                                   */
 /******************************************************************************/
 #include <bluetooth/gatt.h>
+#include <nrfx.h>
+#include <hal/nrf_power.h>
+#if !NRF_POWER_HAS_RESETREAS
+#include <hal/nrf_reset.h>
+#endif
 
 #include "laird_utility_macros.h"
 #include "laird_bluetooth.h"
@@ -108,8 +113,8 @@ ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 }
 
 ssize_t lbt_write_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-		     const void *buf, uint16_t len, uint16_t offset,
-		     uint8_t flags)
+		      const void *buf, uint16_t len, uint16_t offset,
+		      uint8_t flags)
 {
 	ARG_UNUSED(conn);
 	ARG_UNUSED(flags);
@@ -220,24 +225,72 @@ const char *lbt_get_hci_err_string(uint8_t code)
 	/* clang-format on */
 }
 
-const char *lbt_get_nrf52_reset_reason_string(uint8_t code)
+uint32_t lbt_get_and_clear_nrf52_reset_reason_register(void)
 {
-	/* clang-format off */
-	switch (code) {
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, POWER_UP);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, RESETPIN);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, DOG);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, SREQ);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, LOCKUP);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, OFF);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, LPCOMP);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, DIF);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, NFC);
-		PREFIXED_SWITCH_CASE_RETURN_STRING(RESET_REASON, VBUS);
-	default:
-		return "UNKNOWN";
+	uint32_t reason;
+
+#if NRF_POWER_HAS_RESETREAS
+	reason = nrf_power_resetreas_get(NRF_POWER);
+#else
+	reason = nrf_reset_resetreas_get(NRF_RESET);
+#endif
+
+#if NRF_POWER_HAS_RESETREAS
+	nrf_power_resetreas_clear(NRF_POWER, reason);
+#else
+	nrf_reset_resetreas_clear(NRF_RESET, reason);
+#endif
+
+	return reason;
+}
+
+const char *lbt_get_nrf52_reset_reason_string_from_register(uint32_t reg)
+{
+	if (reg == 0) {
+		return "POWER_UP";
 	}
-	/* clang-format on */
+
+	/* Priority affects the result because multiple bits can be set. */
+#if !NRF_POWER_HAS_RESETREAS
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, RESETPIN, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, DOG0, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, NRFX_RESET_REASON, DOG0, MASK);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, CTRLAP, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, SREQ, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, LOCKUP, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, OFF, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, LPCOMP, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, DIF, Msk);
+#if NRF_RESET_HAS_NETWORK
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, LSREQ, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, LLOCKUP, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, LDOG, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, MFORCEOFF, Msk);
+#endif
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, NFC, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, DOG1, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, VBUS, Msk);
+#if NRF_RESET_HAS_NETWORK
+	IF_MASK_SET_RETURN_STRING(reg, RESET_RESETREAS, LCTRLAP, Msk);
+#endif
+#else
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, RESETPIN, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, DOG, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, SREQ, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, LOCKUP, Msk);
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, OFF, Msk);
+#if defined(POWER_RESETREAS_LPCOMP_Msk)
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, LPCOMP, Msk);
+#endif
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, DIF, Msk);
+#if defined(POWER_RESETREAS_NFC_Msk)
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, NFC, Msk);
+#endif
+#if defined(POWER_RESETREAS_VBUS_Msk)
+	IF_MASK_SET_RETURN_STRING(reg, POWER_RESETREAS, VBUS, Msk);
+#endif
+#endif
+	return "UNKNOWN";
 }
 
 bool lbt_master_role(struct bt_conn *conn)

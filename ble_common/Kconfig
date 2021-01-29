@@ -19,6 +19,9 @@ config LCZ_SENSOR_ADV_FORMAT
 	bool "Enable BLE Sensor Advertisement Format Module"
 	depends on LCZ_BT
 
+config LCZ_SENSOR_EVENT
+	bool "Enable sensor event module"
+
 endmenu
 
 rsource "Kconfig.lcz_bt_scan"
