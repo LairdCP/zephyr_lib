@@ -65,8 +65,8 @@ extern "C" {
 #define MFLT_METRICS_ADD(key, val)
 #define MFLT_METRICS_SET_UNSIGNED(key, val)
 #define MFLT_METRICS_SET_SIGNED(key, val)
-#define MFLT_METRICS_TIMER_START(key, val)
-#define MFLT_METRICS_TIMER_STOP(key, val)
+#define MFLT_METRICS_TIMER_START(key)
+#define MFLT_METRICS_TIMER_STOP(key)
 #endif /* CONFIG_LCZ_MEMFAULT_METRICS */
 
 /******************************************************************************/
@@ -76,16 +76,16 @@ extern "C" {
 #ifdef CONFIG_LCZ_MEMFAULT_HTTP_TRANSPORT
 /**
  * @brief Initialize memfault SDK
- * 
+ *
  * @param api_key API key to communicate to Memfault
- * @return 0 on success 
+ * @return 0 on success
  */
 int lcz_memfault_http_init(char *api_key);
 
 /**
  * @brief Post any available data to memfault cloud via HTTPS
- * 
- * @return 0 on success 
+ *
+ * @return 0 on success
  */
 int lcz_memfault_post_data();
 #endif
@@ -93,8 +93,8 @@ int lcz_memfault_post_data();
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
 /**
  * @brief Publish any available data to memfault cloud via MQTT
- * 
- * @return true if data was sent 
+ *
+ * @return true if data was sent
  */
 bool lcz_memfault_publish_data(struct mqtt_client *client, char *topic);
 #endif
