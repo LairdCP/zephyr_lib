@@ -13,6 +13,8 @@ if LCZ_MCUMGR_WRAPPER
 config LCZ_MCUMGR_SIMPLE_BLUETOOTH
 	bool "Advertise SMP Service for Firmware Update"
 	depends on BT
+	help
+		This should not be selected if there is already a Bluetooth advertiser in project.
 
 config LCZ_MCUMGR_STATS_TICK_RATE_MS
 	int "Timer tick rate for timer_ticks statistic"

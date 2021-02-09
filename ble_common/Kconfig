@@ -22,8 +22,8 @@ config LCZ_SENSOR_ADV_FORMAT
 config LCZ_SENSOR_EVENT
 	bool "Enable sensor event module"
 
-endmenu
-
 rsource "Kconfig.lcz_bt_scan"
+
+endmenu
 
 endif

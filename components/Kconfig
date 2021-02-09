@@ -105,7 +105,7 @@ config LCZ_SOFTWARE_RESET
 	depends on REBOOT
 
 config LCZ_SOFTWARE_RESET_LOG_LEVEL
-    int "Log level"
+    int "Software Reset module log level"
 	depends on LCZ_SOFTWARE_RESET
     range 0 4
     default 3
