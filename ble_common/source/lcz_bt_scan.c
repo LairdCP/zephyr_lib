@@ -162,7 +162,7 @@ static bool valid_user_id(int id)
 static void lcz_bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
 				    uint8_t type, struct net_buf_simple *ad)
 {
-#if CONFIG_LCZ_BT_SCAN_VERBOSE_ADV_HANDLER
+#ifdef CONFIG_LCZ_BT_SCAN_VERBOSE_ADV_HANDLER
 	char bt_addr[BT_ADDR_LE_STR_LEN];
 	memset(bt_addr, 0, BT_ADDR_LE_STR_LEN);
 	bt_addr_le_to_str(addr, bt_addr, BT_ADDR_LE_STR_LEN);
