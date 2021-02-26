@@ -77,7 +77,7 @@ static bool room_for_value(size_t current_length, size_t dsize);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 /* Initialize after fs but before application. */
-SYS_INIT(lcz_params_init, POST_KERNEL, 99);
+SYS_INIT(lcz_params_init, POST_KERNEL, CONFIG_LCZ_PARAMS_INIT_PRIORITY);
 
 ssize_t lcz_params_write(char *name, void *data, size_t size)
 {

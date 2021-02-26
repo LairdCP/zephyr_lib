@@ -12,6 +12,11 @@ menuconfig LCZ_PARAMS
 
 if LCZ_PARAMS
 
+config LCZ_PARAMS_INIT_PRIORITY
+    int "Priority of LCZ parameter module initialization (POST_KERNEL)"
+    range 1 99
+    default 90
+
 config LCZ_PARAMS_LOG_LEVEL
     int "Log level for Parameters Module"
     range 0 4
