@@ -23,4 +23,5 @@ zephyr_sources_ifdef(CONFIG_LCZ_PARAMS_SHELL source/lcz_params_shell.c)
 zephyr_sources_ifdef(CONFIG_LCZ_PWM_LED source/lcz_pwm_led.c)
 zephyr_sources_ifdef(CONFIG_LCZ_NO_INIT_RAM_VAR source/lcz_no_init_ram_var.c)
 zephyr_sources_ifdef(CONFIG_LCZ_SOFTWARE_RESET source/lcz_software_reset.c)
-
+zephyr_sources_ifdef(CONFIG_LCZ_EVENT_MANAGER source/lcz_event_manager.c
+    source/lcz_event_manager_file_handler.c)

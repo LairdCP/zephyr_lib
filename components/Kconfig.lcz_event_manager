@@ -1,0 +1,53 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_EVENT_MANAGER
+	bool "Enables Event Manager"
+	depends on FILE_SYSTEM
+	depends on FILE_SYSTEM_UTILITIES
+	depends on LCZ_QRTC
+	depends on LCZ
+
+if LCZ_EVENT_MANAGER
+
+config LCZ_EVENT_MANAGER_EVENTS_PER_FILE
+	int "The number of events to store in each file."
+	range 1 1000
+	default 100
+
+config LCZ_EVENT_MANAGER_NUMBER_OF_FILES
+	int "The number of files for the Event Manager to store."
+	range 1 10
+	default 1
+
+config LCZ_EVENT_MANAGER_BACKGROUND_THREAD_PRIORITY
+	int "The priority of the Event Manager background thread."
+	default 5
+
+config LCZ_EVENT_MANAGER_BACKGROUND_THREAD_UPDATE_RATE
+	int "The number of milliseconds between updates of the Event Manager background thread."
+	range 500 10000
+	default 1000
+
+config LCZ_EVENT_MANAGER_BACKGROUND_THREAD_STACK_SIZE
+	int "The number of bytes used by the Event Manager background thread stack."
+	range 1024 4096
+	default 1024
+
+config LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY
+	string "The file system location where private data files are stored."
+	default "/ext/"
+
+config LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY
+	string "The file system location where public output log files are stored." 
+	default "/ext/"
+
+config LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE
+	int "The size of the message queue used to store incoming events."
+	range 10 100
+	default 16
+
+endif # LCZ_EVENT_MANAGER
