@@ -66,13 +66,23 @@ void fsu_list_directory(const char *path);
 /**
  * @brief Find files that match name.
  *
+ * @note Uses at least MAX_FILE_NAME bytes of stack.
+ * Malloc requires (MAX_FILE_NAME * number of matching files) bytes.
+ *
+ * Reduce memory requirements by limiting file name size with
+ * CONFIG_FILE_SYSTEM_MAX_FILE_NAME. Alternatively,
+ * do not use this function when the file name is known, use
+ * fsu_get_file_size or fsu_single_entry_exists instead.
+ *
+ * @note This doesn't traverse directories.
+ *
  * @param path directory path
  * @param name file or folder name
  * @param count number of entries with a matching name
  * @param entry_type file or folder
- * @note This doesn't traverse directories.
  *
  * @retval list of entries (malloced)
+ *
  */
 struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 			   enum fs_dir_entry_type entry_type);
@@ -114,14 +124,17 @@ int fsu_build_full_name(char *result, size_t max_size, const char *path,
 			const char *name);
 
 /**
- * @brief Searches directory for a single matching file.
+ * @brief Searches directory for a single matching file and returns an error
+ * if there is more than one matching file.
+ *
+ * @note This function uses stack for the directory entry struct.
+ * The function fsu_get_file_size_abs uses malloc.  Using it is more efficient
+ * to determine if a file exists.
  *
  * @param path directory path
  * @param name file or folder name
  * @param entry_type file or folder
  *
- * @note It is more efficient to use get_file_size to determine
- * if a file exists.
  *
  * @retval negative error code; if found, size of file.
  */
@@ -177,6 +190,9 @@ int fsu_write_abs(const char *abs_path, void *data, size_t size);
 /**
  * @brief Deletes all files matching name.
  *
+ * @note fsu_find is used internally.
+ * Not recommended when deleting a single file. Use fs_unlink instead.
+ *
  * @param path directory path
  * @param name file name (or partial name)
  *
@@ -220,6 +236,9 @@ ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size);
 /**
  * @brief Get size of file
  *
+ * @note Directory entry structure is allocated using malloc
+ * which is at least MAX_FILE_NAME bytes.
+ *
  * @param abs_path directory path and name
  *
  * @retval negative error code, size of file on success
@@ -228,6 +247,9 @@ ssize_t fsu_get_file_size_abs(const char *abs_path);
 
 /**
  * @brief Get size of file
+ *
+ * @note Directory entry structure is allocated using malloc
+ * which is at least MAX_FILE_NAME bytes.
  *
  * @param path directory path
  * @param name file name
