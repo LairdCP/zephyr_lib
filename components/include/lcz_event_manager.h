@@ -22,8 +22,9 @@ void lcz_event_manager_initialise(void);
  *
  * @param [in]sensorEventType - The event type.
  * @param [in]pSensorEventData - The event data.
+ * @return The timestamp recorded for event.
  */
-void lcz_event_manager_add_sensor_event(SensorEventType_t sensorEventType,
+uint32_t lcz_event_manager_add_sensor_event(SensorEventType_t sensorEventType,
 					SensorEventData_t *pSensorEventData);
 
 /** @brief Prepares an event log for external use
