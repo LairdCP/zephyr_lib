@@ -20,6 +20,7 @@ LOG_MODULE_REGISTER(lcz_params, CONFIG_LCZ_PARAMS_LOG_LEVEL);
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "file_system_utilities.h"
 #include "lcz_params.h"
@@ -77,7 +78,7 @@ static bool room_for_value(size_t current_length, size_t dsize);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 /* Initialize after fs but before application. */
-SYS_INIT(lcz_params_init, POST_KERNEL, CONFIG_LCZ_PARAMS_INIT_PRIORITY);
+SYS_INIT(lcz_params_init, APPLICATION, CONFIG_LCZ_PARAMS_INIT_PRIORITY);
 
 ssize_t lcz_params_write(char *name, void *data, size_t size)
 {
@@ -454,13 +455,16 @@ static int lcz_params_init(const struct device *device)
 {
 	ARG_UNUSED(device);
 	int r = -EPERM;
+
 	do {
 		r = lcz_params_mount_fs();
 		BREAK_ON_ERROR(r);
 
-		r = fsu_mkdir(CONFIG_LCZ_PARAMS_MOUNT_POINT,
-			      CONFIG_LCZ_PARAMS_PATH);
-		BREAK_ON_ERROR(r);
+		if (strlen(CONFIG_LCZ_PARAMS_PATH)) {
+			r = fsu_mkdir(CONFIG_LCZ_PARAMS_MOUNT_POINT,
+				      CONFIG_LCZ_PARAMS_PATH);
+			BREAK_ON_ERROR(r);
+		}
 
 		params_ready = true;
 		r = 0;

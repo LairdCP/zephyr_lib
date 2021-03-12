@@ -13,9 +13,12 @@ menuconfig LCZ_PARAMS
 if LCZ_PARAMS
 
 config LCZ_PARAMS_INIT_PRIORITY
-    int "Priority of LCZ parameter module initialization (POST_KERNEL)"
+    int "Priority of LCZ parameter module initialization (APPLICATION)"
     range 1 99
-    default 90
+    default 1
+    help
+        Can't be higher than the file system init priority.
+        If LFS is used, then it must be lower than its priority (POST_KERNEL, 99).
 
 config LCZ_PARAMS_LOG_LEVEL
     int "Log level for Parameters Module"

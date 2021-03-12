@@ -83,7 +83,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 
 SHELL_CMD_REGISTER(fsu, &sub_fsu, "File System Utilities", NULL);
 
-SYS_INIT(fsu_shell_init, POST_KERNEL, 0);
+SYS_INIT(fsu_shell_init, APPLICATION, 99);
 
 /******************************************************************************/
 /* Local Function Definitions                                                 */
