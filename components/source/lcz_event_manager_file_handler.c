@@ -428,8 +428,8 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		/* Now sleep for a while - we don't want to wake up for */
 		/* every event so have a small delay to allow others to */
 		/* arrive.                                              */
-		k_sleep(K_MSEC(
-			CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_UPDATE_RATE));
+		//k_sleep(K_MSEC(
+		//	CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_UPDATE_RATE));
 
 		/* We know we have at least one event here, but check   */
 		/* if any more have arrived in between                  */
