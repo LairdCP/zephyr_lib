@@ -25,7 +25,10 @@ config LCZ_EVENT_MANAGER_NUMBER_OF_FILES
 
 config LCZ_EVENT_MANAGER_BACKGROUND_THREAD_PRIORITY
 	int "The priority of the Event Manager background thread."
-	default 5
+	depends on COOP_ENABLED
+	default -1
+	help
+		Needs to be cooperative to ensure tasks are completed as quickly as possible.
 
 config LCZ_EVENT_MANAGER_BACKGROUND_THREAD_UPDATE_RATE
 	int "The number of milliseconds between updates of the Event Manager background thread."
@@ -49,5 +52,17 @@ config LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE
 	int "The size of the message queue used to store incoming events."
 	range 10 100
 	default 16
+
+config LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_STACK_SIZE
+	int "The size of the stack used by the workqueue thread that saves event files."
+	range 1024 4096
+	default 1024
+
+config LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY
+	int "The priority of the thread used to save event files."
+	depends on PREEMPT_ENABLED
+	default 1
+	help
+		Needs to be pre-emptible to avoid blocking higher priority tasks due to potential long update times.
 
 endif # LCZ_EVENT_MANAGER

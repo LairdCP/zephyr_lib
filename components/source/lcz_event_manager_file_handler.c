@@ -105,6 +105,18 @@ static struct k_msgq lcz_event_manager_file_handler_msgq;
 static SensorEvent_t lcz_event_manager_file_handler_msgq_buffer
 	[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE];
 
+/* This is the stack used by the work queue thread where event files are     */
+/* saved                                                                     */
+K_THREAD_STACK_DEFINE(lcz_event_manager_file_handler_workq_stack,
+	CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_STACK_SIZE);
+
+/* This is the work queue used to store files. Separate from the system work */
+/* queue to avoid clogging it with potentially long storage operations.      */
+static struct k_work_q lcz_event_manager_file_handler_workq;
+
+/* And the work item to trigger background writes.                           */
+static struct k_work lcz_event_manager_file_handler_work_item;
+
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
@@ -112,6 +124,9 @@ static SensorEvent_t lcz_event_manager_file_handler_msgq_buffer
 static void lcz_event_manager_file_handler_background_thread(void *unused1,
 							     void *unused2,
 							     void *unused3);
+
+/* Work queue handler for background file update */
+static void lcz_event_manager_file_handler_workq_handler(struct k_work *item);
 
 /* Gets the indexed event from the event structure */
 static SensorEvent_t *
@@ -184,17 +199,21 @@ lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
 /*****************************************************************************/
 void lcz_event_manager_file_handler_initialise(void)
 {
-	/* Build the mutex we use to protect access to the event manager     */
-	/* file handler data structure                                       */
+	/* Build the mutex we use to protect access to the event manager */
+	/* file handler data structure                                   */
 	k_mutex_init(&lczEventManagerFileHandlerMutex);
 
-	/* The message queue used to store incoming events                   */
+	/* And immediately lock it in case any threads bump this one */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+
+	/* The message queue used to store incoming events */
 	k_msgq_init(&lcz_event_manager_file_handler_msgq,
 		    (char *)lcz_event_manager_file_handler_msgq_buffer,
 		    sizeof(SensorEvent_t),
 		    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE);
 
-	/* Create the worker thread used to update files in the background   */
+	/* Create the worker thread used to update the event log shadow */
+	/* RAM via a work queue                                         */
 	(void)k_thread_create(
 		&lcz_event_manager_file_handler_thread_data,
 		lcz_event_manager_file_handler_stack_area,
@@ -203,6 +222,31 @@ void lcz_event_manager_file_handler_initialise(void)
 		lcz_event_manager_file_handler_background_thread, NULL, NULL,
 		NULL, CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_PRIORITY, 0,
 		K_NO_WAIT);
+
+	/* Set up the work item that will be used to trigger background */
+	/* file writes                                                  */
+	k_work_init(&lcz_event_manager_file_handler_work_item,
+			lcz_event_manager_file_handler_workq_handler);
+
+	/* Start the work queue used to save event files */
+	k_work_q_start(&lcz_event_manager_file_handler_workq,
+			lcz_event_manager_file_handler_workq_stack,
+			K_THREAD_STACK_SIZEOF(
+			lcz_event_manager_file_handler_workq_stack),
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY);
+
+	/* Check if all files are present and of the right size */
+	if (!lcz_event_manager_file_handler_check_structure()) {
+		/* If not they need to be rebuilt */
+		lcz_event_manager_file_handler_rebuild_structure();
+	}
+	/* Now load the event files */
+	lcz_event_manager_file_handler_load_files();
+	/* And setup indexing so we know where to write next */
+	lcz_event_manager_file_handler_get_indices();
+
+	/* Safe to release resources now */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 }
 
 void lcz_event_manager_file_handler_add_event(
@@ -392,7 +436,9 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-/** @brief The Event Manager File Handler background thread.
+/** @brief The Event Manager File Handler background thread. Commits incoming
+ *         events to the shadow of the event log then triggers a background
+ *         write operation.
  *
  *  @param [in]unused1 - Unused parameter.
  *  @param [in]unused2 - Unused parameter.
@@ -409,27 +455,11 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 	/* The count of events needing to be added to the event log */
 	uint16_t eventCount;
 
-	/* Check if all files are present and of the right size */
-	if (!lcz_event_manager_file_handler_check_structure()) {
-		/* If not they need to be rebuilt */
-		lcz_event_manager_file_handler_rebuild_structure();
-	}
-	/* Now load the event files */
-	lcz_event_manager_file_handler_load_files();
-	/* And setup indexing so we know where to write next */
-	lcz_event_manager_file_handler_get_indices();
-
 	/* Start the main event manager file handler loop */
 	while (1) {
 		/* Wait for the next event to arrive */
 		result = k_msgq_get(&lcz_event_manager_file_handler_msgq,
 				    &sensorEvent, K_FOREVER);
-
-		/* Now sleep for a while - we don't want to wake up for */
-		/* every event so have a small delay to allow others to */
-		/* arrive.                                              */
-		//k_sleep(K_MSEC(
-		//	CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_UPDATE_RATE));
 
 		/* We know we have at least one event here, but check   */
 		/* if any more have arrived in between                  */
@@ -456,12 +486,28 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 			}
 		} while ((eventCount) && (result == 0));
 
-		/* Save any changed files */
-		lcz_event_manager_file_handler_save_files();
-
 		/* Release resources after all changes are made */
 		k_mutex_unlock(&lczEventManagerFileHandlerMutex);
+
+		/* Then trigger a background write operation. */
+		k_work_submit(&lcz_event_manager_file_handler_work_item);
 	}
+}
+
+/** @brief Event Manager File Handler work queue processing.
+ *
+ *  @param [in]item - Unused work item.
+ */
+static void lcz_event_manager_file_handler_workq_handler(struct k_work *item){
+
+	/* Lock resources whilst making changes */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+
+	/* Save any changed files */
+	lcz_event_manager_file_handler_save_files();
+
+	/* Release resources after all changes are made */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 }
 
 /** @brief Retrieves an event from the event log.
