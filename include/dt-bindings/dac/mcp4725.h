@@ -1,0 +1,22 @@
+/*
+ * Copyright (c) 2021 Laird Connectivity
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#ifndef ZEPHYR_INCLUDE_DT_BINDINGS_DAC_MCP4725_H_
+#define ZEPHYR_INCLUDE_DT_BINDINGS_DAC_MCP4725_H_
+
+/* Config bits of MCP4725 DAC register are packed into top 5 bits of dac write value */
+#define MCP4725_WRITE_MODE_FAST			0x00
+#define MCP4725_WRITE_MODE_DAC			0x02
+#define MCP4725_WRITE_MODE_DAC_AND_EEPROM	0x03
+
+#define MCP4725_WRITE_MODE_BIT_SHIFT		29
+#define MCP4725_POWER_DOWN_BIT_SHIFT		27
+
+#define MCP4725_VALUE_WRITE_DAC(value)		\
+	((MCP4725_WRITE_MODE_DAC << MCP4725_WRITE_MODE_BIT_SHIFT) | value)
+#define MCP4725_VALUE_WRITE_DAC_AND_EEPROM(value)	\
+	((MCP4725_WRITE_MODE_DAC_AND_EEPROM << MCP4725_WRITE_MODE_BIT_SHIFT) | value)
+
+#endif /* ZEPHYR_INCLUDE_DT_BINDINGS_DAC_MCP4725_H_ */
