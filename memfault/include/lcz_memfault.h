@@ -69,6 +69,22 @@ extern "C" {
 #define MFLT_METRICS_TIMER_STOP(key)
 #endif /* CONFIG_LCZ_MEMFAULT_METRICS */
 
+#ifdef CONFIG_LCZ_MEMFAULT_HTTP_TRANSPORT
+#define LCZ_MEMFAULT_HTTP_INIT lcz_memfault_http_init
+#define LCZ_MEMFAULT_POST_DATA lcz_memfault_post_data
+#else
+#define LCZ_MEMFAULT_HTTP_INIT(...)
+#define LCZ_MEMFAULT_POST_DATA(...)
+#endif
+
+#ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
+#define LCZ_MEMFAULT_PUBLISH_DATA lcz_memfault_publish_data
+#define LCZ_MEMFAULT_BUILD_TOPIC lcz_memfault_build_topic
+#else
+#define LCZ_MEMFAULT_PUBLISH_DATA(...)
+#define LCZ_MEMFAULT_BUILD_TOPIC(...)
+#endif
+
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
@@ -87,7 +103,7 @@ int lcz_memfault_http_init(char *api_key);
  *
  * @return 0 on success
  */
-int lcz_memfault_post_data();
+int lcz_memfault_post_data(void);
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
@@ -96,7 +112,16 @@ int lcz_memfault_post_data();
  *
  * @return true if data was sent
  */
-bool lcz_memfault_publish_data(struct mqtt_client *client, char *topic);
+bool lcz_memfault_publish_data(struct mqtt_client *client);
+
+/**
+ * @brief Build topic used for publishing using LCZ_MEMFAULT_MQTT_TOPIC as
+ * the format string.
+ *
+ * @return negative error code, 0 on success
+ */
+int lcz_memfault_build_topic(const char *board, const char *id);
+
 #endif
 
 #ifdef __cplusplus

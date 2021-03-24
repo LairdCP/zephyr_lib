@@ -32,10 +32,12 @@ K_MUTEX_DEFINE(publish_data_mutex);
 
 static uint8_t data_buf[CONFIG_LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH];
 
+static char memfault_topic[CONFIG_MEMFAULT_TOPIC_MAX_SIZE];
+
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static bool send_mqtt_data(struct mqtt_client *client, char *topic);
+static bool send_mqtt_data(struct mqtt_client *client);
 static int publish_data(struct mqtt_client *client, uint8_t *data, size_t len,
 			char *topic);
 static uint16_t rand16_nonzero_get(void);
@@ -44,26 +46,46 @@ static uint16_t rand16_nonzero_get(void);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 
-bool lcz_memfault_publish_data(struct mqtt_client *client, char *topic)
+bool lcz_memfault_publish_data(struct mqtt_client *client)
 {
 	bool sent;
 
 	k_mutex_lock(&publish_data_mutex, K_FOREVER);
-	sent = send_mqtt_data(client, topic);
+	sent = send_mqtt_data(client);
 	k_mutex_unlock(&publish_data_mutex);
 
 	return sent;
+}
+
+int lcz_memfault_build_topic(const char *board, const char *id)
+{
+	int r = snprintk(memfault_topic, sizeof(memfault_topic),
+			 CONFIG_LCZ_MEMFAULT_MQTT_TOPIC, board, id);
+
+	if (r < 0) {
+		LOG_ERR("Unable to build memfault topic");
+		return r;
+	} else if (r >= sizeof(memfault_topic)) {
+		LOG_ERR("Memfault topic string too small");
+		return -1;
+	} else {
+		return 0;
+	}
 }
 
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
 
-static bool send_mqtt_data(struct mqtt_client *client, char *topic)
+static bool send_mqtt_data(struct mqtt_client *client)
 {
 	int rc;
 	size_t data_len;
 	bool data_available;
+
+	if (strlen(memfault_topic) == 0) {
+		return false;
+	}
 
 	while (1) {
 		data_len = sizeof(data_buf);
@@ -73,8 +95,9 @@ static bool send_mqtt_data(struct mqtt_client *client, char *topic)
 			LOG_DBG("No data to send");
 			break;
 		}
-		LOG_DBG("Send %d bytes to %s", data_len, log_strdup(topic));
-		rc = publish_data(client, data_buf, data_len, topic);
+		LOG_DBG("Send %d bytes to %s", data_len,
+			log_strdup(memfault_topic));
+		rc = publish_data(client, data_buf, data_len, memfault_topic);
 		if (rc != 0) {
 			LOG_ERR("Could not publish data %d", rc);
 			return false;

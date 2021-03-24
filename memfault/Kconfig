@@ -43,6 +43,10 @@ config LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH
 	help
 	  Determines maximum size of data that can be sent at a time.
 
+config MEMFAULT_TOPIC_MAX_SIZE
+	int "Max topic size for memfault"
+	default 64
+
 endif # LCZ_MEMFAULT_MQTT_TRANSPORT
 
 config LCZ_MEMFAULT_METRICS

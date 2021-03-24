@@ -45,7 +45,7 @@ int lcz_memfault_http_init(char *api_key)
 	return rc;
 }
 
-int lcz_memfault_post_data()
+int lcz_memfault_post_data(void)
 {
 	int rc;
 
