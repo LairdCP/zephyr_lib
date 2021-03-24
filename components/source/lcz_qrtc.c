@@ -25,7 +25,9 @@ struct qrtc {
 	bool epoch_was_set;
 	uint32_t offset;
 	struct k_mutex mutex;
+#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
 	struct k_delayed_work work;
+#endif
 };
 
 /******************************************************************************/
@@ -40,25 +42,15 @@ static int qrtc_sys_init(const struct device *device);
 static void update_offset(uint32_t epoch);
 static uint32_t get_uptime_seconds(void);
 static uint32_t convert_time_to_epoch(time_t Time);
+
+#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
 static void qrtc_sync_handler(struct k_work *dummy);
+#endif
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
 SYS_INIT(qrtc_sys_init, POST_KERNEL, CONFIG_LCZ_QRTC_INIT_PRIORITY);
-
-void lcz_qrtc_init(void)
-{
-	k_mutex_init(&qrtc.mutex);
-	qrtc.offset = 0;
-	qrtc.epoch_was_set = false;
-	k_delayed_work_init(&qrtc.work, qrtc_sync_handler);
-
-#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
-	k_delayed_work_submit(&qrtc.work,
-			      K_SECONDS(CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS));
-#endif
-}
 
 uint32_t lcz_qrtc_set_epoch(uint32_t epoch)
 {
@@ -96,7 +88,15 @@ static int qrtc_sys_init(const struct device *device)
 {
 	ARG_UNUSED(device);
 
-	lcz_qrtc_init();
+	k_mutex_init(&qrtc.mutex);
+	qrtc.offset = 0;
+	qrtc.epoch_was_set = false;
+#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
+	k_delayed_work_init(&qrtc.work, qrtc_sync_handler);
+
+	k_delayed_work_submit(&qrtc.work,
+			      K_SECONDS(CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS));
+#endif
 
 	return 0;
 }
@@ -143,6 +143,7 @@ static uint32_t convert_time_to_epoch(time_t Time)
 	}
 }
 
+#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
 static void qrtc_sync_handler(struct k_work *dummy)
 {
 	ARG_UNUSED(dummy);
@@ -157,3 +158,4 @@ __weak void lcz_qrtc_sync_handler(void)
 {
 	return;
 }
+#endif

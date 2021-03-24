@@ -23,13 +23,6 @@ extern "C" {
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 /**
- * @brief Resets epoch to 0 and changes epoch_was_set to false.
- *
- * @note Called by sys init.
- */
-void lcz_qrtc_init(void);
-
-/**
  * @brief Set the epoch
  *
  * @param epoch in seconds from Jan 1, 1970
@@ -63,9 +56,14 @@ uint32_t lcz_qrtc_get_epoch(void);
 bool lcz_qrtc_epoch_was_set(void);
 
 /**
- * @brief Override weak implementation in application.
+ * @brief When enabled this is periodically called by qrtc module.
+ *
+ * @note Override the weak implementation in application.
+ *
  */
+#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
 void lcz_qrtc_sync_handler(void);
+#endif
 
 #ifdef __cplusplus
 }
