@@ -20,7 +20,7 @@ LOG_MODULE_REGISTER(dis);
 #include <kernel_version.h>
 #include <version.h>
 
-#include "laird_bluetooth.h"
+#include "lcz_bluetooth.h"
 #include "dis.h"
 
 /******************************************************************************/

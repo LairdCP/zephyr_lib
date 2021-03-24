@@ -1,5 +1,5 @@
 /**
- * @file laird_bluetooth.c
+ * @file lcz_bluetooth.c
  * @brief Common Bluetooth operations.
  *
  * Copyright (c) 2021 Laird Connectivity
@@ -9,7 +9,7 @@
 
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_DBG
-LOG_MODULE_REGISTER(laird_bluetooth);
+LOG_MODULE_REGISTER(lcz_bluetooth);
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -22,7 +22,7 @@ LOG_MODULE_REGISTER(laird_bluetooth);
 #endif
 
 #include "laird_utility_macros.h"
-#include "laird_bluetooth.h"
+#include "lcz_bluetooth.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -300,7 +300,7 @@ const char *lbt_get_nrf52_reset_reason_string_from_register(uint32_t reg)
 	return "UNKNOWN";
 }
 
-bool lbt_master_role(struct bt_conn *conn)
+bool lbt_central_role(struct bt_conn *conn)
 {
 	struct bt_conn_info info;
 	int rc = bt_conn_get_info(conn, &info);
@@ -311,7 +311,7 @@ bool lbt_master_role(struct bt_conn *conn)
 	}
 }
 
-bool lbt_slave_role(struct bt_conn *conn)
+bool lbt_peripheral_role(struct bt_conn *conn)
 {
 	struct bt_conn_info info;
 	int rc = bt_conn_get_info(conn, &info);

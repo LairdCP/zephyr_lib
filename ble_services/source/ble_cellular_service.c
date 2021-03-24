@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(oob_cell_svc);
 #include <bluetooth/gatt.h>
 #include <bluetooth/bluetooth.h>
 
-#include "laird_bluetooth.h"
+#include "lcz_bluetooth.h"
 #include "ble_cellular_service.h"
 
 /******************************************************************************/
@@ -522,7 +522,7 @@ static void cell_svc_connected(struct bt_conn *conn, uint8_t err)
 		return;
 	}
 
-	if (!lbt_slave_role(conn)) {
+	if (!lbt_peripheral_role(conn)) {
 		return;
 	}
 
@@ -531,7 +531,7 @@ static void cell_svc_connected(struct bt_conn *conn, uint8_t err)
 
 static void cell_svc_disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	if (!lbt_slave_role(conn)) {
+	if (!lbt_peripheral_role(conn)) {
 		return;
 	}
 

@@ -22,7 +22,7 @@ LOG_MODULE_REGISTER(fota);
 #include <drivers/modem/hl7800.h>
 #endif
 
-#include "laird_bluetooth.h"
+#include "lcz_bluetooth.h"
 #include "file_system_utilities.h"
 #include "fota.h"
 
@@ -275,7 +275,7 @@ static void fota_connected(struct bt_conn *conn, uint8_t err)
 		return;
 	}
 
-	if (!lbt_slave_role(conn)) {
+	if (!lbt_peripheral_role(conn)) {
 		return;
 	}
 
@@ -284,7 +284,7 @@ static void fota_connected(struct bt_conn *conn, uint8_t err)
 
 static void fota_disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	if (!lbt_slave_role(conn)) {
+	if (!lbt_peripheral_role(conn)) {
 		return;
 	}
 

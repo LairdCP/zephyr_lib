@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(universal_bootloader_service);
 #include <bluetooth/gatt.h>
 #include <bluetooth/bluetooth.h>
 
-#include "laird_bluetooth.h"
+#include "lcz_bluetooth.h"
 #include "universal_bootloader_service.h"
 #include "Bootloader_External_Settings.h"
 #include "hexcode.h"

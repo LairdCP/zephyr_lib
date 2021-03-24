@@ -1,13 +1,13 @@
 /**
- * @file laird_bluetooth.h
+ * @file lcz_bluetooth.h
  * @brief Bluetooth helper functions
  *
  * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __LAIRD_BLUETOOTH_H__
-#define __LAIRD_BLUETOOTH_H__
+#ifndef __LCZ_BLUETOOTH_H__
+#define __LCZ_BLUETOOTH_H__
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -151,19 +151,19 @@ uint32_t lbt_get_and_clear_nrf52_reset_reason_register(void);
 const char *lbt_get_nrf52_reset_reason_string_from_register(uint32_t reg);
 
 /**
- * @retval true if Master role, false if slave role or there
+ * @retval true if central role, false if peripheral role or there
  * was an error getting connection info.
  */
-bool lbt_master_role(struct bt_conn *conn);
+bool lbt_central_role(struct bt_conn *conn);
 
 /**
- * @retval true if Slave role, false if slave role or there
+ * @retval true if peripheral role, false if central role or there
  * was an error getting connection info.
  */
-bool lbt_slave_role(struct bt_conn *conn);
+bool lbt_peripheral_role(struct bt_conn *conn);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __LAIRD_BLUETOOTH_H__ */
+#endif /* __LCZ_BLUETOOTH_H__ */
