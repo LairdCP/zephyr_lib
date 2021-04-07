@@ -13,5 +13,6 @@ if LCZ_DRIVER
 	rsource "vibemotor/Kconfig"
 	rsource "accelerometer/Kconfig"
 	rsource "mg100_lis2dh/Kconfig"
+	rsource "lcz_nrf_qspi_nor/Kconfig"
 
 endif # LCZ_DRIVER
