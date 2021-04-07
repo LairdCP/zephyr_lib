@@ -157,7 +157,8 @@ static int fsu_sha_cmd(const struct shell *shell, size_t argc, char **argv)
 			status = fsu_sha256(hash, mount_point, pEntries[i].name,
 					    pEntries[i].size);
 			shell_print(shell, "SHA-256 of %s status: %d",
-				    log_strdup(pEntries[i].name), status);
+				    pEntries[i].name, status);
+
 			if (status == 0) {
 				shell_hexdump(shell, hash, FSU_HASH_SIZE);
 			} else {
