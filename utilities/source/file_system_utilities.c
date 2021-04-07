@@ -209,19 +209,28 @@ void fsu_free_found(struct fs_dirent *entry)
 int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 	       size_t size)
 {
-	int rc = -1;
+	int rc = -EPERM;
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
 
-#ifdef CONFIG_FSU_HASH
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
 		return rc;
 	}
 
-	char abs_path[FSU_MAX_ABS_PATH_SIZE];
 	(void)fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+
+	return fsu_sha256_abs(hash, abs_path, size);
+}
+
+int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
+		   size_t size)
+{
+	int rc = -EPERM;
+	struct fs_file_t f;
+
 	memset(&hash[0], 0, FSU_HASH_SIZE);
 
-	struct fs_file_t f;
+#ifdef CONFIG_FSU_HASH
 	rc = fs_open(&f, abs_path, FS_O_READ);
 	if (rc < 0) {
 		return rc;
@@ -271,7 +280,7 @@ int fsu_build_full_name(char *result, size_t max_size, const char *path,
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
-		return -1;
+		return -EPERM;
 	}
 
 	if (result != NULL) {
@@ -285,16 +294,16 @@ int fsu_single_entry_exists(const char *path, const char *name,
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
-		return -1;
+		return -EPERM;
 	}
 
-	int status = -1;
+	int status = -EPERM;
 	size_t count = 0;
 	struct fs_dirent *pEntries = fsu_find(path, name, &count, entry_type);
 	if (count == 0) {
 		status = -ENOENT;
 	} else if (count != 1) {
-		status = -1;
+		status = -EINVAL;
 	} else if (pEntries != NULL) { /* redundant check */
 		status = pEntries->size;
 	}
@@ -322,11 +331,30 @@ ssize_t fsu_write_abs(const char *abs_path, void *data, size_t size)
 	return fsu_wa_abs(abs_path, data, size, false);
 }
 
+int fsu_delete(const char *path, const char *name)
+{
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+
+	if (path == NULL || name == NULL) {
+		LOG_ERR("Invalid path or name");
+		return -EPERM;
+	}
+
+	(void)fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+	return fsu_delete_abs(abs_path);
+}
+
+int fsu_delete_abs(const char *abs_path)
+{
+	LOG_DBG("Deleting (unlinking) file %s", log_strdup(abs_path));
+	return fs_unlink(abs_path);
+}
+
 int fsu_delete_files(const char *path, const char *name)
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
-		return -1;
+		return -EPERM;
 	}
 
 	char abs_path[FSU_MAX_ABS_PATH_SIZE];
@@ -483,7 +511,7 @@ static ssize_t fsu_wa(const char *path, const char *name, void *data,
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
-		return -1;
+		return -EPERM;
 	}
 
 	char abs_path[FSU_MAX_ABS_PATH_SIZE];

@@ -108,6 +108,18 @@ int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 	       size_t size);
 
 /**
+ * @brief Compute SHA256 of a file.  Hash is zeroed on start.
+ *
+ * @param hash result
+ * @param abs_path absolute file name
+ * @param size of file in bytes
+ *
+ * @retval 0 on success, otherwise negative system error code.
+ */
+int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
+		   size_t size);
+
+/**
  * @brief Build name with path "%s/%s" using snprintk.
  * Result is zeroed on entry.
  *
@@ -188,13 +200,32 @@ int fsu_append_abs(const char *abs_path, void *data, size_t size);
 int fsu_write_abs(const char *abs_path, void *data, size_t size);
 
 /**
+ * @brief Delete one file
+ *
+ * @param path directory path
+ * @param name file name
+ *
+ * @retval negative error code, 0 on success
+ */
+int fsu_delete(const char *path, const char *name);
+
+/**
+ * @brief Delete one file. Wrapped fs_unlink.
+ *
+ * @param abs_path of file
+ *
+ * @retval negative error code, 0 on success
+ */
+int fsu_delete_abs(const char *abs_path);
+
+/**
  * @brief Deletes all files matching name.
  *
  * @note fsu_find is used internally.
  * Not recommended when deleting a single file. Use fs_unlink instead.
  *
  * @param path directory path
- * @param name file name (or partial name)
+ * @param name file name (or partial name; no wildcard needed)
  *
  * @retval negative error code, number of deleted files on success
  */
