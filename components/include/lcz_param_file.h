@@ -1,13 +1,15 @@
 /**
- * @file lcz_params.h
- * @brief
+ * @file lcz_param_file.h
+ * @brief Methods for reading and writing parameters (settings) to files in
+ * binary format.  Reads and writes parameters to text files using key-value
+ * pairs.
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __LCZ_PARAMS_H__
-#define __LCZ_PARAMS_H__
+#ifndef __LCZ_PARAM_FILE_H__
+#define __LCZ_PARAM_FILE_H__
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -39,24 +41,33 @@ typedef struct param_kvp {
 /**
  * @brief Write to the filesystem.
  *
- * @param name file name (prepended with CONFIG_LCZ_PARAMS_MOUNT_POINT)
+ * @param name file name (prepended with CONFIG_LCZ_PARAM_FILE_MOUNT_POINT)
  * @param data pointer to data
  * @param size size of data
  *
  * @retval negative error code, 0 on success.
  */
-ssize_t lcz_params_write(char *name, void *data, size_t size);
+ssize_t lcz_param_file_write(char *name, void *data, size_t size);
 
 /**
  * @brief Read from the filesystem.
  *
- * @param name file name (prepended with CONFIG_LCZ_PARAMS_MOUNT_POINT)
+ * @param name file name (prepended with CONFIG_LCZ_PARAM_FILE_MOUNT_POINT)
  * @param data pointer to data
  * @param size max size of read
  *
  * @retval negative error code, bytes read on success.
  */
-ssize_t lcz_params_read(char *name, void *data, size_t size);
+ssize_t lcz_param_file_read(char *name, void *data, size_t size);
+
+/**
+ * @brief Delete parameter file from the filesystem.
+ *
+ * @param name file name (prepended with CONFIG_LCZ_PARAM_FILE_MOUNT_POINT)
+ *
+ * @retval negative error code, 0 on success
+ */
+int lcz_param_file_delete(char *name);
 
 /**
  * @brief Override weak implementation in application to use a
@@ -64,7 +75,7 @@ ssize_t lcz_params_read(char *name, void *data, size_t size);
  *
  * @retval negative error code, 0 on success
  */
-int lcz_params_mount_fs(void);
+int lcz_param_file_mount_fs(void);
 
 /**
  * @brief Parses a parameter text file.  Data is in hex with least
@@ -88,8 +99,8 @@ int lcz_params_mount_fs(void);
  * @note If the return is non-negative, then it is the responsibility of the
  * caller to free fstr and kv.
  */
-int lcz_params_parse_from_file(const char *fname, size_t *fsize, char **fstr,
-			       param_kvp_t **kv);
+int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
+				   char **fstr, param_kvp_t **kv);
 
 /**
  * @brief Validate a parameter file.
@@ -99,7 +110,7 @@ int lcz_params_parse_from_file(const char *fname, size_t *fsize, char **fstr,
  *
  * @retval negative on error, otherwise number of key-value pairs.
  */
-int lcz_params_validate_file(const char *str, size_t size);
+int lcz_param_file_validate_file(const char *str, size_t size);
 
 /**
  * @brief Generates a parameter file.  Allocates buffer on first call and
@@ -116,11 +127,11 @@ int lcz_params_validate_file(const char *str, size_t size);
  *
  * @retval negative on error, otherwise number of bytes added to file string.
  */
-int lcz_params_generate_file(param_id_t id, param_t type, const void *data,
-			     size_t dsize, char **fstr);
+int lcz_param_file_generate_file(param_id_t id, param_t type, const void *data,
+				 size_t dsize, char **fstr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __LCZ_PARAMS_H__ */
+#endif /* __LCZ_PARAM_FILE_H__ */

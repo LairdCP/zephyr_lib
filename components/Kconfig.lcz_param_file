@@ -1,18 +1,18 @@
 #
-# Copyright (c) 2020 Laird Connectivity
+# Copyright (c) 2021 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-menuconfig LCZ_PARAMS
-    bool "Enable Laird Connectivity Parameters Module"
+menuconfig LCZ_PARAM_FILE
+    bool "Enable Laird Connectivity Parameter File Module"
     depends on FILE_SYSTEM
     depends on FILE_SYSTEM_UTILITIES
     depends on HEAP_MEM_POOL_SIZE > 0
 
-if LCZ_PARAMS
+if LCZ_PARAM_FILE
 
-config LCZ_PARAMS_INIT_PRIORITY
+config LCZ_PARAM_FILE_INIT_PRIORITY
     int "Priority of LCZ parameter module initialization (APPLICATION)"
     range 1 99
     default 1
@@ -20,42 +20,42 @@ config LCZ_PARAMS_INIT_PRIORITY
         Can't be higher than the file system init priority.
         If LFS is used, then it must be lower than its priority (POST_KERNEL, 99).
 
-config LCZ_PARAMS_LOG_LEVEL
+config LCZ_PARAM_FILE_LOG_LEVEL
     int "Log level for Parameters Module"
     range 0 4
     default 3
 
-config LCZ_PARAMS_LOG_VERBOSE
+config LCZ_PARAM_FILE_LOG_VERBOSE
     bool "Enable verbose debug logging for Parameters Module"
-    depends on LCZ_PARAMS_LOG_LEVEL = 4
+    depends on LCZ_PARAM_FILE_LOG_LEVEL = 4
 
-config LCZ_PARAMS_MOUNT_POINT
+config LCZ_PARAM_FILE_MOUNT_POINT
     string "File system mount point for Laird Connectivity parameters"
     default "/lfs"
 
-config LCZ_PARAMS_PATH
+config LCZ_PARAM_FILE_PATH
     string "Folder (partial path) for parameters"
     default ""
     help
         The default location for parameters written by the cloud is
         "/lfs/params.txt".
 
-config LCZ_PARAMS_MAX_FILE_LENGTH
+config LCZ_PARAM_FILE_MAX_FILE_LENGTH
     int "Maximum length of the parameter file"
     default 1000
     help
         This should be set by the code generator.
 
-config LCZ_PARAMS_MAX_VALUE_LENGTH
+config LCZ_PARAM_FILE_MAX_VALUE_LENGTH
     int "Maximum value of a parameter in hex/string form"
     default 96
     help
         This should be set by the code generator.
 
-config LCZ_PARAMS_4_DIGIT_ID
+config LCZ_PARAM_FILE_4_DIGIT_ID
     bool "Generate all 4 digits of parameter ID for backward compatibility"
 
-config LCZ_PARAMS_SHELL
+config LCZ_PARAM_FILE_SHELL
 	bool "Enable parameters shell"
 
-endif # LCZ_PARAMS
+endif # LCZ_PARAM_FILE

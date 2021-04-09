@@ -1,14 +1,14 @@
 /**
- * @file lcz_params.c
+ * @file lcz_param_file.c
  * @brief
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(lcz_params, CONFIG_LCZ_PARAMS_LOG_LEVEL);
+LOG_MODULE_REGISTER(lcz_param_file, CONFIG_LCZ_PARAM_FILE_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(lcz_params, CONFIG_LCZ_PARAMS_LOG_LEVEL);
 #include <string.h>
 
 #include "file_system_utilities.h"
-#include "lcz_params.h"
+#include "lcz_param_file.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -40,25 +40,26 @@ LOG_MODULE_REGISTER(lcz_params, CONFIG_LCZ_PARAMS_LOG_LEVEL);
 #define EOL_CHAR '\n'
 #define CR_CHAR '\r'
 
-#define PARAMS_MAX_FILE_SIZE (CONFIG_LCZ_PARAMS_MAX_FILE_LENGTH + 1)
+#define PARAMS_MAX_FILE_SIZE (CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH + 1)
 
 #define PARAMS_MAX_ID_BYTES sizeof(param_id_t)
 #define PARAMS_MAX_ID_LENGTH (PARAMS_MAX_ID_BYTES * 2)
+
+#define PARAMS_PATH                                                            \
+	CONFIG_LCZ_PARAM_FILE_MOUNT_POINT "/" CONFIG_LCZ_PARAM_FILE_PATH
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
 static bool params_ready;
-const char params_path[] =
-	CONFIG_LCZ_PARAMS_MOUNT_POINT "/" CONFIG_LCZ_PARAMS_PATH;
 
-BUILD_ASSERT(sizeof(params_path) <= CONFIG_FSU_MAX_PATH_SIZE,
+BUILD_ASSERT(sizeof(PARAMS_PATH) <= CONFIG_FSU_MAX_PATH_SIZE,
 	     "Params path too long");
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static int lcz_params_init(const struct device *device);
+static int lcz_param_file_init(const struct device *device);
 
 static int read_text(const char *fname, char **fstr, size_t fsize);
 static int read_and_remove_cr(char *str, struct fs_file_t *fptr, size_t fsize,
@@ -78,28 +79,37 @@ static bool room_for_value(size_t current_length, size_t dsize);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 /* Initialize after fs but before application. */
-SYS_INIT(lcz_params_init, APPLICATION, CONFIG_LCZ_PARAMS_INIT_PRIORITY);
+SYS_INIT(lcz_param_file_init, APPLICATION, CONFIG_LCZ_PARAM_FILE_INIT_PRIORITY);
 
-ssize_t lcz_params_write(char *name, void *data, size_t size)
+ssize_t lcz_param_file_write(char *name, void *data, size_t size)
 {
 	if (params_ready) {
-		return fsu_write(params_path, name, data, size);
+		return fsu_write(PARAMS_PATH, name, data, size);
 	} else {
 		return -EPERM;
 	}
 }
 
-ssize_t lcz_params_read(char *name, void *data, size_t size)
+ssize_t lcz_param_file_read(char *name, void *data, size_t size)
 {
 	if (params_ready) {
-		return fsu_read(params_path, name, data, size);
+		return fsu_read(PARAMS_PATH, name, data, size);
 	} else {
 		return -EPERM;
 	}
 }
 
-int lcz_params_parse_from_file(const char *fname, size_t *fsize, char **fstr,
-			       param_kvp_t **kv)
+int lcz_param_file_delete(char *name)
+{
+	if (params_ready) {
+		return fsu_delete(PARAMS_PATH, name);
+	} else {
+		return -EPERM;
+	}
+}
+
+int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
+				   char **fstr, param_kvp_t **kv)
 {
 	int r = -EPERM;
 	struct fs_dirent *entry = k_malloc(sizeof(struct fs_dirent));
@@ -131,10 +141,10 @@ int lcz_params_parse_from_file(const char *fname, size_t *fsize, char **fstr,
 		BREAK_ON_ERROR(r);
 
 		entry->size = (size_t)r;
-		if (IS_ENABLED(CONFIG_LCZ_PARAMS_LOG_VERBOSE)) {
+		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
 			LOG_DBG("stripped size: %u ", entry->size);
 		}
-		r = lcz_params_validate_file(*fstr, entry->size);
+		r = lcz_param_file_validate_file(*fstr, entry->size);
 		BREAK_ON_ERROR(r);
 
 		/* allocate key-pointer-to-value pairs */
@@ -159,8 +169,8 @@ int lcz_params_parse_from_file(const char *fname, size_t *fsize, char **fstr,
 	return r;
 }
 
-int lcz_params_generate_file(param_id_t id, param_t type, const void *data,
-			     size_t dsize, char **fstr)
+int lcz_param_file_generate_file(param_id_t id, param_t type, const void *data,
+				 size_t dsize, char **fstr)
 {
 	int r = 0;
 	do {
@@ -185,7 +195,7 @@ int lcz_params_generate_file(param_id_t id, param_t type, const void *data,
 	return r;
 }
 
-int lcz_params_validate_file(const char *str, size_t length)
+int lcz_param_file_validate_file(const char *str, size_t length)
 {
 	int r = 0;
 	int delimiters = 0;
@@ -200,20 +210,21 @@ int lcz_params_validate_file(const char *str, size_t length)
 				LOG_ERR("Unexpected id size at %u", i);
 				break;
 			} else {
-				if (IS_ENABLED(CONFIG_LCZ_PARAMS_LOG_VERBOSE)) {
+				if (IS_ENABLED(
+					    CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
 					LOG_DBG("%u %d", i, distance);
 				}
 				distance = 0;
 			}
 		} else if (str[i] == EOL_CHAR) {
 			newlines += 1;
-			if (distance > CONFIG_LCZ_PARAMS_MAX_VALUE_LENGTH) {
+			if (distance > CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH) {
 				r = -EINVAL;
 				LOG_ERR("Invalid Size of %d at %u", distance,
 					i);
 				break;
 			}
-			if (IS_ENABLED(CONFIG_LCZ_PARAMS_LOG_VERBOSE)) {
+			if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
 				LOG_DBG("%u %d", i, distance);
 			}
 			distance = 0;
@@ -298,7 +309,8 @@ static int read_text(const char *fname, char **fstr, size_t fsize)
 		r = read_and_remove_cr(str, &file, fsize, &length);
 
 		/* The validator checks that the file ends with a '\n' (0x0A). */
-		if (IS_ENABLED(CONFIG_LCZ_PARAMS_LOG_VERBOSE) && length > 1) {
+		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE) &&
+		    length > 1) {
 			LOG_DBG("0x%x 0x%x", str[length - 2], str[length - 1]);
 		}
 
@@ -349,7 +361,7 @@ static int append_parameter(param_id_t id, param_t type, const void *data,
 
 		r = length - starting_length;
 
-		if (IS_ENABLED(CONFIG_LCZ_PARAMS_LOG_VERBOSE)) {
+		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
 			LOG_HEXDUMP_DBG(&str[starting_length], r,
 					"append parameter");
 		}
@@ -365,7 +377,7 @@ static int append_parameter(param_id_t id, param_t type, const void *data,
 static bool room_for_id(size_t current_length)
 {
 	return ((current_length + PARAMS_MAX_ID_LENGTH + SIZE_OF_DELIMITER) <
-		CONFIG_LCZ_PARAMS_MAX_FILE_LENGTH);
+		CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH);
 }
 
 static int append_id(char *str, size_t *length, param_id_t id)
@@ -374,7 +386,7 @@ static int append_id(char *str, size_t *length, param_id_t id)
 	int id_len;
 	/* id is big endian hex */
 	if (room_for_id(*length)) {
-		if (IS_ENABLED(CONFIG_LCZ_PARAMS_4_DIGIT_ID)) {
+		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_4_DIGIT_ID)) {
 			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH,
 					  "%04x", id);
 		} else {
@@ -402,9 +414,9 @@ static int append_id(char *str, size_t *length, param_id_t id)
  */
 static bool room_for_value(size_t current_length, size_t dsize)
 {
-	return ((dsize < CONFIG_LCZ_PARAMS_MAX_VALUE_LENGTH) &&
+	return ((dsize < CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH) &&
 		((current_length + dsize + SIZE_OF_DELIMITER + SIZE_OF_NUL) <
-		 CONFIG_LCZ_PARAMS_MAX_FILE_LENGTH));
+		 CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH));
 }
 
 static int append_value(char *str, size_t *length, param_t type,
@@ -415,9 +427,10 @@ static int append_value(char *str, size_t *length, param_t type,
 	if (room_for_value(*length, dsize)) {
 		switch (type) {
 		case PARAM_BIN:
-			val_len = bin2hex(data, dsize, &str[*length],
-					  CONFIG_LCZ_PARAMS_MAX_VALUE_LENGTH +
-						  SIZE_OF_NUL);
+			val_len =
+				bin2hex(data, dsize, &str[*length],
+					CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH +
+						SIZE_OF_NUL);
 			if (val_len == 0) {
 				r = -EINVAL;
 				LOG_ERR("Value conversion error");
@@ -451,18 +464,18 @@ static int append_value(char *str, size_t *length, param_t type,
 	return r;
 }
 
-static int lcz_params_init(const struct device *device)
+static int lcz_param_file_init(const struct device *device)
 {
 	ARG_UNUSED(device);
 	int r = -EPERM;
 
 	do {
-		r = lcz_params_mount_fs();
+		r = lcz_param_file_mount_fs();
 		BREAK_ON_ERROR(r);
 
-		if (strlen(CONFIG_LCZ_PARAMS_PATH)) {
-			r = fsu_mkdir(CONFIG_LCZ_PARAMS_MOUNT_POINT,
-				      CONFIG_LCZ_PARAMS_PATH);
+		if (strlen(CONFIG_LCZ_PARAM_FILE_PATH)) {
+			r = fsu_mkdir(CONFIG_LCZ_PARAM_FILE_MOUNT_POINT,
+				      CONFIG_LCZ_PARAM_FILE_PATH);
 			BREAK_ON_ERROR(r);
 		}
 
@@ -477,9 +490,9 @@ static int lcz_params_init(const struct device *device)
 /******************************************************************************/
 /* If desired, override in application                                        */
 /******************************************************************************/
-__weak int lcz_params_mount_fs(void)
+__weak int lcz_param_file_mount_fs(void)
 {
-	if (strcmp(CONFIG_LCZ_PARAMS_MOUNT_POINT, CONFIG_FSU_MOUNT_POINT) ==
+	if (strcmp(CONFIG_LCZ_PARAM_FILE_MOUNT_POINT, CONFIG_FSU_MOUNT_POINT) ==
 	    0) {
 		return fsu_lfs_mount();
 	} else {

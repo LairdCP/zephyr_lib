@@ -109,9 +109,9 @@ config LCZ_SOFTWARE_RESET_LOG_LEVEL
 	depends on LCZ_SOFTWARE_RESET
     range 0 4
     default 3
-    
+
 rsource "Kconfig.lcz_qrtc"
-rsource "Kconfig.lcz_params"
+rsource "Kconfig.lcz_param_file"
 rsource "Kconfig.lcz_led"
 rsource "Kconfig.lcz_pwm_led"
 rsource "Kconfig.lcz_no_init_ram_var"
