@@ -132,9 +132,19 @@ uint16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
 {
 	size_t i = 0;
 	while (i < size) {
-		if (memcmp(gatt[i].uuid, uuid, sizeof(struct bt_uuid_128)) ==
-		    0) {
-			return (uint16_t)i;
+		if (gatt[i].uuid->type == uuid->type) {
+			if (gatt[i].uuid->type == BT_UUID_TYPE_16) {
+				if (((struct bt_uuid_16 *)uuid)->val ==
+				    ((struct bt_uuid_16 *)gatt[i].uuid)->val) {
+					return (uint16_t)i;
+				}
+			}
+			else if (gatt[i].uuid->type == BT_UUID_TYPE_128) {
+				if (memcmp(gatt[i].uuid, uuid, sizeof(struct bt_uuid_128)) ==
+				    0) {
+					return (uint16_t)i;
+				}
+			}
 		}
 		++i;
 	}
