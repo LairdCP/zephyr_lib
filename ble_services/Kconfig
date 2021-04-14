@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020 Laird Connectivity
+# Copyright (c) 2020-2021 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -24,10 +24,26 @@ config BLE_POWER_SERVICE
 	bool "Enable BLE Power Service"
 	select LCZ_POWER
 
+if BLE_POWER_SERVICE
+
 config BLE_POWER_SERVICE_LOG_LEVEL
-    int "BLE Power Service Log level"
-    range 0 4
-    default 3
+	int "BLE Power Service Log level"
+	range 0 4
+	default 3
+
+endif
+
+config BLE_ESS_SERVICE
+	bool "Enable BLE ESS Service"
+
+if BLE_ESS_SERVICE
+
+config BLE_ESS_SERVICE_LOG_LEVEL
+	int "BLE ESS Service Log level"
+	range 0 4
+	default 2
+
+endif
 
 config LCZ_BLE_DIS
 	bool "Enable Custom Device Information BLE service"
