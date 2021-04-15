@@ -433,6 +433,6 @@ static const struct lis2dh_config lis2dh_config = {
 #endif
 };
 
-DEVICE_AND_API_INIT(lis2dh, DT_INST_LABEL(0), lis2dh_init, &lis2dh_data,
-		    &lis2dh_config, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
-		    &lis2dh_driver_api);
+DEVICE_DT_INST_DEFINE(0, lis2dh_init, device_pm_control_nop, &lis2dh_data,
+		      &lis2dh_config, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
+		      &lis2dh_driver_api);
