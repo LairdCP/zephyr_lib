@@ -15,6 +15,10 @@ config LCZ_MEMFAULT_LOG_LEVEL
 	default 4
 	range 0 4
 
+config LCZ_MEMFAULT_SOFTWARE_TYPE
+	string "Software type"
+	default "firmware"
+
 config LCZ_MEMFAULT_HTTP_TRANSPORT
 	bool "Enable HTTP data transport"
 	select MEMFAULT_HTTP_ENABLE
