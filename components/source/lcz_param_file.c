@@ -10,6 +10,9 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(lcz_param_file, CONFIG_LCZ_PARAM_FILE_LOG_LEVEL);
 
+#define LOG_ZLP(...)                                                           \
+	Z_LOG(CONFIG_LCZ_PARAM_FILE_ZERO_LENGTH_LOG_LEVEL, __VA_ARGS__)
+
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
@@ -273,7 +276,7 @@ static int parse_file(const char *str, int pairs, param_kvp_t *kv)
 		newline = strchr(kv[i].keystr, EOL_CHAR);
 		kv[i].length = newline - kv[i].keystr;
 		if (kv[i].length < 1) {
-			LOG_WRN("Unexpected parameter length (possible empty string)");
+			LOG_ZLP("Zero Length Parameter (possible empty string)");
 		}
 		start = newline + 1;
 	}
