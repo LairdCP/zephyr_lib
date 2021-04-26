@@ -265,7 +265,8 @@ void lcz_event_manager_file_handler_add_event(
 			 K_NO_WAIT);
 }
 
-int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath)
+int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
+						uint32_t *file_size)
 {
 	uint8_t fileName[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	int result = 0;
@@ -275,6 +276,8 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath)
 	/* Static copy of the event count. We need this because the */
 	/* live event count is decremented as events are read from the log */
 	uint32_t startEventCount;
+	/* This is the number of events added to the file */
+	uint32_t eventsAdded = 0;
 
 	/* Lock resources whilst we build the output file */
 	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
@@ -312,6 +315,8 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath)
 				}
 				/* Update event indices only when added OK */
 				if (result == 0) {
+					/* Update the total file size */
+					eventsAdded++;
 					/* Mark this event as free for use later */
 					memset(pSensorEvent, 0x0,
 					       sizeof(SensorEvent_t));
@@ -332,6 +337,8 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath)
 	}
 	/* Always return the file path */
 	strcpy(absFilePath, fileName);
+	/* And the number of events added */
+	*file_size = eventsAdded * sizeof(SensorEvent_t);
 	/* OK to release resources now */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 	/* Then exit with out result */
@@ -1074,6 +1081,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	uint16_t eventCount;
 	uint16_t badFileIndex;
 	SensorEvent_t sensorEventReadback;
+	uint32_t outputFileSize;
 
 #define TOTAL_FILE_SIZE_BYTES                                                  \
 	(CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES * FILE_SIZE_BYTES)
@@ -1901,12 +1909,24 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		/* This will create the output file */
 		result = lcz_event_manager_file_handler_build_file(
-			outputFileName);
+			outputFileName,&outputFileSize);
 
+		/* Make sure the file was created OK */
 		if (result != 0) {
 			result = failResult;
-		} else {
-			/* Check the output file size */
+		}
+		/* Check the returned size */
+		if (result == 0){
+
+			failResult++;
+			if (outputFileSize != sizeof(SensorEvent_t)){
+				result = failResult;
+			}
+		}
+		/* Then check the actual file content */
+		if (result == 0){
+			
+			failResult++;
 			count = 0;
 			/* Get the file details */
 			directoryEntry = fsu_find(
@@ -2017,11 +2037,22 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		}
 		/* This will create an output file */
 		result = lcz_event_manager_file_handler_build_file(
-			outputFileName);
+			outputFileName,&outputFileSize);
 
+		/* Check the file was created OK */
 		if (result != 0) {
 			result = failResult;
-		} else {
+		}
+		/* Check the returned file size */
+		if (result == 0){
+			failResult++;
+			if (outputFileSize != sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS){
+				result = failResult;
+			}
+		}
+		/* Now check the actual file */
+		if (result == 0){
+			failResult++;
 			/* Check the output file size */
 			count = 0;
 			/* Get the file details */

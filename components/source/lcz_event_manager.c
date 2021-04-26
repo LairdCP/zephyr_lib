@@ -41,9 +41,11 @@ uint32_t lcz_event_manager_add_sensor_event(SensorEventType_t sensor_event_type,
 	return(time_stamp);
 }
 
-int lcz_event_manager_prepare_log_file(uint8_t *log_path)
+int lcz_event_manager_prepare_log_file(uint8_t *log_path,
+					uint32_t *log_file_size)
 {
-	return (lcz_event_manager_file_handler_build_file(log_path));
+	return (lcz_event_manager_file_handler_build_file(log_path,
+							log_file_size));
 }
 
 int lcz_event_manager_delete_log_file()
