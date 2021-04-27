@@ -676,22 +676,40 @@ static uint32_t lcz_event_manager_file_handler_find_oldest_event(void)
 	uint32_t timestamp;
 	uint32_t eventCount;
 	SensorEvent_t *sensorEvent;
+	bool eventFound = false;
 
-	/* Assume the first event has the oldest timestamp */
-	timestamp = lcz_event_manager_file_handler_get_event(0)->timestamp;
-
-	/* First find the event with the oldest timestamp */
-	for (eventCount = 1; eventCount < TOTAL_NUMBER_EVENTS; eventCount++) {
+	/* Find the first valid event */
+	for (eventIndex = 0;
+	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
 		/* Get the next event */
 		sensorEvent =
-			lcz_event_manager_file_handler_get_event(eventCount);
-		/* Ignore if if blank */
+			lcz_event_manager_file_handler_get_event(eventIndex);
+		/* Then check if the event type is valid */
 		if (sensorEvent->type != SENSOR_EVENT_RESERVED) {
-			/* Is it an earlier event? */
-			if (sensorEvent->timestamp < timestamp) {
-				/* This is the new oldest event */
-				timestamp = sensorEvent->timestamp;
-				eventIndex = eventCount;
+			timestamp = sensorEvent->timestamp;
+			eventFound = true;
+		} else {
+			eventIndex++;
+		}
+	}
+	if (eventFound == false) {
+		/* Empty event set so start at 0 */
+		eventIndex = 0;
+	} else {
+		/* Find the next event with an older timestamp */
+		for (eventCount = eventIndex; eventCount < TOTAL_NUMBER_EVENTS;
+		     eventCount++) {
+			/* Get the next event */
+			sensorEvent = lcz_event_manager_file_handler_get_event(
+				eventCount);
+			/* Ignore it if blank */
+			if (sensorEvent->type != SENSOR_EVENT_RESERVED) {
+				/* Is it an earlier event? */
+				if (sensorEvent->timestamp < timestamp) {
+					/* This is the new oldest event */
+					timestamp = sensorEvent->timestamp;
+					eventIndex = eventCount;
+				}
 			}
 		}
 	}
