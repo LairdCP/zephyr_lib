@@ -117,6 +117,17 @@ static struct k_work_q lcz_event_manager_file_handler_workq;
 /* And the work item to trigger background writes.                           */
 static struct k_work lcz_event_manager_file_handler_work_item;
 
+/* This is the status of the last request to create a log file.              */
+static LogFileStatus_t log_file_status = LOG_FILE_STATUS_WAITING;
+
+/* This is the work item used to prepare log files.                          */
+static struct log_file_create_work_item_t {
+	/* This is the work item used to manage the prepare operation */
+	struct k_work work;
+	/* This is the number of events to add */
+	uint16_t event_count;
+} log_file_create_work_item;
+
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
@@ -127,6 +138,10 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 
 /* Work queue handler for background file update */
 static void lcz_event_manager_file_handler_workq_handler(struct k_work *item);
+
+/* Work queue handler for background log file creation */
+static void
+lcz_event_manager_file_handler_log_workq_handler(struct k_work *item);
 
 /* Gets the indexed event from the event structure */
 static SensorEvent_t *
@@ -183,6 +198,9 @@ static int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
 int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 	uint32_t timestamp);
 
+/* Builds a log file in the background */
+int lcz_event_manager_file_handler_background_build_file(uint16_t event_count);
+
 /* Module test code for the following */
 /* Uncomment the following to enable module test */
 /*#define LCZ_EVENT_MANAGER_FILE_HANDLER_UNIT_TEST*/
@@ -226,14 +244,18 @@ void lcz_event_manager_file_handler_initialise(void)
 	/* Set up the work item that will be used to trigger background */
 	/* file writes                                                  */
 	k_work_init(&lcz_event_manager_file_handler_work_item,
-			lcz_event_manager_file_handler_workq_handler);
+		    lcz_event_manager_file_handler_workq_handler);
+
+	/* And the work item used to prepare log files as a background task */
+	k_work_init(&log_file_create_work_item.work,
+		    lcz_event_manager_file_handler_log_workq_handler);
 
 	/* Start the work queue used to save event files */
 	k_work_q_start(&lcz_event_manager_file_handler_workq,
-			lcz_event_manager_file_handler_workq_stack,
-			K_THREAD_STACK_SIZEOF(
-			lcz_event_manager_file_handler_workq_stack),
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY);
+		       lcz_event_manager_file_handler_workq_stack,
+		       K_THREAD_STACK_SIZEOF(
+			       lcz_event_manager_file_handler_workq_stack),
+		       CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY);
 
 	/* Check if all files are present and of the right size */
 	if (!lcz_event_manager_file_handler_check_structure()) {
@@ -266,82 +288,52 @@ void lcz_event_manager_file_handler_add_event(
 }
 
 int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
-						uint32_t *file_size)
+					      uint32_t *file_size,
+					      bool is_running)
 {
-	uint8_t fileName[LCZ_EVENT_MANAGER_FILENAME_SIZE];
-	int result = 0;
-	uint32_t eventIndex;
-	uint32_t eventCount;
-	SensorEvent_t *pSensorEvent;
-	/* Static copy of the event count. We need this because the */
-	/* live event count is decremented as events are read from the log */
-	uint32_t startEventCount;
-	/* This is the number of events added to the file */
-	uint32_t eventsAdded = 0;
+	int result = -EBUSY;
 
-	/* Lock resources whilst we build the output file */
+	/* Lock resources whilst we check the file and event status */
 	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
 
-	/* Build the empty output file */
-	sprintf(fileName, "%s%s",
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
-
-	/* Create as blank then append events to it */
-	result = fsu_write_abs(fileName, NULL, 0);
-
-	if (result == 0) {
-		/* Store the event count for later */
-		startEventCount = lczEventManagerData.eventCount;
-		/* Now find the oldest event */
-		eventIndex = lcz_event_manager_file_handler_find_oldest_event();
-		/* Then continue adding to the file and deleting them */
-		/* from the live list as we go */
-		for (eventCount = 0;
-		     (eventCount < startEventCount) && (result == 0);
-		     eventCount++) {
-			/* Get the next event */
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex);
-			/* Is it blank? */
-			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
-				/* No, so add it to the file */
-				if (fsu_append_abs(fileName, pSensorEvent,
-						   sizeof(SensorEvent_t)) !=
-				    sizeof(SensorEvent_t)) {
-					/* Failed to update the file, should see */
-					/* the number of bytes written echoed back */
-					result = -EINVAL;
-				}
-				/* Update event indices only when added OK */
-				if (result == 0) {
-					/* Update the total file size */
-					eventsAdded++;
-					/* Mark this event as free for use later */
-					memset(pSensorEvent, 0x0,
-					       sizeof(SensorEvent_t));
-					/* Another event read out */
-					lczEventManagerData.eventCount--;
-					/* Mark this page as needing to be saved */
-					lcz_event_manager_file_handler_set_page_dirty(
-						eventIndex);
-					/* Check next event */
-					eventIndex++;
-					/* Beware of wrap around here */
-					if (eventIndex >= TOTAL_NUMBER_EVENTS) {
-						eventIndex = 0;
-					}
-				}
-			}
+	/* Is a log file creation request already in progress? */
+	if (log_file_status != LOG_FILE_STATUS_PREPARING) {
+		/* No so we can go ahead and create the file */
+		log_file_status = LOG_FILE_STATUS_PREPARING;
+		/* This will be the file path. */
+		sprintf(absFilePath, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+		/* The number of events that will be added */
+		*file_size =
+			sizeof(SensorEvent_t) * lczEventManagerData.eventCount;
+		/* Set the event count in the work item so we know how many
+		   events to add to the log file.
+		 */
+		log_file_create_work_item.event_count =
+			lczEventManagerData.eventCount;
+		/* Then trigger the background operation if we're running */
+		if (is_running) {
+			k_work_submit_to_queue(
+				&lcz_event_manager_file_handler_workq,
+				&log_file_create_work_item.work);
 		}
+		/* Background process started OK */
+		result = 0;
 	}
-	/* Always return the file path */
-	strcpy(absFilePath, fileName);
-	/* And the number of events added */
-	*file_size = eventsAdded * sizeof(SensorEvent_t);
+
 	/* OK to release resources now */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
-	/* Then exit with out result */
+
+	/* If we're running, trigger a file update for any events
+	   that have been read out.
+	*/
+	if (is_running) {
+		k_work_submit_to_queue(
+			&lcz_event_manager_file_handler_workq,
+			&lcz_event_manager_file_handler_work_item);
+	}
+	/* Then exit with our result */
 	return (result);
 }
 
@@ -440,6 +432,12 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 	return (pSensorEvent);
 }
 
+LogFileStatus_t lcz_event_manager_file_handler_get_log_file_status(void)
+{
+	/* Just exit with the last log file status */
+	return (log_file_status);
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -497,21 +495,55 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 
 		/* Then trigger a background write operation. */
-		k_work_submit(&lcz_event_manager_file_handler_work_item);
+		k_work_submit_to_queue(
+			&lcz_event_manager_file_handler_workq,
+			&lcz_event_manager_file_handler_work_item);
 	}
 }
 
-/** @brief Event Manager File Handler work queue processing.
+/** @brief Event Manager File Handler work queue processing for file strorage.
  *
  *  @param [in]item - Unused work item.
  */
-static void lcz_event_manager_file_handler_workq_handler(struct k_work *item){
-
+static void lcz_event_manager_file_handler_workq_handler(struct k_work *item)
+{
 	/* Lock resources whilst making changes */
 	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
 
 	/* Save any changed files */
 	lcz_event_manager_file_handler_save_files();
+
+	/* Release resources after all changes are made */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
+}
+
+/** @brief Event Manager File Handler work queue processing for log file
+ *         creation.
+ *
+ *  @param [in]item - Work item containing details of the number of events to
+ *                    add to the file.
+ */
+static void
+lcz_event_manager_file_handler_log_workq_handler(struct k_work *item)
+{
+	int result;
+
+	struct log_file_create_work_item_t *p_log_file_create_work_item =
+		CONTAINER_OF(item, struct log_file_create_work_item_t, work);
+
+	/* Lock resources whilst making changes */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+
+	/* Build the log file */
+	result = lcz_event_manager_file_handler_background_build_file(
+		p_log_file_create_work_item->event_count);
+
+	/* Update log file status accordingly */
+	if (result == 0) {
+		log_file_status = LOG_FILE_STATUS_READY;
+	} else {
+		log_file_status = LOG_FILE_STATUS_FAILED;
+	}
 
 	/* Release resources after all changes are made */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
@@ -1073,6 +1105,76 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 		eventIndex = -EINVAL;
 	}
 	return (eventIndex);
+}
+
+/** @brief Private method used to build log files as a background task.
+ *
+ *  @param [in]event_count - The number of events to add.
+ *
+ *  @returns The result of the operation, non-zero if not successful.
+ */
+int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
+{
+	uint8_t file_name[LCZ_EVENT_MANAGER_FILENAME_SIZE];
+	int result = 0;
+	uint32_t event_index;
+	SensorEvent_t *pSensorEvent;
+	/* This is the number of events added to the file */
+	uint32_t events_added = 0;
+
+	/* Build the empty output file */
+	sprintf(file_name, "%s%s",
+		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+	/* Create as blank then append events to it */
+	result = fsu_write_abs(file_name, NULL, 0);
+
+	if (result == 0) {
+		/* Now find the oldest event */
+		event_index =
+			lcz_event_manager_file_handler_find_oldest_event();
+		/* Then continue adding to the file and deleting them */
+		/* from the live list as we go */
+		for (events_added = 0;
+		     (events_added < event_count) && (result == 0);
+		     events_added++) {
+			/* Get the next event */
+			pSensorEvent = lcz_event_manager_file_handler_get_event(
+				event_index);
+			/* Is it blank? */
+			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
+				/* No, so add it to the file */
+				if (fsu_append_abs(file_name, pSensorEvent,
+						   sizeof(SensorEvent_t)) !=
+				    sizeof(SensorEvent_t)) {
+					/* Failed to update the file, should see */
+					/* the number of bytes written echoed back */
+					result = -EINVAL;
+				}
+				/* Update event indices only when added OK */
+				if (result == 0) {
+					/* Mark this event as free for use later */
+					memset(pSensorEvent, 0x0,
+					       sizeof(SensorEvent_t));
+					/* Another event read out */
+					lczEventManagerData.eventCount--;
+					/* Mark this page as needing to be saved */
+					lcz_event_manager_file_handler_set_page_dirty(
+						event_index);
+					/* Check next event */
+					event_index++;
+					/* Beware of wrap around here */
+					if (event_index >=
+					    TOTAL_NUMBER_EVENTS) {
+						event_index = 0;
+					}
+				}
+			}
+		}
+	}
+	/* Then exit with our result */
+	return (result);
 }
 
 #ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_UNIT_TEST
@@ -1909,11 +2011,12 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 		}
 	}
-	/* lcz_event_manager_file_handler_build_file */
 
+	/* lcz_event_manager_file_handler_build_file */
 	/* Create an output file with one entry */
 	if (result == 0) {
 		failResult++;
+		log_file_status = LOG_FILE_STATUS_WAITING;
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
@@ -1925,25 +2028,112 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 
-		/* This will create the output file */
+		/* This will create the output file stats only */
 		result = lcz_event_manager_file_handler_build_file(
-			outputFileName,&outputFileSize);
+			outputFileName, &outputFileSize, false);
+
+		/* This is where the file lives */
+		sprintf(fileName, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Make sure the file was created OK */
 		if (result != 0) {
 			result = failResult;
 		}
 		/* Check the returned size */
-		if (result == 0){
-
+		if (result == 0) {
 			failResult++;
-			if (outputFileSize != sizeof(SensorEvent_t)){
+			if (outputFileSize != sizeof(SensorEvent_t)) {
+				result = failResult;
+			}
+			/* Check output file name */
+			if (strcmp(outputFileName, fileName)) {
 				result = failResult;
 			}
 		}
-		/* Then check the actual file content */
-		if (result == 0){
-			
+	}
+
+	/* Create an output file from a full event log */
+	if (result == 0) {
+		failResult++;
+		log_file_status = LOG_FILE_STATUS_WAITING;
+		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
+		       TOTAL_FILE_SIZE_BYTES);
+
+		lcz_event_manager_file_handler_get_indices();
+
+		for (eventIndex = 0, eventType = 1;
+		     eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
+			sensorEvent.data.u32 = eventIndex;
+			sensorEvent.type = eventType;
+			sensorEvent.timestamp = eventIndex;
+
+			lcz_event_manager_file_handler_add_event_private(
+				&sensorEvent);
+
+			/* Don't allow event type to go to RESERVED */
+			eventType++;
+			if (eventType == 0) {
+				eventType = 1;
+			}
+		}
+		/* This will create the output file stats only */
+		result = lcz_event_manager_file_handler_build_file(
+			outputFileName, &outputFileSize, false);
+
+		/* This is where the file lives */
+		fileName[0] = 0x0;
+		sprintf(fileName, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+		/* Check the file was created OK */
+		if (result != 0) {
+			result = failResult;
+		}
+		/* Check the returned file size */
+		if (result == 0) {
+			failResult++;
+			if (outputFileSize !=
+			    sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS) {
+				result = failResult;
+			}
+		}
+		/* Check output file name */
+		if (strcmp(outputFileName, fileName)) {
+			result = failResult;
+		}
+	}
+
+	/* lcz_event_manager_file_handler_background_build_file */
+
+	/* Create an output file with one entry */
+	if (result == 0) {
+		failResult++;
+		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
+		       TOTAL_FILE_SIZE_BYTES);
+		memset(eventManagerFileData.pIsDirty, false,
+		       CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES);
+
+		lcz_event_manager_file_handler_get_indices();
+
+		sensorEvent.data.u32 = 0xFE;
+		sensorEvent.type = 0xFE;
+		sensorEvent.timestamp = 0xFFFF;
+
+		lcz_event_manager_file_handler_add_event_private(&sensorEvent);
+
+		/* This will create the output file */
+		result =
+			lcz_event_manager_file_handler_background_build_file(1);
+
+		/* Make sure the file was created OK */
+		if (result != 0) {
+			result = failResult;
+		}
+		/* Check the actual file content */
+		if (result == 0) {
 			failResult++;
 			count = 0;
 			/* Get the file details */
@@ -2019,10 +2209,6 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 					}
 				}
 			}
-			/* Check output file name */
-			if (strcmp(outputFileName, fileName)) {
-				result = failResult;
-			}
 			/* Tidy up here if needed */
 			fsu_delete_files(
 				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
@@ -2035,6 +2221,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		failResult++;
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
+		memset(eventManagerFileData.pIsDirty, false,
+		       CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES);
 
 		lcz_event_manager_file_handler_get_indices();
 
@@ -2054,22 +2242,15 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 		}
 		/* This will create an output file */
-		result = lcz_event_manager_file_handler_build_file(
-			outputFileName,&outputFileSize);
+		result = lcz_event_manager_file_handler_background_build_file(
+			TOTAL_NUMBER_EVENTS);
 
 		/* Check the file was created OK */
 		if (result != 0) {
 			result = failResult;
 		}
-		/* Check the returned file size */
-		if (result == 0){
-			failResult++;
-			if (outputFileSize != sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS){
-				result = failResult;
-			}
-		}
 		/* Now check the actual file */
-		if (result == 0){
+		if (result == 0) {
 			failResult++;
 			/* Check the output file size */
 			count = 0;
@@ -2157,10 +2338,6 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 						result = failResult;
 					}
 				}
-			}
-			/* Check output file name */
-			if (strcmp(outputFileName, fileName)) {
-				result = failResult;
 			}
 			/* Tidy up here if needed */
 			fsu_delete_files(
