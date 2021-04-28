@@ -11,12 +11,12 @@
 /*****************************************************************************/
 #include <zephyr.h>
 #include "lcz_sensor_event.h"
+#include "lcz_event_manager.h"
 #include "lcz_event_manager_file_handler.h"
 #include "lcz_sensor_event.h"
 #include "file_system_utilities.h"
 #include <stdio.h>
 #include "lcz_qrtc.h"
-#include "lcz_event_manager.h"
 #include <string.h>
 
 /*****************************************************************************/
@@ -128,6 +128,14 @@ static struct log_file_create_work_item_t {
 	uint16_t event_count;
 } log_file_create_work_item;
 
+/* This is the work item used to prepare dummy log files.	              */
+static struct dummy_log_file_create_work_item_t {
+	/* This is the work item used to manage the prepare operation */
+	struct k_work work;
+	/* These are the dummy file properties */
+	DummyLogFileProperties_t dummy_log_file_properties;
+} dummy_log_file_create_work_item;
+
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
@@ -142,6 +150,10 @@ static void lcz_event_manager_file_handler_workq_handler(struct k_work *item);
 /* Work queue handler for background log file creation */
 static void
 lcz_event_manager_file_handler_log_workq_handler(struct k_work *item);
+
+/* Work queue handler for dummy log background file creation */
+static void
+lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item);
 
 /* Gets the indexed event from the event structure */
 static SensorEvent_t *
@@ -201,6 +213,16 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 /* Builds a log file in the background */
 int lcz_event_manager_file_handler_background_build_file(uint16_t event_count);
 
+/* Builds a dummy log file in the background */
+int lcz_event_manager_file_handler_background_build_dummy_file(
+	DummyLogFileProperties_t *dummy_log_file_properties);
+
+/* Builds a dummy event added to dummy event files. */
+void lcz_event_manager_file_handler_background_build_dummy_event(
+	SensorEvent_t *sensor_event, uint32_t time_stamp,
+	DummyLogFileProperties_t *dummy_log_file_properties,
+	uint32_t event_data);
+
 /* Module test code for the following */
 /* Uncomment the following to enable module test */
 /*#define LCZ_EVENT_MANAGER_FILE_HANDLER_UNIT_TEST*/
@@ -249,6 +271,12 @@ void lcz_event_manager_file_handler_initialise(void)
 	/* And the work item used to prepare log files as a background task */
 	k_work_init(&log_file_create_work_item.work,
 		    lcz_event_manager_file_handler_log_workq_handler);
+
+	/* This is the work item used to prepare dummy log files as a
+	   background task
+	 */
+	k_work_init(&dummy_log_file_create_work_item.work,
+		    lcz_event_manager_file_handler_dummy_log_workq_handler);
 
 	/* Start the work queue used to save event files */
 	k_work_q_start(&lcz_event_manager_file_handler_workq,
@@ -438,6 +466,52 @@ LogFileStatus_t lcz_event_manager_file_handler_get_log_file_status(void)
 	return (log_file_status);
 }
 
+int lcz_event_manager_file_handler_build_test_file(
+	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
+	uint32_t *log_file_size, bool is_running)
+{
+	int result = -EBUSY;
+
+	/* Lock resources whilst we check the file and event status */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+
+	/* Is a log file creation request already in progress? */
+	if (log_file_status != LOG_FILE_STATUS_PREPARING) {
+		/* No so we can go ahead and create the file */
+		log_file_status = LOG_FILE_STATUS_PREPARING;
+		/* This will be the file path. */
+		sprintf(log_path, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+		/* The number of events that will be added */
+		*log_file_size = sizeof(SensorEvent_t) *
+				 dummy_log_file_properties->event_count;
+		/* Copy across the dummy file properties for use later */
+		memcpy(&dummy_log_file_create_work_item
+				.dummy_log_file_properties,
+		       dummy_log_file_properties,
+		       sizeof(DummyLogFileProperties_t));
+		/* Then trigger the background operation if we're running.
+		   If is_running is false, this in a unit test, so we don't 
+		   want to trigger the background write as that function is
+		   tested separately.
+		 */
+		if (is_running) {
+			k_work_submit_to_queue(
+				&lcz_event_manager_file_handler_workq,
+				&dummy_log_file_create_work_item.work);
+		}
+		/* Background process started OK */
+		result = 0;
+	}
+
+	/* OK to release resources now */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
+
+	/* Then exit with our result */
+	return (result);
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -537,6 +611,39 @@ lcz_event_manager_file_handler_log_workq_handler(struct k_work *item)
 	/* Build the log file */
 	result = lcz_event_manager_file_handler_background_build_file(
 		p_log_file_create_work_item->event_count);
+
+	/* Update log file status accordingly */
+	if (result == 0) {
+		log_file_status = LOG_FILE_STATUS_READY;
+	} else {
+		log_file_status = LOG_FILE_STATUS_FAILED;
+	}
+
+	/* Release resources after all changes are made */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
+}
+
+/** @brief Event Manager File Handler work queue processing for dummy log file
+ *         creation.
+ *
+ *  @param [in]item - Work item containing details of the number of events to
+ *                    add to the file.
+ */
+static void
+lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item)
+{
+	int result;
+
+	struct dummy_log_file_create_work_item_t
+		*p_dummy_log_file_create_work_item = CONTAINER_OF(
+			item, struct dummy_log_file_create_work_item_t, work);
+
+	/* Lock resources whilst making changes */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+
+	/* Build the log file */
+	result = lcz_event_manager_file_handler_background_build_dummy_file(
+		&p_dummy_log_file_create_work_item->dummy_log_file_properties);
 
 	/* Update log file status accordingly */
 	if (result == 0) {
@@ -1177,6 +1284,107 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 	return (result);
 }
 
+/** @brief Private method used to build dummy log files as a background task.
+ *
+ *  @param [in]dummy_log_file_properties - The properties of the dummy file.
+ *
+ *  @returns The result of the operation, non-zero if not successful.
+ */
+int lcz_event_manager_file_handler_background_build_dummy_file(
+	DummyLogFileProperties_t *dummy_log_file_properties)
+{
+	uint8_t file_name[LCZ_EVENT_MANAGER_FILENAME_SIZE];
+	int result = 0;
+	uint32_t event_count;
+	SensorEvent_t sensor_event = { 0 };
+	/* This is the rolling timestamp value added to events */
+	uint32_t time_stamp = dummy_log_file_properties->start_time_stamp;
+	/* This is the rolling data value added to events */
+	uint32_t event_data = 0;
+
+	/* Build the empty output file */
+	sprintf(file_name, "%s%s",
+		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+	/* Create as blank then append events to it */
+	result = fsu_write_abs(file_name, NULL, 0);
+
+	if (result == 0) {
+		/* Now add our dummy events */
+		for (event_count = 0;
+		     (event_count < dummy_log_file_properties->event_count) &&
+		     (result == 0);
+		     event_count++) {
+			/* Build the next event */
+			lcz_event_manager_file_handler_background_build_dummy_event(
+				&sensor_event, time_stamp,
+				dummy_log_file_properties, event_data);
+			/* Add it to the file */
+			if (fsu_append_abs(file_name, &sensor_event,
+					   sizeof(SensorEvent_t)) !=
+			    sizeof(SensorEvent_t)) {
+				/* Failed to update the file, should see */
+				/* the number of bytes written echoed back */
+				result = -EINVAL;
+			}
+			/* Update event details only when added OK */
+			if (result == 0) {
+				/* Boolean data alternates */
+				if (dummy_log_file_properties->event_data_type ==
+				    DUMMY_LOG_DATA_TYPE_BOOL) {
+					event_data = !event_data;
+				} else {
+					/* All other data types increment */
+					event_data++;
+				}
+				/* Does the salt need to be updated? */
+				if (dummy_log_file_properties->update_rate ==
+				    0) {
+					sensor_event.salt++;
+				} else {
+					/* Update timestamp */
+					time_stamp += dummy_log_file_properties
+							      ->update_rate;
+				}
+			}
+		}
+	}
+	/* Then exit with our result */
+	return (result);
+}
+
+/** @brief Private method used to build dummy events added to dummy log files.
+ *
+ *  @param [out]sensor_event - The dummy event.
+ *  @param [in]time_stamp - The timestamp to use.
+ *  @param [in]dummy_log_file_properties - The dummy log file properties.
+ *  @param [in]event_data - The data to use.
+ *
+ *  @returns The result of the operation, non-zero if not successful.
+ */
+void lcz_event_manager_file_handler_background_build_dummy_event(
+	SensorEvent_t *sensor_event, uint32_t time_stamp,
+	DummyLogFileProperties_t *dummy_log_file_properties,
+	uint32_t event_data)
+{
+	/* Set timestamp */
+	sensor_event->timestamp = time_stamp;
+	/* Set event type */
+	sensor_event->type = dummy_log_file_properties->event_type;
+	/* Set data */
+	switch (dummy_log_file_properties->event_data_type) {
+	case (DUMMY_LOG_DATA_TYPE_U32):
+		sensor_event->data.u32 = event_data;
+		break;
+	case (DUMMY_LOG_DATA_TYPE_FLOAT):
+		sensor_event->data.f = ((float)(event_data));
+		break;
+	default:
+		sensor_event->data.u16 = ((uint16_t)(event_data));
+	}
+}
+
 #ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_UNIT_TEST
 /**@brief Module test code for the Lcz_Event_Manager_File_Handler.
  *
@@ -1202,6 +1410,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	uint16_t badFileIndex;
 	SensorEvent_t sensorEventReadback;
 	uint32_t outputFileSize;
+	DummyLogFileProperties_t dummy_log_properties;
+	uint16_t salt;
 
 #define TOTAL_FILE_SIZE_BYTES                                                  \
 	(CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES * FILE_SIZE_BYTES)
@@ -2525,6 +2735,354 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			if (pSensorEvent !=
 			    lcz_event_manager_file_handler_get_event(0)) {
 				result = failResult;
+			}
+		}
+	}
+
+	/* lcz_event_manager_file_handler_background_build_dummy_event */
+	/* Bool type */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 0;
+		dummy_log_properties.update_rate = 1;
+		dummy_log_properties.event_type = 0;
+		dummy_log_properties.event_count = 1;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_BOOL;
+
+		/* Build it */
+		lcz_event_manager_file_handler_background_build_dummy_event(
+			&sensorEvent, 0, &dummy_log_properties, 0);
+
+		/* Check it */
+		if ((sensorEvent.timestamp != 0) ||
+		    (sensorEvent.data.u16 != 0) || (sensorEvent.type != 0) ||
+		    (sensorEvent.salt != 0)) {
+			result = failResult;
+		}
+	}
+	/* U32 type */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 1000;
+		dummy_log_properties.update_rate = 10;
+		dummy_log_properties.event_type = 1;
+		dummy_log_properties.event_count = 1;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_U32;
+
+		/* Build it */
+		lcz_event_manager_file_handler_background_build_dummy_event(
+			&sensorEvent, 1000, &dummy_log_properties, 100);
+
+		/* Check it */
+		if ((sensorEvent.timestamp != 1000) ||
+		    (sensorEvent.data.u32 != 100) || (sensorEvent.type != 1) ||
+		    (sensorEvent.salt != 0)) {
+			result = failResult;
+		}
+	}
+	/* Float type */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 5000;
+		dummy_log_properties.update_rate = 10;
+		dummy_log_properties.event_type = 10;
+		dummy_log_properties.event_count = 1;
+		dummy_log_properties.event_data_type =
+			DUMMY_LOG_DATA_TYPE_FLOAT;
+
+		/* Build it */
+		lcz_event_manager_file_handler_background_build_dummy_event(
+			&sensorEvent, 5000, &dummy_log_properties, 500);
+
+		/* Check it */
+		if ((sensorEvent.timestamp != 5000) ||
+		    (sensorEvent.data.f != 500.0f) ||
+		    (sensorEvent.type != 10) || (sensorEvent.salt != 0)) {
+			result = failResult;
+		}
+	}
+	/* lcz_event_manager_file_handler_background_build_dummy_file */
+	/* 10 Boolean events */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 0;
+		dummy_log_properties.update_rate = 1;
+		dummy_log_properties.event_type = 0;
+		dummy_log_properties.event_count = 10;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_BOOL;
+
+		/* Build it */
+		result =
+			lcz_event_manager_file_handler_background_build_dummy_file(
+				&dummy_log_properties);
+
+		/* This is where the file lives */
+		sprintf(fileName, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+		/* Check return code */
+		if (result != 0) {
+			result = failResult;
+		}
+		/* Check file created OK */
+		if (result == 0) {
+			if (fsu_get_file_size(
+				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			    10 * sizeof(SensorEvent_t)) {
+				result = failResult;
+			}
+		}
+		/* Check file content */
+		if (result == 0) {
+			timestamp = 0;
+			data = 0;
+			for (eventIndex = 0; (eventIndex < 10) && (result == 0);
+			     eventIndex++) {
+				/* Read out the next event */
+				struct fs_file_t f;
+				result = fs_open(&f, fileName, FS_O_READ);
+				if (!result) {
+					fs_seek(&f,
+						sizeof(SensorEvent_t) *
+							eventIndex,
+						0);
+					fs_read(&f, &sensorEventReadback,
+						sizeof(SensorEvent_t));
+				}
+				fs_close(&f);
+				/* Check the values */
+				if ((sensorEventReadback.data.u16 != data) ||
+				    (sensorEventReadback.salt != 0) ||
+				    (sensorEventReadback.timestamp !=
+				     timestamp) ||
+				    (sensorEventReadback.type != 0)) {
+					result = failResult;
+				}
+				/* Update expected values if checked OK */
+				if (result == 0) {
+					timestamp++;
+					data = !data;
+				}
+			}
+		}
+	}
+	/* 100 Float events */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 250;
+		dummy_log_properties.update_rate = 10;
+		dummy_log_properties.event_type = 1;
+		dummy_log_properties.event_count = 100;
+		dummy_log_properties.event_data_type =
+			DUMMY_LOG_DATA_TYPE_FLOAT;
+
+		/* Build it */
+		result =
+			lcz_event_manager_file_handler_background_build_dummy_file(
+				&dummy_log_properties);
+
+		/* This is where the file lives */
+		sprintf(fileName, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+		/* Check return code */
+		if (result != 0) {
+			result = failResult;
+		}
+		/* Check file created OK */
+		if (result == 0) {
+			if (fsu_get_file_size(
+				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			    100 * sizeof(SensorEvent_t)) {
+				result = failResult;
+			}
+		}
+		/* Check file content */
+		if (result == 0) {
+			timestamp = 250;
+			data = 0;
+			for (eventIndex = 0;
+			     (eventIndex < 100) && (result == 0);
+			     eventIndex++) {
+				/* Read out the next event */
+				struct fs_file_t f;
+				result = fs_open(&f, fileName, FS_O_READ);
+				if (!result) {
+					fs_seek(&f,
+						sizeof(SensorEvent_t) *
+							eventIndex,
+						0);
+					fs_read(&f, &sensorEventReadback,
+						sizeof(SensorEvent_t));
+				}
+				fs_close(&f);
+				/* Check the values */
+				if ((sensorEventReadback.data.f !=
+				     ((float)(data))) ||
+				    (sensorEventReadback.salt != 0) ||
+				    (sensorEventReadback.timestamp !=
+				     timestamp) ||
+				    (sensorEventReadback.type != 1)) {
+					result = failResult;
+				}
+				/* Update expected values if checked OK */
+				if (result == 0) {
+					timestamp += 10;
+					data++;
+				}
+			}
+		}
+	}
+	/* 1000 U32 events */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 500;
+		dummy_log_properties.update_rate = 5;
+		dummy_log_properties.event_type = 2;
+		dummy_log_properties.event_count = 1000;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_U32;
+
+		/* Build it */
+		result =
+			lcz_event_manager_file_handler_background_build_dummy_file(
+				&dummy_log_properties);
+
+		/* This is where the file lives */
+		sprintf(fileName, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+		/* Check return code */
+		if (result != 0) {
+			result = failResult;
+		}
+		/* Check file created OK */
+		if (result == 0) {
+			if (fsu_get_file_size(
+				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			    1000 * sizeof(SensorEvent_t)) {
+				result = failResult;
+			}
+		}
+		/* Check file content */
+		if (result == 0) {
+			timestamp = 500;
+			data = 0;
+			for (eventIndex = 0;
+			     (eventIndex < 1000) && (result == 0);
+			     eventIndex++) {
+				/* Read out the next event */
+				struct fs_file_t f;
+				result = fs_open(&f, fileName, FS_O_READ);
+				if (!result) {
+					fs_seek(&f,
+						sizeof(SensorEvent_t) *
+							eventIndex,
+						0);
+					fs_read(&f, &sensorEventReadback,
+						sizeof(SensorEvent_t));
+				}
+				fs_close(&f);
+				/* Check the values */
+				if ((sensorEventReadback.data.u32 != data) ||
+				    (sensorEventReadback.salt != 0) ||
+				    (sensorEventReadback.timestamp !=
+				     timestamp) ||
+				    (sensorEventReadback.type != 2)) {
+					result = failResult;
+				}
+				/* Update expected values if checked OK */
+				if (result == 0) {
+					timestamp += 5;
+					data++;
+				}
+			}
+		}
+	}
+	/* 100 U32 events with duplicate timestamp to increment salt */
+	if (result == 0) {
+		failResult++;
+
+		/* Build the properties used by the dummy event builder */
+		dummy_log_properties.start_time_stamp = 1000;
+		dummy_log_properties.update_rate = 0;
+		dummy_log_properties.event_type = 3;
+		dummy_log_properties.event_count = 100;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_U32;
+
+		/* Build it */
+		result =
+			lcz_event_manager_file_handler_background_build_dummy_file(
+				&dummy_log_properties);
+
+		/* This is where the file lives */
+		sprintf(fileName, "%s%s",
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+		/* Check return code */
+		if (result != 0) {
+			result = failResult;
+		}
+		/* Check file created OK */
+		if (result == 0) {
+			if (fsu_get_file_size(
+				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			    100 * sizeof(SensorEvent_t)) {
+				result = failResult;
+			}
+		}
+		/* Check file content */
+		if (result == 0) {
+			timestamp = 1000;
+			data = 0;
+			salt = 0;
+			for (eventIndex = 0;
+			     (eventIndex < 100) && (result == 0);
+			     eventIndex++) {
+				/* Read out the next event */
+				struct fs_file_t f;
+				result = fs_open(&f, fileName, FS_O_READ);
+				if (!result) {
+					fs_seek(&f,
+						sizeof(SensorEvent_t) *
+							eventIndex,
+						0);
+					fs_read(&f, &sensorEventReadback,
+						sizeof(SensorEvent_t));
+				}
+				fs_close(&f);
+				/* Check the values */
+				if ((sensorEventReadback.data.u32 != data) ||
+				    (sensorEventReadback.salt != salt) ||
+				    (sensorEventReadback.timestamp !=
+				     timestamp) ||
+				    (sensorEventReadback.type != 3)) {
+					result = failResult;
+				}
+				/* Update expected values if checked OK */
+				if (result == 0) {
+					salt++;
+					data++;
+				}
 			}
 		}
 	}

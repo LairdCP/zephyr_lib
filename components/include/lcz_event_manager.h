@@ -10,8 +10,24 @@
 
 #define LCZ_EVENT_MANAGER_H
 
+/******************************************************************************/
+/* Global Constants, Macros and Type Definitions                              */
+/******************************************************************************/
 /* This is the length of paths generated for event manager files */
 #define LCZ_EVENT_MANAGER_FILENAME_SIZE 40
+
+/* This type represents the properties of a dummy log file */
+typedef struct _tDummyLogFileProperties {
+	uint32_t start_time_stamp;
+	uint32_t update_rate;
+	uint8_t event_type;
+	uint32_t event_count;
+	uint8_t event_data_type;
+} DummyLogFileProperties_t;
+
+/******************************************************************************/
+/* Global Function Prototypes                                                 */
+/******************************************************************************/
 
 /** @brief Initialises the Event Manager.
  *
@@ -61,4 +77,15 @@ SensorEvent_t *lcz_event_manager_get_next_event(uint32_t start_time_stamp,
  * @return The log file status.
  */
 uint32_t lcz_event_manager_get_log_file_status(void);
+
+/** @brief Prepares a test event log for external use
+ *
+ * @param [in]dummy_log_file_properties - Details of the dummy log file.
+ * @param [out]log_path - The absolute path of the log file.
+ * @param [out]log_file_size - The file size in bytes.
+ * @return Zero for success, a non-zero error code otherwise.
+ */
+int lcz_event_manager_prepare_test_log_file(
+	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
+	uint32_t *log_file_size);
 #endif /* ifdef LCZ_EVENT_MANAGER_H */

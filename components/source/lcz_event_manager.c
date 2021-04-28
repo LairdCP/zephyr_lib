@@ -71,3 +71,15 @@ uint32_t lcz_event_manager_get_log_file_status(void)
 	return (((uint32_t)(
 		lcz_event_manager_file_handler_get_log_file_status())));
 }
+
+int lcz_event_manager_prepare_test_log_file(
+	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
+	uint32_t *log_file_size)
+{
+	int result;
+
+	result = lcz_event_manager_file_handler_build_test_file(
+		dummy_log_file_properties, log_path, log_file_size, true);
+
+	return (result);
+}

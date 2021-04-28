@@ -22,6 +22,14 @@ typedef enum {
 	LOG_FILE_STATUS_COUNT
 } LogFileStatus_t;
 
+/* These are the types that can be used for data in dummy log files. */
+typedef enum {
+	DUMMY_LOG_DATA_TYPE_BOOL = 0,
+	DUMMY_LOG_DATA_TYPE_U32,
+	DUMMY_LOG_DATA_TYPE_FLOAT,
+	DUMMY_LOG_DATA_TYPE_COUNT
+} DummyLogDataType_t;
+
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
@@ -73,5 +81,17 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
  *  @return Details of the last log file create request.
  */
 LogFileStatus_t lcz_event_manager_file_handler_get_log_file_status(void);
+
+/** @brief Prepares a test event log for external use
+ *
+ * @param [in]dummy_log_file_properties - The dummy log file properties.
+ * @param [out]log_path - The absolute path of the log file.
+ * @param [out]log_file_size - The file size in bytes.
+ * @param [in]is_running - Used to indicate runtime and debug contexts.
+ * @return Zero for success, a non-zero error code otherwise.
+ */
+int lcz_event_manager_file_handler_build_test_file(
+	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
+	uint32_t *log_file_size, bool is_running);
 
 #endif /* ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_H */
