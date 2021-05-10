@@ -146,9 +146,20 @@ BUILD_ASSERT(sizeof(SensorEvent_t) == 12, "Sensor event NOT packed");
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 /**
- * @retval Reset reason code as a string (enumerated type from sensor).
+ * @brief Get string representation of reset reason code
+ *
+ * @param code reset reason
+ * @return const char* code as a string
  */
 const char *lcz_sensor_event_get_reset_reason_string(uint8_t code);
+
+/**
+ * @brief Get string representation of event code
+ *
+ * @param code event
+ * @return const char* event as a string
+ */
+const char *lcz_sensor_event_get_string(uint8_t code);
 
 #ifdef __cplusplus
 }
