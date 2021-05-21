@@ -14,7 +14,9 @@
 #ifdef CONFIG_LCZ_MEMFAULT
 #include "memfault/core/build_info.h"
 #include "memfault/core/platform/device_info.h"
+#include "memfault/ports/watchdog.h"
 #endif
+
 #ifdef CONFIG_LCZ_MEMFAULT_METRICS
 #include "memfault/metrics/metrics.h"
 #endif
@@ -83,6 +85,17 @@ extern "C" {
 #else
 #define LCZ_MEMFAULT_PUBLISH_DATA(...)
 #define LCZ_MEMFAULT_BUILD_TOPIC(...)
+#endif
+
+#if defined(CONFIG_LCZ_MEMFAULT)
+#define LCZ_MEMFAULT_WATCHDOG_ENABLE memfault_software_watchdog_enable
+#define LCZ_MEMFAULT_WATCHDOG_FEED memfault_software_watchdog_feed
+#define LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT                                   \
+	memfault_software_watchdog_update_timeout
+#else
+#define LCZ_MEMFAULT_WATCHDOG_ENABLE(...) 0
+#define LCZ_MEMFAULT_WATCHDOG_FEED(...) 0
+#define LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT(...) 0
 #endif
 
 /******************************************************************************/
