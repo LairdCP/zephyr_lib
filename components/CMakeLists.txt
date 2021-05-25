@@ -1,7 +1,7 @@
 #
 # Laird Connectivity Zephyr Components
 #
-# Copyright (c) 2020 Laird Connectivity
+# Copyright (c) 2020-2021 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -25,3 +25,4 @@ zephyr_sources_ifdef(CONFIG_LCZ_NO_INIT_RAM_VAR source/lcz_no_init_ram_var.c)
 zephyr_sources_ifdef(CONFIG_LCZ_SOFTWARE_RESET source/lcz_software_reset.c)
 zephyr_sources_ifdef(CONFIG_LCZ_EVENT_MANAGER source/lcz_event_manager.c
     source/lcz_event_manager_file_handler.c)
+zephyr_sources_ifdef(CONFIG_LCZ_BRACKET source/lcz_bracket.c)

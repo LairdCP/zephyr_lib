@@ -1,0 +1,23 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config LCZ_BRACKET
+	bool "Enable JSON bracket handler {} module"
+
+config LCZ_BRACKET_INTERCEPTS_ESCAPED_FORWARD_SLASH
+	bool "Bracket handler replaces '\/' with '/'"
+	depends on LCZ_BRACKET
+	default y
+	help
+		iOS escapes '/' with "\/"
+		If this is intercepted by the bracket handler, then the buffer
+		sizes don't need to be doubled to handle a base-64 encoded
+		image.
+
+config LOG_LEVEL_LCZ_BRACKET
+    int "Log level for bracket module"
+    range 0 4
+    default 1
