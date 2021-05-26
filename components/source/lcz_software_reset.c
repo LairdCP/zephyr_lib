@@ -17,6 +17,11 @@ LOG_MODULE_REGISTER(lcz_software_reset, CONFIG_LCZ_SOFTWARE_RESET_LOG_LEVEL);
 #include <logging/log_ctrl.h>
 #include <power/reboot.h>
 
+#ifdef CONFIG_LCZ_MEMFAULT
+#include "lcz_memfault.h"
+#include "memfault/panics/assert.h"
+#endif
+
 #include "lcz_software_reset.h"
 
 /******************************************************************************/
@@ -28,4 +33,14 @@ void lcz_software_reset(uint32_t delay_ms)
 	LOG_WRN("Software Reset in %d milliseconds", delay_ms);
 	k_sleep(K_MSEC(delay_ms));
 	sys_reboot(SYS_REBOOT_COLD);
+}
+
+void lcz_software_reset_after_assert(uint32_t delay_ms)
+{
+#ifdef CONFIG_LCZ_MEMFAULT
+	LOG_PANIC();
+	MEMFAULT_ASSERT(false);
+#else
+	lcz_software_reset(delay_ms);
+#endif
 }
