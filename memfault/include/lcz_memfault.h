@@ -100,9 +100,9 @@ extern "C" {
 #endif
 
 #ifdef CONFIG_MEMFAULT_LOGGING_ENABLE
-#define LCZ_MEMFAULT_COLLECT_LOGS memfault_log_trigger_collection()
+#define LCZ_MEMFAULT_COLLECT_LOGS memfault_log_trigger_collection
 #else
-#define LCZ_MEMFAULT_COLLECT_LOGS(...) 0
+#define LCZ_MEMFAULT_COLLECT_LOGS(...)
 #endif
 
 /******************************************************************************/
