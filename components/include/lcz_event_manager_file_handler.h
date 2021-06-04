@@ -35,8 +35,9 @@ typedef enum {
 /******************************************************************************/
 /** @brief Initialises kernel objects
  *
+ *  @param [in]save_to_flash - Sets the initial state of the save to flash flag
  */
-void lcz_event_manager_file_handler_initialise(void);
+void lcz_event_manager_file_handler_initialise(bool save_to_flash);
 
 /** @brief Adds an event to the event log.
  *
@@ -93,5 +94,11 @@ LogFileStatus_t lcz_event_manager_file_handler_get_log_file_status(void);
 int lcz_event_manager_file_handler_build_test_file(
 	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
 	uint32_t *log_file_size, bool is_running);
+
+/** @brief Determines whether incoming events are stored to flash
+ *
+ * @param [in]save_to_flash - True when saving is required, false otherwise.
+ */
+void lcz_event_manager_file_handler_set_logging_state(bool save_to_flash);
 
 #endif /* ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_H */

@@ -18,10 +18,10 @@
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void lcz_event_manager_initialise(void)
+void lcz_event_manager_initialise(bool save_to_flash)
 {
 	/* Create kernel objects */
-	lcz_event_manager_file_handler_initialise();
+	lcz_event_manager_file_handler_initialise(save_to_flash);
 }
 
 uint32_t
@@ -82,4 +82,9 @@ int lcz_event_manager_prepare_test_log_file(
 		dummy_log_file_properties, log_path, log_file_size, true);
 
 	return (result);
+}
+
+void lcz_event_manager_set_logging_state(bool save_to_flash)
+{
+	lcz_event_manager_file_handler_set_logging_state(save_to_flash);
 }

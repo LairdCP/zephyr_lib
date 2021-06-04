@@ -36,6 +36,8 @@ typedef struct __lczEventManagerData_t {
 	uint32_t lastEventTimestamp;
 	/* The count of events in the event log                              */
 	uint32_t eventCount;
+	/* Indicates whether events should be stored in flash                */
+	bool saving_enabled;
 } lczEventManagerData_t;
 
 /* This is the size of each file used to store private event data */
@@ -237,7 +239,7 @@ lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
 /*****************************************************************************/
 /* Global Function Definitions                                               */
 /*****************************************************************************/
-void lcz_event_manager_file_handler_initialise(void)
+void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 {
 	/* Build the mutex we use to protect access to the event manager */
 	/* file handler data structure                                   */
@@ -294,6 +296,8 @@ void lcz_event_manager_file_handler_initialise(void)
 	lcz_event_manager_file_handler_load_files();
 	/* And setup indexing so we know where to write next */
 	lcz_event_manager_file_handler_get_indices();
+	/* Store the flash saving enabled flag for later */
+	lczEventManagerData.saving_enabled = save_to_flash;
 
 	/* Safe to release resources now */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
@@ -353,9 +357,9 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 	/* OK to release resources now */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 
-	/* If we're running, trigger a file update for any events
-	   that have been read out.
-	*/
+	/* If we're running (not unit testing), trigger a file update for
+	 * any events that have been read out.
+	 */
 	if (is_running) {
 		k_work_submit_to_queue(
 			&lcz_event_manager_file_handler_workq,
@@ -512,6 +516,24 @@ int lcz_event_manager_file_handler_build_test_file(
 	return (result);
 }
 
+void lcz_event_manager_file_handler_set_logging_state(bool save_to_flash)
+{
+	/* Lock resources whilst we set the save enabled flag */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+	/* Set the save enabled flag state */
+	lczEventManagerData.saving_enabled = save_to_flash;
+	/* If saving has been enabled, we need to kick off a
+	 * save here to add any new events to flash.
+	 */
+	if (save_to_flash) {
+		k_work_submit_to_queue(
+			&lcz_event_manager_file_handler_workq,
+			&lcz_event_manager_file_handler_work_item);
+	}
+	/* OK to release resources now */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -568,10 +590,14 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		/* Release resources after all changes are made */
 		k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 
-		/* Then trigger a background write operation. */
-		k_work_submit_to_queue(
-			&lcz_event_manager_file_handler_workq,
-			&lcz_event_manager_file_handler_work_item);
+		/* Then trigger a background write operation if
+		 * saving to flash is enabled.
+		 */
+		if (lczEventManagerData.saving_enabled) {
+			k_work_submit_to_queue(
+				&lcz_event_manager_file_handler_workq,
+				&lcz_event_manager_file_handler_work_item);
+		}
 	}
 }
 

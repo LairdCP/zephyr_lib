@@ -31,8 +31,10 @@ typedef struct _tDummyLogFileProperties {
 
 /** @brief Initialises the Event Manager.
  *
+ *  @param [in]save_to_flash - Determines whether flash saving is enabled at
+ *                             startup.
  */
-void lcz_event_manager_initialise(void);
+void lcz_event_manager_initialise(bool save_to_flash);
 
 /** @brief Adds a sensor event to the sensor event queue
  *
@@ -88,4 +90,11 @@ uint32_t lcz_event_manager_get_log_file_status(void);
 int lcz_event_manager_prepare_test_log_file(
 	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
 	uint32_t *log_file_size);
+
+/** @brief Determines whether incoming events are stored to flash
+ *
+ * @param [in]save_to_flash - True when saving is required, false otherwise.
+ */
+void lcz_event_manager_set_logging_state(bool save_to_flash);
+
 #endif /* ifdef LCZ_EVENT_MANAGER_H */
