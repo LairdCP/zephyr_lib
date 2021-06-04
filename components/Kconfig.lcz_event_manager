@@ -20,7 +20,7 @@ config LCZ_EVENT_MANAGER_EVENTS_PER_FILE
 
 config LCZ_EVENT_MANAGER_NUMBER_OF_FILES
 	int "The number of files for the Event Manager to store."
-	range 1 10
+	range 1 256
 	default 1
 
 config LCZ_EVENT_MANAGER_BACKGROUND_THREAD_PRIORITY
