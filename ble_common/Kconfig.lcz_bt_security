@@ -6,6 +6,7 @@
 
 menuconfig LCZ_BT_SECURITY
 	bool "Enable Bluetooth security callback wrapper module"
+	depends on BT_SMP
 
 if LCZ_BT_SECURITY
 
