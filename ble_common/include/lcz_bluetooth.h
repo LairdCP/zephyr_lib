@@ -136,6 +136,11 @@ const char *lbt_get_att_err_string(uint8_t code);
 const char *lbt_get_hci_err_string(uint8_t code);
 
 /**
+ * @retval Bluetooth security error as string
+ */
+const char *lbt_get_security_err_string(uint8_t code);
+
+/**
  * @retval Reset reason code
  */
 uint32_t lbt_get_and_clear_nrf52_reset_reason_register(void);
