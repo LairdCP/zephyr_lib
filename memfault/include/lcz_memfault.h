@@ -16,6 +16,7 @@
 #include "memfault/core/platform/device_info.h"
 #include "memfault/ports/watchdog.h"
 #include "memfault/components.h"
+#include "memfault/http/root_certs.h"
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_METRICS
@@ -88,7 +89,7 @@ extern "C" {
 #define LCZ_MEMFAULT_BUILD_TOPIC(...)
 #endif
 
-#if defined(CONFIG_LCZ_MEMFAULT)
+#ifdef CONFIG_LCZ_MEMFAULT
 #define LCZ_MEMFAULT_WATCHDOG_ENABLE memfault_software_watchdog_enable
 #define LCZ_MEMFAULT_WATCHDOG_FEED memfault_software_watchdog_feed
 #define LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT                                   \
@@ -103,6 +104,14 @@ extern "C" {
 #define LCZ_MEMFAULT_COLLECT_LOGS memfault_log_trigger_collection
 #else
 #define LCZ_MEMFAULT_COLLECT_LOGS(...)
+#endif
+
+#ifdef CONFIG_LCZ_MEMFAULT
+#define LCZ_MEMFAULT_REBOOT_TRACK_FIRMWARE_UPDATE()                            \
+	memfault_reboot_tracking_mark_reset_imminent(                          \
+		kMfltRebootReason_FirmwareUpdate, NULL)
+#else
+#define LCZ_MEMFAULT_REBOOT_TRACK_FIRMWARE_UPDATE()
 #endif
 
 /******************************************************************************/
