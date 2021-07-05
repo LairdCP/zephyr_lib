@@ -306,6 +306,7 @@ static int read_text(const char *fname, char **fstr, size_t fsize)
 		}
 		*fstr = str;
 
+		fs_file_t_init(&file);
 		r = fs_open(&file, fname, FS_O_READ);
 		BREAK_ON_ERROR(r);
 

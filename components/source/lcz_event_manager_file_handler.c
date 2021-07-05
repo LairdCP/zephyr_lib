@@ -2532,6 +2532,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 						LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 					/* Read back the next event details */
 					struct fs_file_t f;
+					fs_file_t_init(&f);
 					result = fs_open(&f, fileName,
 							 FS_O_READ);
 					if (!result) {
@@ -2876,6 +2877,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			     eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
+				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
 					fs_seek(&f,
@@ -2946,6 +2948,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			     eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
+				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
 					fs_seek(&f,
@@ -3016,6 +3019,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			     eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
+				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
 					fs_seek(&f,
@@ -3086,6 +3090,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			     eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
+				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
 					fs_seek(&f,

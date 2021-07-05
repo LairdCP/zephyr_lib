@@ -2,7 +2,7 @@
  * @file file_system_utilities.c
  * @brief
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -109,6 +109,7 @@ void fsu_list_directory(const char *path)
 	}
 
 	struct fs_dir_t dir = { 0 };
+	fs_dir_t_init(&dir);
 	int rc = fs_opendir(&dir, path);
 	LOG_DBG("%s opendir: %d\n", log_strdup(path), rc);
 
@@ -145,6 +146,7 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 	}
 
 	/* Count matching items */
+	fs_dir_t_init(&dir);
 	int rc = fs_opendir(&dir, path);
 	LOG_DBG("%s opendir: %d", log_strdup(path), rc);
 	/* Use malloc because entry is 264 bytes when using LFS */
@@ -231,6 +233,7 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 	memset(&hash[0], 0, FSU_HASH_SIZE);
 
 #ifdef CONFIG_FSU_HASH
+	fs_file_t_init(&f);
 	rc = fs_open(&f, abs_path, FS_O_READ);
 	if (rc < 0) {
 		return rc;
@@ -435,6 +438,7 @@ ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size)
 
 		/* It is quicker to try to open the file than checking if it exists. */
 		struct fs_file_t f;
+		fs_file_t_init(&f);
 		r = fs_open(&f, abs_path, FS_O_READ);
 		BREAK_ON_ERROR(r);
 
@@ -534,6 +538,7 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 		}
 
 		struct fs_file_t handle;
+		fs_file_t_init(&handle);
 		rc = fs_open(&handle, abs_path, flags);
 		if (rc < 0) {
 			LOG_ERR("Unable to open file %s for %s",
