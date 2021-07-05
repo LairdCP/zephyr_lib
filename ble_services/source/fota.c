@@ -215,9 +215,9 @@ void fota_init()
 	fota.hash_index =
 		lbt_find_gatt_index(&FOTA_HASH.uuid, fota_attrs, gatt_size);
 
-	k_work_q_start(&fota.work_q, fcs_workq_stack,
-		       K_THREAD_STACK_SIZEOF(fcs_workq_stack),
-		       FOTA_WORKQ_THREAD_PRIORITY);
+	k_work_queue_start(&fota.work_q, fcs_workq_stack,
+			   K_THREAD_STACK_SIZEOF(fcs_workq_stack),
+			   FOTA_WORKQ_THREAD_PRIORITY);
 
 	/* The system q isn't used because fota can take a long time */
 	k_work_init(&fota.work, workq_fota_handler);

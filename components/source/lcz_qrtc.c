@@ -26,7 +26,7 @@ struct qrtc {
 	uint32_t offset;
 	struct k_mutex mutex;
 #if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
-	struct k_delayed_work work;
+	struct k_work_delayable work;
 #endif
 };
 
@@ -92,10 +92,10 @@ static int qrtc_sys_init(const struct device *device)
 	qrtc.offset = 0;
 	qrtc.epoch_was_set = false;
 #if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
-	k_delayed_work_init(&qrtc.work, qrtc_sync_handler);
+	k_work_init_delayable(&qrtc.work, qrtc_sync_handler);
 
-	k_delayed_work_submit(&qrtc.work,
-			      K_SECONDS(CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS));
+	k_work_schedule(&qrtc.work,
+			K_SECONDS(CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS));
 #endif
 
 	return 0;
@@ -150,8 +150,8 @@ static void qrtc_sync_handler(struct k_work *dummy)
 
 	lcz_qrtc_sync_handler();
 
-	k_delayed_work_submit(&qrtc.work,
-			      K_SECONDS(CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS));
+	k_work_schedule(&qrtc.work,
+			K_SECONDS(CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS));
 }
 
 __weak void lcz_qrtc_sync_handler(void)

@@ -281,11 +281,11 @@ void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 		    lcz_event_manager_file_handler_dummy_log_workq_handler);
 
 	/* Start the work queue used to save event files */
-	k_work_q_start(&lcz_event_manager_file_handler_workq,
-		       lcz_event_manager_file_handler_workq_stack,
-		       K_THREAD_STACK_SIZEOF(
+	k_work_queue_start(&lcz_event_manager_file_handler_workq,
+			   lcz_event_manager_file_handler_workq_stack,
+			   K_THREAD_STACK_SIZEOF(
 			       lcz_event_manager_file_handler_workq_stack),
-		       CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY);
+			   CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY);
 
 	/* Check if all files are present and of the right size */
 	if (!lcz_event_manager_file_handler_check_structure()) {

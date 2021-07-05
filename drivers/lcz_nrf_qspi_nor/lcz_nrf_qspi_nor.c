@@ -111,7 +111,7 @@ struct qspi_cmd {
 #ifdef CONFIG_PM_DEVICE
 struct nrf_qspi_nor_cool_down_t
 {
-	struct k_delayed_work work;
+	struct k_work_delayable work;
 	bool isInitialised;
 };
 #endif
@@ -288,7 +288,7 @@ static inline void qspi_lock(const struct device *dev)
 	struct qspi_nor_data *const driver_data = dev->data;
 
 	/* Immediately stop any pending work requests */
-	k_delayed_work_cancel(&driver_data->nrf_qspi_nor_cool_down.work);
+	k_work_cancel_delayable(&driver_data->nrf_qspi_nor_cool_down.work);
 
 	/* Did the interface get shut off? */
 	if (!driver_data->nrf_qspi_nor_cool_down.isInitialised){
@@ -322,8 +322,8 @@ static inline void qspi_unlock(const struct device *dev)
 
 	struct qspi_nor_data *const driver_data = dev->data;
 	/* OK to request for the QSPI interface to be shut off now */
-	k_delayed_work_submit(&driver_data->nrf_qspi_nor_cool_down.work,
-				K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
+	k_work_schedule(&driver_data->nrf_qspi_nor_cool_down.work,
+			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
 }
 
 static inline void qspi_wait_for_completion(const struct device *dev,
@@ -1078,12 +1078,12 @@ static int qspi_nor_init(const struct device *dev)
 	driver_data->nrf_qspi_nor_cool_down.isInitialised = true;
 
 	/* Build the delayed work structure used to shut the QSPI off */
-	k_delayed_work_init(&driver_data->nrf_qspi_nor_cool_down.work,
-				qspi_nor_workq_handler);
+	k_work_init_delayable(&driver_data->nrf_qspi_nor_cool_down.work,
+			      qspi_nor_workq_handler);
 
 	/* OK to request for the QSPI interface to be shut off now */
-	(void)k_delayed_work_submit(&driver_data->nrf_qspi_nor_cool_down.work,
-			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
+	(void)k_work_schedule(&driver_data->nrf_qspi_nor_cool_down.work,
+			      K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
 
 	return qspi_nor_configure(dev);
 }
