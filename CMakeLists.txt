@@ -11,3 +11,6 @@ add_subdirectory(drivers)
 add_subdirectory(memfault)
 
 endif()
+
+# Include local project version output
+include(cmake/git_version.cmake)
