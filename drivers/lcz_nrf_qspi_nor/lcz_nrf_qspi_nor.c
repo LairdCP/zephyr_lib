@@ -282,6 +282,14 @@ static inline void qspi_lock(const struct device *dev)
 {
 	key_t qspi_lock_key;
 
+#ifdef CONFIG_MULTITHREADING
+	struct qspi_nor_data *dev_data = get_dev_data(dev);
+
+	k_sem_take(&dev_data->sem, K_FOREVER);
+#else /* CONFIG_MULTITHREADING */
+	ARG_UNUSED(dev);
+#endif /* CONFIG_MULTITHREADING */
+
 	/* Hold off any interrupts or context switches during this check */
 	qspi_lock_key = irq_lock();
 
@@ -300,18 +308,14 @@ static inline void qspi_lock(const struct device *dev)
 	}
 	/* Now safe to reenable interrupts and context switches */
 	irq_unlock(qspi_lock_key);
-
-#ifdef CONFIG_MULTITHREADING
-	struct qspi_nor_data *dev_data = get_dev_data(dev);
-
-	k_sem_take(&dev_data->sem, K_FOREVER);
-#else /* CONFIG_MULTITHREADING */
-	ARG_UNUSED(dev);
-#endif /* CONFIG_MULTITHREADING */
 }
 
 static inline void qspi_unlock(const struct device *dev)
 {
+	struct qspi_nor_data *const driver_data = dev->data;
+	/* OK to request for the QSPI interface to be shut off now */
+	k_work_schedule(&driver_data->nrf_qspi_nor_cool_down.work,
+			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
 #ifdef CONFIG_MULTITHREADING
 	struct qspi_nor_data *dev_data = get_dev_data(dev);
 
@@ -319,11 +323,6 @@ static inline void qspi_unlock(const struct device *dev)
 #else /* CONFIG_MULTITHREADING */
 	ARG_UNUSED(dev);
 #endif /* CONFIG_MULTITHREADING */
-
-	struct qspi_nor_data *const driver_data = dev->data;
-	/* OK to request for the QSPI interface to be shut off now */
-	k_work_schedule(&driver_data->nrf_qspi_nor_cool_down.work,
-			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
 }
 
 static inline void qspi_wait_for_completion(const struct device *dev,
@@ -1067,8 +1066,7 @@ static int qspi_nor_init(const struct device *dev)
 		    nrfx_isr, nrfx_qspi_irq_handler, 0);
 
 #ifdef CONFIG_PM_DEVICE
-	get_dev_data(dev)->pm_state = DEVICE_PM_ACTIVE_STATE;
-
+	get_dev_data(dev)->pm_state = PM_DEVICE_STATE_ACTIVE;
 #endif
 
 	/* Laird specific implementation starts here */
