@@ -10,8 +10,10 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(lcz_param_file, CONFIG_LCZ_PARAM_FILE_LOG_LEVEL);
 
-#define LOG_ZLP(...)                                                           \
-	Z_LOG(CONFIG_LCZ_PARAM_FILE_ZERO_LENGTH_LOG_LEVEL, __VA_ARGS__)
+/* Add a message for Zero Length Parameters
+ * (an error for anything but a string).
+ */
+#define LOG_ZLP(...) LOG_DBG(__VA_ARGS__)
 
 /******************************************************************************/
 /* Includes                                                                   */

@@ -25,13 +25,6 @@ config LCZ_PARAM_FILE_LOG_LEVEL
     range 0 4
     default 3
 
-config LCZ_PARAM_FILE_ZERO_LENGTH_LOG_LEVEL
-    int "Log level for zero-length parameter"
-    range 0 4
-    default 4
-    help
-        This is an error for anything but a string.
-
 config LCZ_PARAM_FILE_LOG_VERBOSE
     bool "Enable verbose debug logging for Parameters Module"
     depends on LCZ_PARAM_FILE_LOG_LEVEL = 4
