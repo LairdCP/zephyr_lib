@@ -22,22 +22,17 @@ LOG_MODULE_REGISTER(lcz_mflt_http, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
 /******************************************************************************/
 /* Global Data Definitions                                                    */
 /******************************************************************************/
-
-sMfltHttpClientConfig g_mflt_http_client_config;
-
 K_MUTEX_DEFINE(post_data_mutex);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
 
-int lcz_memfault_http_init(char *api_key)
+int lcz_memfault_http_init(void)
 {
 	int rc;
 
-	g_mflt_http_client_config.api_key = api_key;
-
-	rc = memfault_nrfconnect_port_install_root_certs();
+	rc = memfault_zephyr_port_install_root_certs();
 	if (rc != 0) {
 		LOG_ERR("Could not install memfault certs %d", rc);
 	}
@@ -50,7 +45,7 @@ int lcz_memfault_post_data(void)
 	int rc;
 
 	k_mutex_lock(&post_data_mutex, K_FOREVER);
-	rc = memfault_nrfconnect_port_post_data();
+	rc = memfault_zephyr_port_post_data();
 	k_mutex_unlock(&post_data_mutex);
 
 	return rc;

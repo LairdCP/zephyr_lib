@@ -23,14 +23,6 @@ config LCZ_MEMFAULT_HTTP_TRANSPORT
 	bool "Enable HTTP data transport"
 	select MEMFAULT_HTTP_ENABLE
 
-if LCZ_MEMFAULT_HTTP_TRANSPORT
-
-config LCZ_MEMFAULT_PROJECT_API_KEY
-	string "API key to authentication to memfault"
-	default "lMq1riPv0YbLsfpCiUMfxClU1oLVVjH1"
-
-endif # LCZ_MEMFAULT_HTTP_TRANSPORT
-
 config LCZ_MEMFAULT_MQTT_TRANSPORT
 	bool "Enable MQTT data transport"
 	depends on MQTT_LIB

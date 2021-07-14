@@ -122,10 +122,9 @@ extern "C" {
 /**
  * @brief Initialize memfault SDK
  *
- * @param api_key API key to communicate to Memfault
  * @return 0 on success
  */
-int lcz_memfault_http_init(char *api_key);
+int lcz_memfault_http_init(void);
 
 /**
  * @brief Post any available data to memfault cloud via HTTPS
