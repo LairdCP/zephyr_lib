@@ -14,9 +14,10 @@ zephyr_sources_ifdef(CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT source/lcz_memfault_mqtt
 # Override the warning in the Nordic file (memfault_integration)
 # with a link to Laird Connectivity's instructions.
 if(LCZ_MEMFAULT AND NOT CONFIG_MEMFAULT_NCS_PROJECT_KEY)
-  message(FATAL_ERROR
-    "
-    Memfault Project Key not configured.
-	Please visit https://goto.memfault.com/create-key/pinnacle-100
-    ")
+	message(FATAL_ERROR
+		"
+		Memfault Project Key not configured.
+	Please visit https://goto.memfault.com/create-key/pinnacle-100 or
+	Disable Memfault with CONFIG_LCZ_MEMFAULT=n
+		")
 endif()
