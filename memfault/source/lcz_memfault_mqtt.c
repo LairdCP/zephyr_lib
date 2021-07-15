@@ -16,6 +16,7 @@ LOG_MODULE_REGISTER(lcz_mflt_mqtt, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
 /******************************************************************************/
 #include <zephyr.h>
 #include <random/rand32.h>
+#include <stdarg.h>
 #include "memfault/core/data_packetizer.h"
 
 #include "lcz_memfault.h"
@@ -57,10 +58,16 @@ bool lcz_memfault_publish_data(struct mqtt_client *client)
 	return sent;
 }
 
-int lcz_memfault_build_topic(const char *board, const char *id)
+int lcz_memfault_build_topic(const char *format, ...)
 {
-	int r = snprintk(memfault_topic, sizeof(memfault_topic),
-			 CONFIG_LCZ_MEMFAULT_MQTT_TOPIC, board, id);
+	va_list variable_args;
+
+	va_start(variable_args, format);
+
+	int r = vsnprintk(memfault_topic, sizeof(memfault_topic), format,
+			  variable_args);
+
+	va_end(variable_args);
 
 	if (r < 0) {
 		LOG_ERR("Unable to build memfault topic");
@@ -69,6 +76,8 @@ int lcz_memfault_build_topic(const char *board, const char *id)
 		LOG_ERR("Memfault topic string too small");
 		return -1;
 	} else {
+		LOG_DBG("Memfault topic set to: %s",
+			log_strdup(memfault_topic));
 		return 0;
 	}
 }

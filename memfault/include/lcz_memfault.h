@@ -143,12 +143,11 @@ int lcz_memfault_post_data(void);
 bool lcz_memfault_publish_data(struct mqtt_client *client);
 
 /**
- * @brief Build topic used for publishing using LCZ_MEMFAULT_MQTT_TOPIC as
- * the format string.
+ * @brief Build topic used for publishing using the format string.
  *
  * @return negative error code, 0 on success
  */
-int lcz_memfault_build_topic(const char *board, const char *id);
+int lcz_memfault_build_topic(const char *format, ...);
 
 #endif
 

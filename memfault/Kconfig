@@ -31,7 +31,7 @@ if LCZ_MEMFAULT_MQTT_TRANSPORT
 
 config LCZ_MEMFAULT_MQTT_TOPIC
 	string "MQTT topic for publishing data"
-	default "prod/%s/%s/memfault/chunk"
+	default "prod/%s/%s/memfault/%s/chunk"
 
 config LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH
 	int "MQTT data buffer length"
@@ -41,7 +41,7 @@ config LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH
 
 config MEMFAULT_TOPIC_MAX_SIZE
 	int "Max topic size for memfault"
-	default 64
+	default 128
 
 endif # LCZ_MEMFAULT_MQTT_TRANSPORT
 
