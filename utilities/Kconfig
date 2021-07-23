@@ -84,4 +84,7 @@ config FSU_REWRITE_SIZE_CHECK
 
 endif # FILE_SYSTEM_UTILITIES
 
+config ERRNO_STR
+    bool "Enable generation of string representations of errno"
+
 endmenu
