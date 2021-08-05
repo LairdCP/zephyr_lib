@@ -40,10 +40,10 @@ static struct {
 	uint32_t num_starts;
 } bts;
 
-/* Use scan window of 40ms with scan interval of 200ms (20% duty cycle) */
+/* Use scan window of 40ms with scan interval of 160ms (25% duty cycle) */
 static struct bt_le_scan_param scan_parameters = BT_LE_SCAN_PARAM_INIT(
 	BT_LE_SCAN_TYPE_PASSIVE, BT_LE_SCAN_OPT_FILTER_DUPLICATE,
-	BT_GAP_SCAN_200MS_INTERVAL, BT_GAP_SCAN_40MS_WINDOW);
+	BT_GAP_SCAN_160MS_INTERVAL, BT_GAP_SCAN_40MS_WINDOW);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */

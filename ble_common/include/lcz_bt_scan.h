@@ -27,7 +27,7 @@ extern "C" {
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
 #define BT_GAP_SCAN_40MS_WINDOW 0x40 /* in 0.625ms units */
-#define BT_GAP_SCAN_200MS_INTERVAL 0x140 /* in 0.625ms units */
+#define BT_GAP_SCAN_160MS_INTERVAL 0x100 /* in 0.625ms units */
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
