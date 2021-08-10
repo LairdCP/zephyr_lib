@@ -151,6 +151,17 @@ int lcz_memfault_build_topic(const char *format, ...);
 
 #endif
 
+/**
+ * @brief Save Memfault data to a file
+ *
+ * @param abs_path file name to save to
+ * @param file_size size of file in bytes
+ * @param has_core_dump true if core dump is present, false otherwise
+ * @return int negative errno, 0 on success
+ */
+int lcz_memfault_save_data_to_file(const char *abs_path, size_t *file_size,
+				   bool *has_core_dump);
+
 #ifdef __cplusplus
 }
 #endif

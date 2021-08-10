@@ -49,4 +49,16 @@ config LCZ_MEMFAULT_METRICS
 	bool "Enable Memfault metrics tracking"
 	select MEMFAULT_METRICS
 
+config LCZ_MEMFAULT_FILE
+	bool "Enable writing of memfault data to a file"
+	depends on FILE_SYSTEM_UTILITIES
+
+if LCZ_MEMFAULT_FILE
+
+config LCZ_MEMFAULT_FILE_CHUNK_SIZE
+	int "Size of chunks to read from packetizer and write into file"
+	default 128
+
+endif # LCZ_MEMFAULT_FILE
+
 endif # LCZ_MEMFAULT
