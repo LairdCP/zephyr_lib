@@ -153,7 +153,7 @@ static void scan_start(void)
 
 static bool valid_user_id(int id)
 {
-	if (id < CONFIG_LCZ_BT_SCAN_MAX_USERS) {
+	if (id >= 0 && id < CONFIG_LCZ_BT_SCAN_MAX_USERS) {
 		return true;
 	} else {
 		LOG_ERR("Invalid bt scan user id");
