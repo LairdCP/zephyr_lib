@@ -77,7 +77,7 @@ static int lis2dh_sample_fetch_temp(const struct device *dev)
 		 *  temperature that must be added to the reference temperature set
 		 *  for your board to return an absolute temperature in celsius.
 		 */
-		lis2dh->temp_sample = TEMP_REFERENCE + temp_raw[1];
+		lis2dh->temp_sample = TEMP_REFERENCE + (int8_t)temp_raw[1];
 	}
 
 	return ret;
