@@ -152,8 +152,11 @@ int lcz_memfault_build_topic(const char *format, ...);
 #endif
 
 /**
- * @brief Save Memfault data to a file
- *
+ * @brief Save Memfault data to a file.
+ * The file will contain raw Memfault chunk data.
+ * Each chunk will have a two byte (LSB) length header before it.
+ * For example, the file contents will look like:
+ * <chunk_length><chunk_data><chunk_length><chunk_data>...
  * @param abs_path file name to save to
  * @param file_size size of file in bytes
  * @param has_core_dump true if core dump is present, false otherwise
