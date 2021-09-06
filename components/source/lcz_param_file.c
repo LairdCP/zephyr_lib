@@ -251,6 +251,18 @@ int lcz_param_file_validate_file(const char *str, size_t length)
 	return (r < 0) ? r : delimiters;
 }
 
+int lcz_param_file_append_feedback(param_id_t id, uint8_t error_code,
+				   uint8_t *write_data)
+{
+	int result;
+
+	/* Parameter feedback error codes are always binary */
+	result = append_parameter(id, PARAM_BIN, (const void *)&error_code,
+				  sizeof(uint8_t), write_data);
+
+	return (result);
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/

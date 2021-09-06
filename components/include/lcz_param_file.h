@@ -130,6 +130,19 @@ int lcz_param_file_validate_file(const char *str, size_t size);
 int lcz_param_file_generate_file(param_id_t id, param_t type, const void *data,
 				 size_t dsize, char **fstr);
 
+/**
+ * @brief Appends parameter load error information to the passed string
+ * buffer.
+ *
+ * @param id The id of the parameter to add.
+ * @param error_code The error code to add.
+ * @param write_data Pointer to the string buffer.
+ *
+ * @retval negative on error, otherwise number of bytes added to file string.
+ */
+int lcz_param_file_append_feedback(param_id_t id, uint8_t error_code,
+				   uint8_t *write_data);
+
 #ifdef __cplusplus
 }
 #endif
