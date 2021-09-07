@@ -122,7 +122,7 @@ struct nrf_qspi_nor_cool_down_t
 struct qspi_nor_data {
 #ifdef CONFIG_MULTITHREADING
 	/* The semaphore to control exclusive access to the device. */
-	struct k_sem sem;
+	struct k_mutex sem;
 	/* The semaphore to indicate that transfer has completed. */
 	struct k_sem sync;
 #else /* CONFIG_MULTITHREADING */
@@ -248,7 +248,7 @@ static inline nrf_qspi_addrmode_t qspi_get_address_size(bool addr_size)
  */
 static struct qspi_nor_data qspi_nor_memory_data = {
 #ifdef CONFIG_MULTITHREADING
-	.sem = Z_SEM_INITIALIZER(qspi_nor_memory_data.sem, 1, 1),
+	.sem = Z_MUTEX_INITIALIZER(qspi_nor_memory_data.sem),
 	.sync = Z_SEM_INITIALIZER(qspi_nor_memory_data.sync, 0, 1),
 #endif /* CONFIG_MULTITHREADING */
 };
@@ -282,29 +282,24 @@ static inline void qspi_lock(const struct device *dev)
 {
 	key_t qspi_lock_key;
 
-#ifdef CONFIG_MULTITHREADING
 	struct qspi_nor_data *dev_data = get_dev_data(dev);
 
-	k_sem_take(&dev_data->sem, K_FOREVER);
-#else /* CONFIG_MULTITHREADING */
-	ARG_UNUSED(dev);
-#endif /* CONFIG_MULTITHREADING */
+	k_mutex_lock(&dev_data->sem, K_FOREVER);
 
 	/* Hold off any interrupts or context switches during this check */
 	qspi_lock_key = irq_lock();
 
-	struct qspi_nor_data *const driver_data = dev->data;
-
 	/* Immediately stop any pending work requests */
-	k_work_cancel_delayable(&driver_data->nrf_qspi_nor_cool_down.work);
+	k_delayed_work_cancel(&dev_data->nrf_qspi_nor_cool_down.work);
 
 	/* Did the interface get shut off? */
-	if (!driver_data->nrf_qspi_nor_cool_down.isInitialised){
-
-		/* Yes, so restart it */
+	if (!dev_data->nrf_qspi_nor_cool_down.isInitialised) {
+		/* Set the initialised flag here to prevent 
+		 * entering the configure call again.
+		 */
+		dev_data->nrf_qspi_nor_cool_down.isInitialised = true;
+		/* Restart the QSPI */
 		qspi_nrfx_configure(dev);
-		/* We are now initialised */
-		driver_data->nrf_qspi_nor_cool_down.isInitialised = true;
 	}
 	/* Now safe to reenable interrupts and context switches */
 	irq_unlock(qspi_lock_key);
@@ -312,17 +307,23 @@ static inline void qspi_lock(const struct device *dev)
 
 static inline void qspi_unlock(const struct device *dev)
 {
-	struct qspi_nor_data *const driver_data = dev->data;
-	/* OK to request for the QSPI interface to be shut off now */
-	k_work_schedule(&driver_data->nrf_qspi_nor_cool_down.work,
-			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
-#ifdef CONFIG_MULTITHREADING
+	key_t qspi_lock_key;
 	struct qspi_nor_data *dev_data = get_dev_data(dev);
 
-	k_sem_give(&dev_data->sem);
-#else /* CONFIG_MULTITHREADING */
-	ARG_UNUSED(dev);
-#endif /* CONFIG_MULTITHREADING */
+	/* Hold off any other callers until this check is finished */
+	qspi_lock_key = irq_lock();
+
+	/* We only start the cool down timer if we're sure this is the
+	 * last unlock operation.
+	 */
+	if (dev_data->sem.lock_count == 1) {
+		/* OK to request for the QSPI interface to be shut off now */
+		k_delayed_work_submit(
+			&dev_data->nrf_qspi_nor_cool_down.work,
+			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
+	}
+	k_mutex_unlock(&dev_data->sem);
+	irq_unlock(qspi_lock_key);
 }
 
 static inline void qspi_wait_for_completion(const struct device *dev,
