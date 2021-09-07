@@ -1,14 +1,13 @@
 /*
- * Copyright (c) 2021, Laird Connectivity
  * Copyright (c) 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2021, Laird Connectivity
  *
  * Laird Connectivity modified version of the Nordic QSPI
- * NOR driver. Implements a cool down timer that shuts the
- * QSPI off after a period of inactivity.
+ * NOR driver. Implements a cool down timer that enters DPM mode
+ * after a period of time to reduce power consumption.
  *
  * Tested in conjunction with Zephyr v2.4.99. Previous versions
  * feature a different setup for JES216 and will not compile.
- *
  * Intended to reside in the drivers folder of the Laird Connectivity Zephyr
  * Library, with the Zephyr folder at the same level as the Modules folder 
  * where the Zephyr Lib folder resides.
@@ -30,6 +29,9 @@
 #include <nrfx_qspi.h>
 #include <hal/nrf_clock.h>
 
+#define QSPI_FLASH_DPM_ENTER_DURATION (uint32_t)(MIN(1, DT_INST_PROP(0, t_enter_dpd) / 256 / 62.5)) //Duration required to enter DPM, in units of 16us
+#define QSPI_FLASH_DPM_EXIT_DURATION (uint32_t)(MIN(1, DT_INST_PROP(0, t_exit_dpd) / 256 / 62.5)) //Duration required to enter DPM, in units of 16us
+
 struct qspi_nor_config {
        /* JEDEC id from devicetree */
        uint8_t id[SPI_NOR_MAX_ID_LEN];
@@ -37,6 +39,9 @@ struct qspi_nor_config {
        /* Size from devicetree, in bytes */
        uint32_t size;
 };
+
+/* Main config structure */
+static nrfx_qspi_config_t QSPIconfig;
 
 /* Status register bits */
 #define QSPI_SECTOR_SIZE SPI_NOR_SECTOR_SIZE
@@ -61,6 +66,18 @@ BUILD_ASSERT(INST_0_SCK_FREQUENCY >= (NRF_QSPI_BASE_CLOCK_FREQ / 16),
 BUILD_ASSERT(((INST_0_QER == JESD216_DW15_QER_NONE)
 	      || (INST_0_QER == JESD216_DW15_QER_S1B6)),
 	     "Driver only supports NONE or S1B6 for quad-enable-requirements");
+
+#if NRF52_ERRATA_122_PRESENT
+#include <hal/nrf_gpio.h>
+static int anomaly_122_init(const struct device *dev);
+static void anomaly_122_uninit(const struct device *dev);
+
+#define ANOMALY_122_INIT(dev)   anomaly_122_init(dev)
+#define ANOMALY_122_UNINIT(dev) anomaly_122_uninit(dev)
+#else
+#define ANOMALY_122_INIT(dev) 0
+#define ANOMALY_122_UNINIT(dev)
+#endif
 
 #define WORD_SIZE 4
 
@@ -121,20 +138,22 @@ struct nrf_qspi_nor_cool_down_t
  */
 struct qspi_nor_data {
 #ifdef CONFIG_MULTITHREADING
-	/* The semaphore to control exclusive access to the device. */
+	/* The semaphore to control exclusive access on write/erase. */
+	struct k_sem trans;
+	/* The mutex to control exclusive access to the device. */
 	struct k_mutex sem;
 	/* The semaphore to indicate that transfer has completed. */
 	struct k_sem sync;
+#if NRF52_ERRATA_122_PRESENT
+	/* The semaphore to control driver init/uninit. */
+	struct k_sem count;
+#endif
 #else /* CONFIG_MULTITHREADING */
 	/* A flag that signals completed transfer when threads are
 	 * not enabled.
 	 */
 	volatile bool ready;
 #endif /* CONFIG_MULTITHREADING */
-	/* Indicates if write protection for flash device is
-	 * enabled.
-	 */
-	bool write_protection;
 #ifdef CONFIG_PM_DEVICE
 	uint32_t pm_state;
 	/* This is the delayed work item and associated data */
@@ -145,6 +164,9 @@ struct qspi_nor_data {
 };
 
 static int qspi_nrfx_configure(const struct device *dev);
+
+static int qspi_nor_write_protection_set(const struct device *dev,
+					 bool write_protect);
 
 static inline int qspi_get_mode(bool cpol, bool cpha)
 {
@@ -248,8 +270,12 @@ static inline nrf_qspi_addrmode_t qspi_get_address_size(bool addr_size)
  */
 static struct qspi_nor_data qspi_nor_memory_data = {
 #ifdef CONFIG_MULTITHREADING
+	.trans = Z_SEM_INITIALIZER(qspi_nor_memory_data.trans, 1, 1),
 	.sem = Z_MUTEX_INITIALIZER(qspi_nor_memory_data.sem),
 	.sync = Z_SEM_INITIALIZER(qspi_nor_memory_data.sync, 0, 1),
+#if NRF52_ERRATA_122_PRESENT
+	.count = Z_SEM_INITIALIZER(qspi_nor_memory_data.count, 0, K_SEM_MAX_LIMIT),
+#endif
 #endif /* CONFIG_MULTITHREADING */
 };
 
@@ -281,7 +307,6 @@ static inline struct qspi_nor_data *get_dev_data(const struct device *dev)
 static inline void qspi_lock(const struct device *dev)
 {
 	key_t qspi_lock_key;
-
 	struct qspi_nor_data *dev_data = get_dev_data(dev);
 
 	k_mutex_lock(&dev_data->sem, K_FOREVER);
@@ -290,7 +315,7 @@ static inline void qspi_lock(const struct device *dev)
 	qspi_lock_key = irq_lock();
 
 	/* Immediately stop any pending work requests */
-	k_delayed_work_cancel(&dev_data->nrf_qspi_nor_cool_down.work);
+	k_work_cancel_delayable(&dev_data->nrf_qspi_nor_cool_down.work);
 
 	/* Did the interface get shut off? */
 	if (!dev_data->nrf_qspi_nor_cool_down.isInitialised) {
@@ -298,9 +323,12 @@ static inline void qspi_lock(const struct device *dev)
 		 * entering the configure call again.
 		 */
 		dev_data->nrf_qspi_nor_cool_down.isInitialised = true;
-		/* Restart the QSPI */
-		qspi_nrfx_configure(dev);
+
+		/* Disable DPM mode */
+		QSPIconfig.phy_if.dpmen = false;
+		nrf_qspi_ifconfig1_set(NRF_QSPI, &QSPIconfig.phy_if);
 	}
+
 	/* Now safe to reenable interrupts and context switches */
 	irq_unlock(qspi_lock_key);
 }
@@ -310,7 +338,7 @@ static inline void qspi_unlock(const struct device *dev)
 	key_t qspi_lock_key;
 	struct qspi_nor_data *dev_data = get_dev_data(dev);
 
-	/* Hold off any other callers until this check is finished */
+/* Hold off any other callers until this check is finished */
 	qspi_lock_key = irq_lock();
 
 	/* We only start the cool down timer if we're sure this is the
@@ -318,12 +346,35 @@ static inline void qspi_unlock(const struct device *dev)
 	 */
 	if (dev_data->sem.lock_count == 1) {
 		/* OK to request for the QSPI interface to be shut off now */
-		k_delayed_work_submit(
+		k_work_schedule(
 			&dev_data->nrf_qspi_nor_cool_down.work,
 			K_MSEC(CONFIG_LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD));
 	}
+
 	k_mutex_unlock(&dev_data->sem);
 	irq_unlock(qspi_lock_key);
+}
+
+static inline void qspi_trans_lock(const struct device *dev)
+{
+#ifdef CONFIG_MULTITHREADING
+	struct qspi_nor_data *dev_data = get_dev_data(dev);
+
+	k_sem_take(&dev_data->trans, K_FOREVER);
+#else /* CONFIG_MULTITHREADING */
+	ARG_UNUSED(dev);
+#endif /* CONFIG_MULTITHREADING */
+}
+
+static inline void qspi_trans_unlock(const struct device *dev)
+{
+#ifdef CONFIG_MULTITHREADING
+	struct qspi_nor_data *dev_data = get_dev_data(dev);
+
+	k_sem_give(&dev_data->trans);
+#else /* CONFIG_MULTITHREADING */
+	ARG_UNUSED(dev);
+#endif /* CONFIG_MULTITHREADING */
 }
 
 static inline void qspi_wait_for_completion(const struct device *dev,
@@ -371,6 +422,78 @@ static void qspi_handler(nrfx_qspi_evt_t event, void *p_context)
 		qspi_complete(dev_data);
 	}
 }
+
+#if NRF52_ERRATA_122_PRESENT
+static bool qspi_initialized;
+
+static int anomaly_122_init(const struct device *dev)
+{
+	struct qspi_nor_data *dev_data = get_dev_data(dev);
+	nrfx_err_t res;
+	int ret = 0;
+
+	if (!nrf52_errata_122()) {
+		return 0;
+	}
+
+	qspi_lock(dev);
+
+	/* In multithreading, driver can call anomaly_122_init more than once
+	 * before calling anomaly_122_uninit. Keepping count, so QSPI is
+	 * uninitialized only at the last call (count == 0).
+	 */
+#ifdef CONFIG_MULTITHREADING
+	k_sem_give(&dev_data->count);
+#endif
+
+	if (!qspi_initialized) {
+		res = nrfx_qspi_init(&QSPIconfig, qspi_handler, dev_data);
+		ret = qspi_get_zephyr_ret_code(res);
+		qspi_initialized = (ret == 0);
+	}
+
+	qspi_unlock(dev);
+
+	return ret;
+}
+
+static void anomaly_122_uninit(const struct device *dev)
+{
+	bool last = true;
+
+	if (!nrf52_errata_122()) {
+		return;
+	}
+
+	qspi_lock(dev);
+
+#ifdef CONFIG_MULTITHREADING
+	struct qspi_nor_data *dev_data = get_dev_data(dev);
+
+	/* The last thread to finish using the driver uninit the QSPI */
+	(void) k_sem_take(&dev_data->count, K_NO_WAIT);
+	last = (k_sem_count_get(&dev_data->count) == 0);
+#endif
+
+	if (last) {
+		while (nrfx_qspi_mem_busy_check() != NRFX_SUCCESS) {
+			if (IS_ENABLED(CONFIG_MULTITHREADING)) {
+				k_msleep(50);
+			} else {
+				k_busy_wait(50000);
+			}
+		}
+
+		nrf_gpio_cfg_output(QSPI_PROP_AT(csn_pins, 0));
+		nrf_gpio_pin_set(QSPI_PROP_AT(csn_pins, 0));
+
+		nrfx_qspi_uninit();
+		qspi_initialized = false;
+	}
+
+	qspi_unlock(dev);
+}
+#endif /* NRF52_ERRATA_122_PRESENT */
 
 
 /* QSPI send custom command.
@@ -482,6 +605,12 @@ static int qspi_erase(const struct device *dev, uint32_t addr, uint32_t size)
 	int rv = 0;
 	const struct qspi_nor_config *params = dev->config;
 
+	rv = ANOMALY_122_INIT(dev);
+	if (rv != 0) {
+		goto out;
+	}
+	qspi_trans_lock(dev);
+	rv = qspi_nor_write_protection_set(dev, false);
 	qspi_lock(dev);
 	while ((rv == 0) && (size > 0)) {
 		nrfx_err_t res = !NRFX_SUCCESS;
@@ -516,9 +645,18 @@ static int qspi_erase(const struct device *dev, uint32_t addr, uint32_t size)
 			rv = qspi_get_zephyr_ret_code(res);
 		}
 	}
-
 	qspi_unlock(dev);
 
+	int rv2 = qspi_nor_write_protection_set(dev, true);
+
+	qspi_trans_unlock(dev);
+
+	if (!rv) {
+		rv = rv2;
+	}
+
+out:
+	ANOMALY_122_UNINIT(dev);
 	return rv;
 }
 
@@ -550,7 +688,7 @@ static inline void qspi_fill_init_struct(nrfx_qspi_config_t *initstruct)
 	/* Configure Protocol interface */
 #if DT_INST_NODE_HAS_PROP(0, readoc)
 	initstruct->prot_if.readoc =
-		(nrf_qspi_writeoc_t)qspi_get_lines_read(DT_ENUM_IDX(DT_DRV_INST(0), readoc));
+		(nrf_qspi_readoc_t)qspi_get_lines_read(DT_ENUM_IDX(DT_DRV_INST(0), readoc));
 #else
 	initstruct->prot_if.readoc = NRF_QSPI_READOC_FASTREAD;
 #endif
@@ -564,7 +702,7 @@ static inline void qspi_fill_init_struct(nrfx_qspi_config_t *initstruct)
 	initstruct->prot_if.addrmode =
 		qspi_get_address_size(DT_INST_PROP(0, address_size_32));
 
-	initstruct->prot_if.dpmconfig = false;
+	initstruct->prot_if.dpmconfig = true;
 
 	/* Configure physical interface */
 	initstruct->phy_if.sck_freq =
@@ -586,8 +724,6 @@ static int qspi_nrfx_configure(const struct device *dev)
 	}
 
 	struct qspi_nor_data *dev_data = dev->data;
-	/* Main config structure */
-	nrfx_qspi_config_t QSPIconfig;
 
 	qspi_fill_init_struct(&QSPIconfig);
 
@@ -664,7 +800,14 @@ static int qspi_read_jedec_id(const struct device *dev,
 		.rx_buf = &rx_buf,
 	};
 
-	return qspi_send_cmd(dev, &cmd, false);
+	int ret = ANOMALY_122_INIT(dev);
+
+	if (ret == 0) {
+		ret = qspi_send_cmd(dev, &cmd, false);
+	}
+	ANOMALY_122_UNINIT(dev);
+
+	return ret;
 }
 
 #if defined(CONFIG_FLASH_JESD216_API)
@@ -687,10 +830,15 @@ static int qspi_sfdp_read(const struct device *dev, off_t offset,
 		.io3_level = true,
 	};
 
+	int res = ANOMALY_122_INIT(dev);
+
+	if (res != NRFX_SUCCESS) {
+		LOG_DBG("ANOMALY_122_INIT: %x", res);
+		goto out;
+	}
+
 	qspi_lock(dev);
-
-	int res = nrfx_qspi_lfm_start(&cinstr_cfg);
-
+	res = nrfx_qspi_lfm_start(&cinstr_cfg);
 	if (res != NRFX_SUCCESS) {
 		LOG_DBG("lfm_start: %x", res);
 		goto out;
@@ -710,6 +858,7 @@ static int qspi_sfdp_read(const struct device *dev, off_t offset,
 
 out:
 	qspi_unlock(dev);
+	ANOMALY_122_UNINIT(dev);
 	return qspi_get_zephyr_ret_code(res);
 }
 
@@ -837,14 +986,22 @@ static int qspi_nor_read(const struct device *dev, off_t addr, void *dest,
 		return -EINVAL;
 	}
 
+	int rc = ANOMALY_122_INIT(dev);
+
+	if (rc != 0) {
+		goto out;
+	}
+
 	qspi_lock(dev);
 
 	nrfx_err_t res = read_non_aligned(dev, addr, dest, size);
 
 	qspi_unlock(dev);
 
-	int rc = qspi_get_zephyr_ret_code(res);
+	rc = qspi_get_zephyr_ret_code(res);
 
+out:
+	ANOMALY_122_UNINIT(dev);
 	return rc;
 }
 
@@ -926,12 +1083,7 @@ static int qspi_nor_write(const struct device *dev, off_t addr,
 		return -EINVAL;
 	}
 
-	struct qspi_nor_data *const driver_data = dev->data;
 	const struct qspi_nor_config *params = dev->config;
-
-	if (driver_data->write_protection) {
-		return -EACCES;
-	}
 
 	/* affected region should be within device */
 	if (addr < 0 ||
@@ -944,30 +1096,43 @@ static int qspi_nor_write(const struct device *dev, off_t addr,
 
 	nrfx_err_t res = NRFX_SUCCESS;
 
-	qspi_lock(dev);
+	int rc = ANOMALY_122_INIT(dev);
 
-	if (size < 4U) {
-		res = write_sub_word(dev, addr, src, size);
-	} else if (!nrfx_is_in_ram(src)) {
-		res = write_from_nvmc(dev, addr, src, size);
-	} else {
-		res = nrfx_qspi_write(src, size, addr);
-		qspi_wait_for_completion(dev, res);
+	if (rc != 0) {
+		goto out;
 	}
 
+	qspi_trans_lock(dev);
+	res = qspi_nor_write_protection_set(dev, false);
+	qspi_lock(dev);
+	if (!res) {
+		if (size < 4U) {
+			res = write_sub_word(dev, addr, src, size);
+		} else if (!nrfx_is_in_ram(src)) {
+			res = write_from_nvmc(dev, addr, src, size);
+		} else {
+			res = nrfx_qspi_write(src, size, addr);
+			qspi_wait_for_completion(dev, res);
+		}
+	}
 	qspi_unlock(dev);
 
-	return qspi_get_zephyr_ret_code(res);
+	int res2 = qspi_nor_write_protection_set(dev, true);
+
+	qspi_trans_unlock(dev);
+	if (!res) {
+		res = res2;
+	}
+
+	rc = qspi_get_zephyr_ret_code(res);
+out:
+	ANOMALY_122_UNINIT(dev);
+	return rc;
 }
 
 static int qspi_nor_erase(const struct device *dev, off_t addr, size_t size)
 {
-	struct qspi_nor_data *const driver_data = dev->data;
 	const struct qspi_nor_config *params = dev->config;
-
-	if (driver_data->write_protection) {
-		return -EACCES;
-	}
 
 	/* affected region should be within device */
 	if (addr < 0 ||
@@ -986,14 +1151,10 @@ static int qspi_nor_erase(const struct device *dev, off_t addr, size_t size)
 static int qspi_nor_write_protection_set(const struct device *dev,
 					 bool write_protect)
 {
-	struct qspi_nor_data *const driver_data = dev->data;
-
 	int ret = 0;
 	struct qspi_cmd cmd = {
 		.op_code = ((write_protect) ? SPI_NOR_CMD_WRDI : SPI_NOR_CMD_WREN),
 	};
-
-	driver_data->write_protection = write_protect;
 
 	if (qspi_send_cmd(dev, &cmd, false) != 0) {
 		ret = -EIO;
@@ -1019,6 +1180,8 @@ static int qspi_nor_configure(const struct device *dev)
 		return ret;
 	}
 
+	ANOMALY_122_UNINIT(dev);
+
 	/* now the spi bus is configured, we can verify the flash id */
 	if (qspi_nor_read_id(dev, params) != 0) {
 		return -ENODEV;
@@ -1027,8 +1190,8 @@ static int qspi_nor_configure(const struct device *dev)
 	return 0;
 }
 
-static void qspi_nor_workq_handler(struct k_work *item){
-
+static void qspi_nor_workq_handler(struct k_work *item)
+{
 	struct nrf_qspi_nor_cool_down_t *nrf_qspi_nor_cool_down =
 		CONTAINER_OF(item, struct nrf_qspi_nor_cool_down_t, work);
 
@@ -1040,8 +1203,9 @@ static void qspi_nor_workq_handler(struct k_work *item){
 	/* Now clear the initialised flag */
 	nrf_qspi_nor_cool_down->isInitialised = false;
 
-	/* Shut down the QSPI interface */
-	nrfx_qspi_uninit();
+	/* Enter DPM mode */
+	QSPIconfig.phy_if.dpmen = true;
+	nrf_qspi_ifconfig1_set(NRF_QSPI, &QSPIconfig.phy_if);
 
 	/* Now safe to reenable interrupts and context switches */
 	irq_unlock(qspi_lock_key);
@@ -1070,8 +1234,11 @@ static int qspi_nor_init(const struct device *dev)
 	get_dev_data(dev)->pm_state = PM_DEVICE_STATE_ACTIVE;
 #endif
 
-	/* Laird specific implementation starts here */
+	/* Laird Connectivity specific implementation starts here */
 	struct qspi_nor_data *const driver_data = dev->data;
+
+	/* Fix for Nordic issue whereby they do not set the DPM duration */
+	NRF_QSPI->DPMDUR = (QSPI_FLASH_DPM_EXIT_DURATION << QSPI_DPMDUR_EXIT_Pos) | QSPI_FLASH_DPM_ENTER_DURATION;
 
 	/* The interface is initialised at start-up */
 	driver_data->nrf_qspi_nor_cool_down.isInitialised = true;
@@ -1121,12 +1288,10 @@ static void qspi_nor_pages_layout(const struct device *dev,
 }
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 
-
 static const struct flash_driver_api qspi_nor_api = {
 	.read = qspi_nor_read,
 	.write = qspi_nor_write,
 	.erase = qspi_nor_erase,
-	.write_protection = qspi_nor_write_protection_set,
 	.get_parameters = qspi_flash_get_parameters,
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
 	.page_layout = qspi_nor_pages_layout,
@@ -1143,7 +1308,7 @@ static const struct qspi_nor_config flash_id = {
 	.size = INST_0_BYTES,
 };
 
-DEVICE_DT_INST_DEFINE(0, &qspi_nor_init, device_pm_control_nop,
+DEVICE_DT_INST_DEFINE(0, &qspi_nor_init, NULL,
 		&qspi_nor_memory_data, &flash_id,
 		POST_KERNEL, CONFIG_NORDIC_QSPI_NOR_INIT_PRIORITY,
 		&qspi_nor_api);
