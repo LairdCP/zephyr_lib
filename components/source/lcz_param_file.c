@@ -169,6 +169,8 @@ int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
 	if (r < 0) {
 		k_free(*fstr);
 		k_free(*kv);
+		*fstr = NULL;
+		*kv = NULL;
 	}
 
 	return r;
