@@ -12,7 +12,7 @@ if LCZ_MEMFAULT
 
 config LCZ_MEMFAULT_LOG_LEVEL
 	int "Memfault log level"
-	default 4
+	default 3
 	range 0 4
 
 config LCZ_MEMFAULT_SOFTWARE_TYPE
@@ -57,7 +57,11 @@ if LCZ_MEMFAULT_FILE
 
 config LCZ_MEMFAULT_FILE_CHUNK_SIZE
 	int "Size of chunks to read from packetizer and write into file"
-	default 128
+	default 1024
+	help
+		Chunk is statically allocated.
+		Larger chunks allow file to be written quicker.
+		10K file requires ~4 seconds with 1K chunks.
 
 endif # LCZ_MEMFAULT_FILE
 
