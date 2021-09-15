@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017 Intel Corporation
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2021 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -58,11 +58,12 @@ static int lis2dh_sample_fetch_temp(const struct device *dev)
 	int ret = 0;
 	struct lis2dh_data *lis2dh = dev->data;
 	uint8_t temp_raw[sizeof(uint16_t)];
+	uint8_t temp_adj;
 
 	/*
-	 * the LIS2DH/LIS3DH requires a 2 byte read for the temperature value
-	 *  even though only the _H register has valid data. the _L and _H
-	 *  registers are consecutive, so a burst read will work here.
+	 * The LIS2DH/LIS3DH requires a 2 byte read for the temperature value
+	 * even though only the _H register has valid data. the _L and _H
+	 * registers are consecutive, so a burst read will work here.
 	 */
 	ret = lis2dh->hw_tf->read_data(dev, LIS2DH_REG_ADC3_L, temp_raw,
 				       sizeof(temp_raw));
@@ -74,10 +75,14 @@ static int lis2dh_sample_fetch_temp(const struct device *dev)
 	} else {
 		/*
 		 * LIS2DH_REG_ADC3_H contains a delta value for the
-		 *  temperature that must be added to the reference temperature set
-		 *  for your board to return an absolute temperature in celsius.
+		 * temperature that must be added to the reference temperature set
+		 * for your board to return an absolute temperature in celsius.
+		 *
+		 * The temperature adjustment is done with 8-bit math
+		 * so that the offset is handled properly.
 		 */
-		lis2dh->temp_sample = TEMP_REFERENCE + temp_raw[1];
+		temp_adj = TEMP_REFERENCE + temp_raw[1];
+		lis2dh->temp_sample = temp_adj;
 	}
 
 	return ret;
@@ -149,9 +154,9 @@ static int lis2dh_sample_fetch(const struct device *dev,
 	case SENSOR_CHAN_ALL:
 	case SENSOR_CHAN_ACCEL_XYZ:
 		/*
-			* since status and all accel data register addresses are consecutive,
-			* a burst read can be used to read all the samples
-			*/
+		 * Since status and all accel data register addresses are consecutive,
+		 * a burst read can be used to read all the samples
+		 */
 		status = lis2dh->hw_tf->read_data(dev, LIS2DH_REG_STATUS,
 						  lis2dh->sample.raw,
 						  sizeof(lis2dh->sample.raw));
@@ -386,8 +391,8 @@ int lis2dh_init(const struct device *dev)
 						  LIS2DH_CTRL4_BDU_BIT);
 
 	/*
-	 *  on the LIS2DH/LIS3DH, ADC3 is used for reading the temperature values.
-	 *  Both ADC and Temperature measurements must be enabled.
+	 * On the LIS2DH/LIS3DH, ADC3 is used for reading the temperature values.
+	 * Both ADC and Temperature measurements must be enabled.
 	 */
 	status = lis2dh->hw_tf->write_reg(dev, LIS2DH_REG_TEMP_CFG_REG,
 					  LIS2DH_TEMP_CFG_EN_BITS);
@@ -433,6 +438,6 @@ static const struct lis2dh_config lis2dh_config = {
 #endif
 };
 
-DEVICE_DT_INST_DEFINE(0, lis2dh_init, device_pm_control_nop, &lis2dh_data,
-		      &lis2dh_config, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
+DEVICE_DT_INST_DEFINE(0, lis2dh_init, NULL, &lis2dh_data, &lis2dh_config,
+		      POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
 		      &lis2dh_driver_api);
