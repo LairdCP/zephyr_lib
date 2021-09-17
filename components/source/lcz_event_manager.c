@@ -45,8 +45,17 @@ lcz_event_manager_add_sensor_event(SensorEventType_t sensor_event_type,
 int lcz_event_manager_prepare_log_file(uint8_t *log_path,
 				       uint32_t *log_file_size)
 {
-	return (lcz_event_manager_file_handler_build_file(log_path,
-							  log_file_size, true));
+	int result = -EBUSY;
+
+	/* Don't allow a new file to be created if we're
+	 * already preparing one
+	 */
+	if (lcz_event_manager_file_handler_get_log_file_status() !=
+	    LOG_FILE_STATUS_PREPARING) {
+		result = lcz_event_manager_file_handler_build_file(
+			log_path, log_file_size, true);
+	}
+	return (result);
 }
 
 int lcz_event_manager_delete_log_file(void)
@@ -76,11 +85,15 @@ int lcz_event_manager_prepare_test_log_file(
 	DummyLogFileProperties_t *dummy_log_file_properties, uint8_t *log_path,
 	uint32_t *log_file_size)
 {
-	int result;
+	int result = -EBUSY;
 
-	result = lcz_event_manager_file_handler_build_test_file(
-		dummy_log_file_properties, log_path, log_file_size, true);
-
+	/* Check a file is not being built before starting a new one */
+	if (lcz_event_manager_file_handler_get_log_file_status() !=
+	    LOG_FILE_STATUS_PREPARING) {
+		result = lcz_event_manager_file_handler_build_test_file(
+			dummy_log_file_properties, log_path, log_file_size,
+			true);
+	}
 	return (result);
 }
 
