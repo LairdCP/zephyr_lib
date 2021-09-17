@@ -65,6 +65,11 @@ typedef struct {
 /* it has been read out.                                                     */
 #define LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME "event_file_out"
 
+/* Timeout in ms to allow for getting the mutex before giving up when the
+ * build file function is called
+ */
+#define LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS 100
+
 /*****************************************************************************/
 /* Local Data Definitions                                                    */
 /*****************************************************************************/
@@ -327,12 +332,17 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 	int result = -EBUSY;
 
 	/* Lock resources whilst we check the file and event status */
-	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+	if (k_mutex_lock(&lczEventManagerFileHandlerMutex,
+			 K_MSEC(LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS)) != 0) {
+		/* Could not lock mutex */
+		return -EDEADLK;
+	}
 
 	/* Is a log file creation request already in progress? */
 	if (log_file_status != LOG_FILE_STATUS_PREPARING) {
 		/* No so we can go ahead and create the file */
 		log_file_status = LOG_FILE_STATUS_PREPARING;
+
 		/* This will be the file path. */
 		sprintf(absFilePath, "%s%s",
 			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
@@ -366,6 +376,7 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 			&lcz_event_manager_file_handler_workq,
 			&lcz_event_manager_file_handler_work_item);
 	}
+
 	/* Then exit with our result */
 	return (result);
 }
@@ -850,6 +861,7 @@ static uint32_t lcz_event_manager_file_handler_find_oldest_event(void)
 		/* Get the next event */
 		sensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
+
 		/* Then check if the event type is valid */
 		if (sensorEvent->type != SENSOR_EVENT_RESERVED) {
 			timestamp = sensorEvent->timestamp;
@@ -868,6 +880,7 @@ static uint32_t lcz_event_manager_file_handler_find_oldest_event(void)
 			/* Get the next event */
 			sensorEvent = lcz_event_manager_file_handler_get_event(
 				eventCount);
+
 			/* Ignore it if blank */
 			if (sensorEvent->type != SENSOR_EVENT_RESERVED) {
 				/* Is it an earlier event? */
@@ -1112,6 +1125,7 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
 	     eventCount++) {
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
+
 		/* Is this the sub-indexed event ? */
 		if (pSensorEvent->salt != subIndex) {
 			/* No, so move on to the next and beware of */
@@ -1196,6 +1210,7 @@ int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
 	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
+
 		if (pSensorEvent->timestamp == timestamp) {
 			eventFound = true;
 		} else {
@@ -1228,6 +1243,7 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 	     (eventIndex > 0) && (eventFound == false);) {
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
+
 		if (pSensorEvent->timestamp == timestamp) {
 			eventFound = true;
 		} else {
@@ -1276,6 +1292,7 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 			/* Get the next event */
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
 				event_index);
+
 			/* Is it blank? */
 			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
 				/* No, so add it to the file */
