@@ -31,6 +31,9 @@ LOG_MODULE_REGISTER(mcumgr_wrapper, LOG_LEVEL_DBG);
 #ifdef CONFIG_MCUMGR_CMD_OS_MGMT
 #include "os_mgmt/os_mgmt.h"
 #endif
+#ifdef CONFIG_LCZ_MCUMGR_CMD_OS_MGMT
+#include "lcz_os_mgmt/os_mgmt.h"
+#endif
 #ifdef CONFIG_MCUMGR_CMD_IMG_MGMT
 #include "img_mgmt/img_mgmt.h"
 #endif
@@ -99,6 +102,9 @@ void mcumgr_wrapper_register_subsystems(void)
 #endif
 #ifdef CONFIG_MCUMGR_CMD_OS_MGMT
 	os_mgmt_register_group();
+#endif
+#ifdef CONFIG_LCZ_MCUMGR_CMD_OS_MGMT
+	lcz_os_mgmt_register_group();
 #endif
 #ifdef CONFIG_MCUMGR_CMD_IMG_MGMT
 	img_mgmt_register_group();
