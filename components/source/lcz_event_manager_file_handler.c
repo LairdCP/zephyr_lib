@@ -1125,17 +1125,24 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
 	     eventCount++) {
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
-
-		/* Is this the sub-indexed event ? */
-		if (pSensorEvent->salt != subIndex) {
-			/* No, so move on to the next and beware of */
-			/* wrap around */
-			eventIndex++;
-			if (eventIndex >= TOTAL_NUMBER_EVENTS) {
-				eventIndex = 0;
+		/* Check if the event is valid before proceeding */
+		if (pSensorEvent != NULL) {
+			/* Is this the sub-indexed event ? */
+			if (pSensorEvent->salt != subIndex) {
+				/* No, so move on to the next and beware of */
+				/* wrap around */
+				eventIndex++;
+				if (eventIndex >= TOTAL_NUMBER_EVENTS) {
+					eventIndex = 0;
+				}
+			} else {
+				/* Found our event, OK to exit */
+				eventFound = true;
 			}
 		} else {
-			/* Found our event, OK to exit */
+			/* If the event index requested is invalid,
+			 * break out here.
+			 */
 			eventFound = true;
 		}
 	}
@@ -2602,6 +2609,21 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	}
 
 	/* lcz_event_manager_file_handler_get_subindexed_event */
+	/* Invalid event index */
+	if (result == 0) {
+		failResult++;
+
+		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
+		       TOTAL_FILE_SIZE_BYTES);
+
+		pSensorEvent =
+			lcz_event_manager_file_handler_get_subindexed_event(
+				TOTAL_NUMBER_EVENTS, 0, 1);
+
+		if (pSensorEvent != NULL) {
+			result = failResult;
+		}
+	}
 	/* One event at the start of the event log */
 	if (result == 0) {
 		failResult++;
