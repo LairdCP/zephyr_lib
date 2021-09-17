@@ -17,6 +17,7 @@ LOG_MODULE_REGISTER(fsu, CONFIG_FSU_LOG_LEVEL);
 #include <zephyr.h>
 #include <device.h>
 #include <fs/fs.h>
+#include <sys/crc.h>
 
 #ifdef CONFIG_FSU_HASH
 #include <mbedtls/sha256.h>
@@ -272,6 +273,67 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 	}
 	if (pCtx != NULL) {
 		k_free(pCtx);
+	}
+	(void)fs_close(&f);
+#endif
+	return rc;
+}
+
+int fsu_crc32(uint32_t *checksum, const char *path, const char *name,
+	      size_t size)
+{
+	int rc = -EPERM;
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+
+	if (path == NULL || name == NULL) {
+		*checksum = 0;
+		LOG_ERR("Invalid path or name");
+		return rc;
+	}
+
+	(void)fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
+
+	return fsu_crc32_abs(checksum, abs_path, size);
+}
+
+int fsu_crc32_abs(uint32_t *checksum, const char *abs_path,
+		  size_t size)
+{
+	int rc = -EPERM;
+	struct fs_file_t f;
+
+	*checksum = 0;
+
+#ifdef CONFIG_FSU_CHECKSUM
+	fs_file_t_init(&f);
+	rc = fs_open(&f, abs_path, FS_O_READ);
+	if (rc < 0) {
+		return rc;
+	}
+
+	uint8_t *pBuffer = k_malloc(CONFIG_FSU_CHECKSUM_CHUNK_SIZE);
+	if (pBuffer != NULL) {
+		size_t rem = size;
+		ssize_t bytes_read;
+		size_t length;
+		while (rc == 0 && rem > 0) {
+			length = MIN(rem, CONFIG_FSU_CHECKSUM_CHUNK_SIZE);
+			bytes_read = fs_read(&f, pBuffer, length);
+			if (bytes_read == length) {
+				*checksum = crc32_ieee_update(*checksum,
+							      pBuffer,
+							      bytes_read);
+				rem -= length;
+			} else {
+				rc = -EIO;
+			}
+		}
+	} else {
+		rc = -ENOMEM;
+	}
+
+	if (pBuffer != NULL) {
+		k_free(pBuffer);
 	}
 	(void)fs_close(&f);
 #endif

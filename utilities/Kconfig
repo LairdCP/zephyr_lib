@@ -35,6 +35,16 @@ config FSU_HASH_CHUNK_SIZE
 	help
 		Chunk buffer and SHA256 context use heap.
 
+config FSU_CHECKSUM
+	bool "Enable CRC32 checksum generation functions"
+
+config FSU_CHECKSUM_CHUNK_SIZE
+	int "Default chunk size for computing checksum"
+	depends on FSU_CHECKSUM
+	default 1024
+	help
+		Chunk buffer use heap.
+
 config FSU_MOUNT_POINT
 	string "Default mount point"
 	default "/lfs"

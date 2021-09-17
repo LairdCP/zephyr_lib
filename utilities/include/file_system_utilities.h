@@ -120,6 +120,31 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 		   size_t size);
 
 /**
+ * @brief Compute CRC32 checksum of a file. Checksum is zeroed on start.
+ *
+ * @param hash result
+ * @param path mount point or folder path
+ * @param name filename
+ * @param size of file in bytes
+ *
+ * @retval 0 on success, otherwise negative system error code.
+ */
+int fsu_crc32(uint32_t *checksum, const char *path, const char *name,
+	      size_t size);
+
+/**
+ * @brief Compute CRC32 checksum of a file. Checksum is zeroed on start.
+ *
+ * @param hash result
+ * @param abs_path absolute file name
+ * @param size of file in bytes
+ *
+ * @retval 0 on success, otherwise negative system error code.
+ */
+int fsu_crc32_abs(uint32_t *checksum, const char *abs_path,
+		  size_t size);
+
+/**
  * @brief Build name with path "%s/%s" using snprintk.
  * Result is zeroed on entry.
  *
