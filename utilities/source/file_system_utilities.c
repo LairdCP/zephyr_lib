@@ -229,11 +229,12 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 		   size_t size)
 {
 	int rc = -EPERM;
-	struct fs_file_t f;
 
 	memset(&hash[0], 0, FSU_HASH_SIZE);
 
 #ifdef CONFIG_FSU_HASH
+	struct fs_file_t f;
+
 	fs_file_t_init(&f);
 	rc = fs_open(&f, abs_path, FS_O_READ);
 	if (rc < 0) {
@@ -300,11 +301,13 @@ int fsu_crc32_abs(uint32_t *checksum, const char *abs_path,
 		  size_t size)
 {
 	int rc = -EPERM;
-	struct fs_file_t f;
 
 	*checksum = 0;
 
 #ifdef CONFIG_FSU_CHECKSUM
+
+	struct fs_file_t f;
+
 	fs_file_t_init(&f);
 	rc = fs_open(&f, abs_path, FS_O_READ);
 	if (rc < 0) {
