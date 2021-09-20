@@ -115,7 +115,7 @@ static SensorEvent_t lcz_event_manager_file_handler_msgq_buffer
 /* This is the stack used by the work queue thread where event files are     */
 /* saved                                                                     */
 K_THREAD_STACK_DEFINE(lcz_event_manager_file_handler_workq_stack,
-	CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_STACK_SIZE);
+		      CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_STACK_SIZE);
 
 /* This is the work queue used to store files. Separate from the system work */
 /* queue to avoid clogging it with potentially long storage operations.      */
@@ -286,12 +286,12 @@ void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 		    lcz_event_manager_file_handler_dummy_log_workq_handler);
 
 	/* Start the work queue used to save event files */
-	k_work_queue_start(&lcz_event_manager_file_handler_workq,
-			   lcz_event_manager_file_handler_workq_stack,
-			   K_THREAD_STACK_SIZEOF(
-			       lcz_event_manager_file_handler_workq_stack),
-			   CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY,
-			   NULL);
+	k_work_queue_start(
+		&lcz_event_manager_file_handler_workq,
+		lcz_event_manager_file_handler_workq_stack,
+		K_THREAD_STACK_SIZEOF(
+			lcz_event_manager_file_handler_workq_stack),
+		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY, NULL);
 
 	/* Check if all files are present and of the right size */
 	if (!lcz_event_manager_file_handler_check_structure()) {
@@ -332,8 +332,10 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 	int result = -EBUSY;
 
 	/* Lock resources whilst we check the file and event status */
-	if (k_mutex_lock(&lczEventManagerFileHandlerMutex,
-			 K_MSEC(LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS)) != 0) {
+	if (k_mutex_lock(
+		    &lczEventManagerFileHandlerMutex,
+		    K_MSEC(LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS)) !=
+	    0) {
 		/* Could not lock mutex */
 		return -EDEADLK;
 	}
@@ -1276,6 +1278,13 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 	int result = 0;
 	uint32_t event_index;
 	SensorEvent_t *pSensorEvent;
+#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
+	SensorEvent_t sensor_event_buffer
+		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
+	uint8_t buffer_index = 0;
+	uint32_t buffer_indexes
+		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
+#endif
 	/* This is the number of events added to the file */
 	uint32_t events_added = 0;
 
@@ -1302,35 +1311,140 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 
 			/* Is it blank? */
 			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
+#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
+				memcpy(&sensor_event_buffer[buffer_index],
+				       pSensorEvent, sizeof(SensorEvent_t));
+				buffer_indexes[buffer_index] = event_index;
+				++buffer_index;
+
+				/* Another event read out */
+				lczEventManagerData.eventCount--;
+
+				if (buffer_index ==
+				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE) {
+					/* No, so add it to the file */
+					if (fsu_append_abs(
+						    file_name,
+						    sensor_event_buffer,
+						    sizeof(SensorEvent_t) *
+							    buffer_index) !=
+					    sizeof(SensorEvent_t) *
+						    buffer_index) {
+						/* Failed to update the file,
+						 * should see the number of
+						 * bytes written echoed back
+						 */
+						result = -EINVAL;
+					}
+
+					/* Update event indices only when added
+					 * OK
+					 */
+					if (result == 0) {
+						uint8_t i = 0;
+						while (i < buffer_index) {
+							/* Mark this event as
+							 * free for use later
+							 */
+							memset(lcz_event_manager_file_handler_get_event(
+								       buffer_indexes
+									       [i]),
+							       0x0,
+							       sizeof(SensorEvent_t));
+
+							/* Mark this page as
+							 * needing to be saved
+							 */
+							lcz_event_manager_file_handler_set_page_dirty(
+								buffer_indexes
+									[i]);
+							++i;
+						}
+					}
+
+					buffer_index = 0;
+				}
+
+				/* Check next event */
+				event_index++;
+
+				/* Beware of wrap around here */
+				if (event_index >= TOTAL_NUMBER_EVENTS) {
+					event_index = 0;
+				}
+#else
 				/* No, so add it to the file */
 				if (fsu_append_abs(file_name, pSensorEvent,
 						   sizeof(SensorEvent_t)) !=
 				    sizeof(SensorEvent_t)) {
-					/* Failed to update the file, should see */
-					/* the number of bytes written echoed back */
+					/* Failed to update the file, should
+					 * see the number of bytes written
+					 * echoed back
+					 */
 					result = -EINVAL;
 				}
+
 				/* Update event indices only when added OK */
 				if (result == 0) {
-					/* Mark this event as free for use later */
+					/* Mark this event as free for use
+					 * later
+					 */
 					memset(pSensorEvent, 0x0,
 					       sizeof(SensorEvent_t));
+
 					/* Another event read out */
 					lczEventManagerData.eventCount--;
-					/* Mark this page as needing to be saved */
+
+					/* Mark this page as needing to be
+					 * saved
+					 */
 					lcz_event_manager_file_handler_set_page_dirty(
 						event_index);
+
 					/* Check next event */
 					event_index++;
+
 					/* Beware of wrap around here */
 					if (event_index >=
 					    TOTAL_NUMBER_EVENTS) {
 						event_index = 0;
 					}
 				}
+#endif
 			}
 		}
 	}
+
+#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
+	if (result == 0 && buffer_index > 0) {
+		/* No, so add it to the file */
+		if (fsu_append_abs(file_name, sensor_event_buffer,
+				   sizeof(SensorEvent_t) * buffer_index) !=
+		    sizeof(SensorEvent_t) * buffer_index) {
+			/* Failed to update the file, should see the number of
+			 * bytes written echoed back
+			 */
+			result = -EINVAL;
+		}
+
+		/* Update event indices only when added OK */
+		if (result == 0) {
+			uint8_t i = 0;
+			while (i < buffer_index) {
+				/* Mark this event as free for use later */
+				memset(lcz_event_manager_file_handler_get_event(
+					       buffer_indexes[i]),
+				       0x0, sizeof(SensorEvent_t));
+
+				/* Mark this page as needing to be saved */
+				lcz_event_manager_file_handler_set_page_dirty(
+					buffer_indexes[i]);
+				++i;
+			}
+		}
+	}
+#endif
+
 	/* Then exit with our result */
 	return (result);
 }

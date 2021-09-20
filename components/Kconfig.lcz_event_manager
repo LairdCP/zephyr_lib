@@ -65,4 +65,11 @@ config LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY
 	help
 		Needs to be pre-emptible to avoid blocking higher priority tasks due to potential long update times.
 
+config LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE
+	int "Number of events to buffer before doing a write to increase performance"
+	range 1 16
+	default 1
+	help
+		A value of 1 will use the original read-once-write-once system
+
 endif # LCZ_EVENT_MANAGER
