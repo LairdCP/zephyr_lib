@@ -51,4 +51,16 @@ config LCZ_NRF_QSPI_NOR_COOL_DOWN_PERIOD
 	  supporting any means of switching it off. This time determines when
 	  sufficient inactivity has occurred to allow the QSPI to shut down.
 
+config LCZ_NRF_QSPI_NOR_HIGH_PERFORMANCE_MODE
+	bool "Use high-performance mode"
+	default n
+	help
+	  Enable this to use the high-performance mode of the QSPI flash chip
+	  (on supported devices such as a MX25R6435F which will improve
+	  performance at the cost of higher usage current. Note that this will
+	  set the high-performance volatile bit at a low QSPI speed of 8MHz
+	  before switching to the normal QSPI speed set in the DTS file, the
+	  DTS file must be updated to use the desired QSPI speed for this
+	  option to have any effect.
+
 endif # LCZ_NRF_QSPI_NOR

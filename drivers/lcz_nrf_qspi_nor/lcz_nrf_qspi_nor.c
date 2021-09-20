@@ -32,6 +32,18 @@
 #define QSPI_FLASH_DPM_ENTER_DURATION (uint32_t)(MIN(1, DT_INST_PROP(0, t_enter_dpd) / 256 / 62.5)) //Duration required to enter DPM, in units of 16us
 #define QSPI_FLASH_DPM_EXIT_DURATION (uint32_t)(MIN(1, DT_INST_PROP(0, t_exit_dpd) / 256 / 62.5)) //Duration required to enter DPM, in units of 16us
 
+#define SPI_NOR_CMD_RDCR 0x15
+
+#define QSPI_CR_HIGH_PERFORMANCE_BIT ((uint8_t)BIT(1))
+
+typedef enum qspi_configuration_register {
+	QSPI_CR_INDEX_SR = 0,
+	QSPI_CR_INDEX_CR_A,
+	QSPI_CR_INDEX_CR_B,
+
+	QSPI_CR_INDEX_COUNT
+} qspi_configuration_register_t;
+
 struct qspi_nor_config {
        /* JEDEC id from devicetree */
        uint8_t id[SPI_NOR_MAX_ID_LEN];
@@ -338,7 +350,7 @@ static inline void qspi_unlock(const struct device *dev)
 	key_t qspi_lock_key;
 	struct qspi_nor_data *dev_data = get_dev_data(dev);
 
-/* Hold off any other callers until this check is finished */
+	/* Hold off any other callers until this check is finished */
 	qspi_lock_key = irq_lock();
 
 	/* We only start the cool down timer if we're sure this is the
@@ -576,6 +588,31 @@ static int qspi_rdsr(const struct device *dev)
 	return (ret < 0) ? ret : sr;
 }
 
+#if defined(CONFIG_LCZ_NRF_QSPI_NOR_HIGH_PERFORMANCE_MODE)
+/* RDCR wrapper.  Negative value is error. */
+static int qspi_rdcr(const struct device *dev, uint8_t *cr)
+{
+	__ALIGN(4) uint8_t cr_align[2];
+	memcpy(cr_align, cr, sizeof(cr_align));
+
+	const struct qspi_buf cr_buf = {
+		.buf = cr_align,
+		.len = sizeof(cr_align),
+	};
+	struct qspi_cmd cmd = {
+		.op_code = SPI_NOR_CMD_RDCR,
+		.rx_buf = &cr_buf,
+	};
+	int ret = qspi_send_cmd(dev, &cmd, false);
+
+	if (ret >= 0) {
+		memcpy(cr, cr_align, sizeof(cr_align));
+	}
+
+	return ret;
+}
+#endif
+
 /* Wait until RDSR confirms write is not in progress. */
 static int qspi_wait_while_writing(const struct device *dev)
 {
@@ -724,8 +761,23 @@ static int qspi_nrfx_configure(const struct device *dev)
 	}
 
 	struct qspi_nor_data *dev_data = dev->data;
+#if defined(CONFIG_LCZ_NRF_QSPI_NOR_HIGH_PERFORMANCE_MODE)
+	uint32_t qspi_restore_speed = 0;
+	bool high_performance_mode = false;
+#endif
 
 	qspi_fill_init_struct(&QSPIconfig);
+
+#if defined(CONFIG_LCZ_NRF_QSPI_NOR_HIGH_PERFORMANCE_MODE)
+	if (QSPIconfig.phy_if.sck_freq < NRF_QSPI_FREQ_32MDIV4) {
+		/* Desired QSPI frequency is above 8MHz, need to enable
+		 * high-performance mode to use this
+		 */
+		qspi_restore_speed = QSPIconfig.phy_if.sck_freq;
+		high_performance_mode = true;
+		QSPIconfig.phy_if.sck_freq = NRF_QSPI_FREQ_32MDIV4;
+	}
+#endif
 
 	nrfx_err_t res = nrfx_qspi_init(&QSPIconfig, qspi_handler, dev_data);
 	int ret = qspi_get_zephyr_ret_code(res);
@@ -784,6 +836,90 @@ static int qspi_nrfx_configure(const struct device *dev)
 				ret);
 		}
 	}
+
+#if defined(CONFIG_LCZ_NRF_QSPI_NOR_HIGH_PERFORMANCE_MODE)
+	if (high_performance_mode == true) {
+		/* Enable high-performance mode volatile bit by reading
+		 * configuration register and setting the required bit
+		 */
+		uint8_t cr[QSPI_CR_INDEX_COUNT];
+
+		ret = qspi_rdsr(dev);
+		if (ret < 0) {
+			LOG_ERR("RDSR failed: %d", ret);
+			return ret;
+		}
+
+		cr[QSPI_CR_INDEX_SR] = (uint8_t)ret;
+		ret = qspi_rdcr(dev, &cr[QSPI_CR_INDEX_CR_A]);
+
+		if (ret < 0) {
+			LOG_ERR("RDCR failed: %d", ret);
+			return ret;
+		}
+		LOG_DBG("RDCR %02x LH need %d: %s", cr[QSPI_CR_INDEX_CR_B],
+			(cr[QSPI_CR_INDEX_CR_B] | QSPI_CR_HIGH_PERFORMANCE_BIT),
+			((cr[QSPI_CR_INDEX_CR_B] & QSPI_CR_HIGH_PERFORMANCE_BIT)
+			!= QSPI_CR_HIGH_PERFORMANCE_BIT) ?
+			"updating" : "no-change");
+
+		if ((cr[QSPI_CR_INDEX_CR_B] & QSPI_CR_HIGH_PERFORMANCE_BIT) !=
+		    QSPI_CR_HIGH_PERFORMANCE_BIT) {
+			/* Ultra-low power mode, switch to high-performance
+			 * mode and write it back
+			 */
+			cr[QSPI_CR_INDEX_CR_B] |= QSPI_CR_HIGH_PERFORMANCE_BIT;
+
+			ret = 0;
+			const struct qspi_buf cr_buf = {
+				.buf = cr,
+				.len = sizeof(cr),
+			};
+			struct qspi_cmd cmd = {
+				.op_code = SPI_NOR_CMD_WRSR,
+				.tx_buf = &cr_buf,
+			};
+
+			ret = qspi_send_cmd(dev, &cmd, true);
+
+			/* Writing SR can take some time, and further commands
+			 * sent while it's happening can be corrupted. Wait.
+			 */
+			if (ret == 0) {
+				ret = qspi_wait_while_writing(dev);
+			}
+
+			if (ret < 0) {
+				LOG_ERR("HP set failed: %d", ret);
+			}
+		}
+
+		/* Read back CR to ensure it has been set correctly */
+		memset(cr, 0, sizeof(cr));
+		ret = qspi_rdcr(dev, &cr[QSPI_CR_INDEX_CR_A]);
+		if ((cr[QSPI_CR_INDEX_CR_B] & QSPI_CR_HIGH_PERFORMANCE_BIT) ==
+		    QSPI_CR_HIGH_PERFORMANCE_BIT) {
+			/* Now that high performance mode is enabled, close
+			 * QSPI and re-open with original configuration
+			 */
+			nrfx_qspi_uninit();
+			QSPIconfig.phy_if.sck_freq = qspi_restore_speed;
+			res = nrfx_qspi_init(&QSPIconfig, qspi_handler,
+					     dev_data);
+			ret = qspi_get_zephyr_ret_code(res);
+		} else {
+			/* Bit set failed, continue with slower QSPI access
+			 * speed as faster usage is not possible
+			 */
+			LOG_ERR("QSPI high-performance mode set failed, RDCR "
+				"got %02x need %02x. QSPI speed set to "
+				"32MHz/%d", cr[QSPI_CR_INDEX_CR_B],
+				(cr[QSPI_CR_INDEX_CR_B] |
+				QSPI_CR_HIGH_PERFORMANCE_BIT),
+				QSPIconfig.phy_if.sck_freq);
+		}
+	}
+#endif
 
 	return ret;
 }
@@ -1198,7 +1334,7 @@ static void qspi_nor_workq_handler(struct k_work *item)
 	key_t qspi_lock_key;
 
 	/* Hold off any interrupts or context switches during this check */
-	qspi_lock_key = irq_lock();	
+	qspi_lock_key = irq_lock();
 
 	/* Now clear the initialised flag */
 	nrf_qspi_nor_cool_down->isInitialised = false;
