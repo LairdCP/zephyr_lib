@@ -72,4 +72,9 @@ config LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE
 	help
 		A value of 1 will use the original read-once-write-once system
 
+config LCZ_EVENT_MANAGER_LOG_LEVEL
+    int "Log level for event manager module"
+    range 0 4
+    default 3
+
 endif # LCZ_EVENT_MANAGER

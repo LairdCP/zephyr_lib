@@ -6,18 +6,22 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
 /*****************************************************************************/
 /* Includes                                                                  */
 /*****************************************************************************/
 #include <zephyr.h>
+#include <stdio.h>
+#include <string.h>
+#include <logging/log.h>
 #include "lcz_sensor_event.h"
 #include "lcz_event_manager.h"
 #include "lcz_event_manager_file_handler.h"
 #include "lcz_sensor_event.h"
 #include "file_system_utilities.h"
-#include <stdio.h>
 #include "lcz_qrtc.h"
-#include <string.h>
+
+LOG_MODULE_REGISTER(event_manager, CONFIG_LCZ_EVENT_MANAGER_LOG_LEVEL);
 
 /*****************************************************************************/
 /* Local Constant, Macro and Type Definitions                                */
@@ -69,6 +73,12 @@ typedef struct {
  * build file function is called
  */
 #define LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS 100
+
+/* Number of full loops over all events before exiting with an error that there
+ * seems to be an issue with the data, prevents a possible lockup if more
+ * events are requested than exist
+ */
+#define LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS 3
 
 /*****************************************************************************/
 /* Local Data Definitions                                                    */
@@ -1287,6 +1297,7 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 #endif
 	/* This is the number of events added to the file */
 	uint32_t events_added = 0;
+	uint8_t full_loops = 0;
 
 	/* Build the empty output file */
 	sprintf(file_name, "%s%s",
@@ -1364,14 +1375,6 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 
 					buffer_index = 0;
 				}
-
-				/* Check next event */
-				event_index++;
-
-				/* Beware of wrap around here */
-				if (event_index >= TOTAL_NUMBER_EVENTS) {
-					event_index = 0;
-				}
 #else
 				/* No, so add it to the file */
 				if (fsu_append_abs(file_name, pSensorEvent,
@@ -1400,17 +1403,39 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 					 */
 					lcz_event_manager_file_handler_set_page_dirty(
 						event_index);
-
-					/* Check next event */
-					event_index++;
-
-					/* Beware of wrap around here */
-					if (event_index >=
-					    TOTAL_NUMBER_EVENTS) {
-						event_index = 0;
-					}
 				}
 #endif
+			}
+
+			if (result == 0) {
+				/* Check next event */
+				event_index++;
+
+				/* Beware of wrap around here */
+				if (event_index >= TOTAL_NUMBER_EVENTS) {
+					event_index = 0;
+					++full_loops;
+
+					if (full_loops >=
+					    LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS) {
+						/* Something is wrong here, all
+						 * entries have been checked
+						 * multiple times and there are
+						 * insufficient entries, output
+						 * this error and exit checking
+						 * as there is nothing more
+						 * that can be done
+						 */
+						result = -EIO;
+						LOG_ERR("Expected %d events, "
+							"failed after %d events"
+							" with %d loops of all "
+							"event entries",
+							event_count,
+							events_added,
+							full_loops);
+					}
+				}
 			}
 		}
 	}
