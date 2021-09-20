@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+if(CONFIG_MCUMGR)
 target_include_directories(MCUMGR INTERFACE
     include
 )
@@ -24,3 +25,4 @@ zephyr_library_sources(
     src/lcz_os_mgmt.c
     src/stubs.c
 )
+endif()
