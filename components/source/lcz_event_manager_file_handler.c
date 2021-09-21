@@ -216,7 +216,7 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
 	uint16_t startIndex, uint16_t subIndex, uint16_t count);
 
 /* Adds a message read from the message queue to the event buffer */
-static void
+static bool
 lcz_event_manager_file_handler_add_event_private(SensorEvent_t *pSensorEvent);
 
 /* Finds the first instance of an event going forward through the event log */
@@ -579,6 +579,8 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 	SensorEvent_t sensorEvent;
 	/* The count of events needing to be added to the event log */
 	uint16_t eventCount;
+	/* Result of event add operation */
+	bool addResult;
 
 	/* Start the main event manager file handler loop */
 	while (1) {
@@ -599,17 +601,20 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		/* Add new events to the event buffer */
 		do {
 			/* Add the current event */
-			lcz_event_manager_file_handler_add_event_private(
+			addResult = lcz_event_manager_file_handler_add_event_private(
 				&sensorEvent);
-			/* Another event added */
-			eventCount--;
-			/* Check if there are any more */
-			if (eventCount) {
-				result = k_msgq_get(
-					&lcz_event_manager_file_handler_msgq,
-					&sensorEvent, K_FOREVER);
+			/* Only update stats if added OK */
+			if (addResult) {
+				/* Another event added */
+				eventCount--;
+				/* Check if there are any more */
+				if (eventCount) {
+					result = k_msgq_get(
+						&lcz_event_manager_file_handler_msgq,
+						&sensorEvent, K_FOREVER);
+				}
 			}
-		} while ((eventCount) && (result == 0));
+		} while ((eventCount) && (result == 0) && (addResult));
 
 		/* Release resources after all changes are made */
 		k_mutex_unlock(&lczEventManagerFileHandlerMutex);
@@ -1164,11 +1169,13 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
 /** @brief Adds an event to the event log.
  *
  *  @param [in]pSensorEvent - The event to add.
+ *  @return True if added, false otherwise.
  */
-void lcz_event_manager_file_handler_add_event_private(
+bool lcz_event_manager_file_handler_add_event_private(
 	SensorEvent_t *pSensorEvent)
 {
-	SensorEvent_t *sensorEvent = (SensorEvent_t *)NULL;
+	bool result = false;
+	SensorEvent_t *pAddedSensorEvent = (SensorEvent_t *)NULL;
 
 	/* Has this timestamp been used before? */
 	if (pSensorEvent->timestamp != lczEventManagerData.lastEventTimestamp) {
@@ -1180,34 +1187,39 @@ void lcz_event_manager_file_handler_add_event_private(
 	}
 	/* Now add the event */
 	/* First get a reference to it */
-	sensorEvent = lcz_event_manager_file_handler_get_event(
+	pAddedSensorEvent = lcz_event_manager_file_handler_get_event(
 		lczEventManagerData.eventIndex);
+	/* If either are NULL, exit here */
+	if ((pAddedSensorEvent != NULL) && (pSensorEvent != NULL)) {
+		/* Then set the event data */
+		pAddedSensorEvent->type = pSensorEvent->type;
+		*&pAddedSensorEvent->data = pSensorEvent->data;
+		pAddedSensorEvent->timestamp = pSensorEvent->timestamp;
 
-	/* Then set the event data */
-	sensorEvent->type = pSensorEvent->type;
-	*&sensorEvent->data = pSensorEvent->data;
-	sensorEvent->timestamp = pSensorEvent->timestamp;
+		/* And assume the next event will be at the same time */
+		pAddedSensorEvent->salt = lczEventManagerData.eventSubIndex++;
 
-	/* And assume the next event will be at the same time */
-	sensorEvent->salt = lczEventManagerData.eventSubIndex++;
+		/* Set the page where the event resides as dirty for */
+		/* saving later in the background */
+		lcz_event_manager_file_handler_set_page_dirty(
+			lczEventManagerData.eventIndex);
 
-	/* Set the page where the event resides as dirty for */
-	/* saving later in the background */
-	lcz_event_manager_file_handler_set_page_dirty(
-		lczEventManagerData.eventIndex);
-
-	/* Index the next event for writing later */
-	lczEventManagerData.eventIndex++;
-	/* Check for wrap around here */
-	if (lczEventManagerData.eventIndex >= TOTAL_NUMBER_EVENTS) {
-		/* Go back to the start of the list */
-		lczEventManagerData.eventIndex = 0;
+		/* Index the next event for writing later */
+		lczEventManagerData.eventIndex++;
+		/* Check for wrap around here */
+		if (lczEventManagerData.eventIndex >= TOTAL_NUMBER_EVENTS) {
+			/* Go back to the start of the list */
+			lczEventManagerData.eventIndex = 0;
+		}
+		/* Update the count of events in the log */
+		lczEventManagerData.eventCount++;
+		if (lczEventManagerData.eventCount > TOTAL_NUMBER_EVENTS) {
+			lczEventManagerData.eventCount = TOTAL_NUMBER_EVENTS;
+		}
+		/* Added OK */
+		result = true;
 	}
-	/* Update the count of events in the log */
-	lczEventManagerData.eventCount++;
-	if (lczEventManagerData.eventCount > TOTAL_NUMBER_EVENTS) {
-		lczEventManagerData.eventCount = TOTAL_NUMBER_EVENTS;
-	}
+	return(result);
 }
 
 /** @brief Finds the first event with the passed timestamp in the event log
