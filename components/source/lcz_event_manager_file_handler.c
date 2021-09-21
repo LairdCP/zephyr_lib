@@ -1275,10 +1275,16 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
 
-		if (pSensorEvent->timestamp == timestamp) {
-			eventFound = true;
+		/* NULL check the sensor event before proceeding */
+		if (pSensorEvent != NULL) {
+			if (pSensorEvent->timestamp == timestamp) {
+				eventFound = true;
+			} else {
+				eventIndex++;
+			}
 		} else {
-			eventIndex++;
+			/* Break out here if a bad event was found */
+			eventIndex = 0;
 		}
 	}
 	/* Flag if not found */
