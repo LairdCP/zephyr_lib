@@ -462,15 +462,25 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 		eventIndex = eventStartIndex;
 		/* OK to count events now */
 		while (allEventsFound == false) {
-			if (lcz_event_manager_file_handler_get_event(eventIndex)
-				    ->timestamp == timestamp) {
-				eventCount++;
-				eventIndex++;
-				if (eventIndex == TOTAL_NUMBER_EVENTS) {
-					eventIndex = 0;
+			pSensorEvent = lcz_event_manager_file_handler_get_event(
+				eventIndex);
+			/* Check for NULL before proceeding */
+			if (pSensorEvent != NULL) {
+				if (pSensorEvent->timestamp == timestamp) {
+					eventCount++;
+					eventIndex++;
+					if (eventIndex == TOTAL_NUMBER_EVENTS) {
+						eventIndex = 0;
+					}
+				} else {
+					allEventsFound = true;
 				}
 			} else {
+				/* If we have a NULL event, break out here
+				 * and exit with a NULL event.
+				 */
 				allEventsFound = true;
+				eventCount = 0;
 			}
 		}
 	}
