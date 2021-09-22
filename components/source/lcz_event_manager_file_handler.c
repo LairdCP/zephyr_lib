@@ -1272,11 +1272,16 @@ int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
 	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
-
-		if (pSensorEvent->timestamp == timestamp) {
-			eventFound = true;
+		/* NULL check the event and break out if invalid */
+		if (pSensorEvent != NULL) {
+			if (pSensorEvent->timestamp == timestamp) {
+				eventFound = true;
+			} else {
+				eventIndex++;
+			}
 		} else {
-			eventIndex++;
+			/* NULL event found, exit with event not being found */
+			eventIndex = TOTAL_NUMBER_EVENTS;
 		}
 	}
 	/* Flag if not found */
