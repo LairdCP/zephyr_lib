@@ -835,12 +835,22 @@ static int32_t lcz_event_manager_file_handler_get_event_count(void)
 	/* Assume the log is empty */
 	int32_t result = 0;
 	uint32_t eventIndex;
+	SensorEvent_t *pSensorEvent;
 
 	/* Now check subsequent events */
 	for (eventIndex = 0; eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
-		if (lcz_event_manager_file_handler_get_event(eventIndex)->type !=
-		    SENSOR_EVENT_RESERVED) {
-			result++;
+		pSensorEvent =
+			lcz_event_manager_file_handler_get_event(eventIndex);
+		/* NULL check the event before proceeding */
+		if (pSensorEvent != NULL) {
+			if (lcz_event_manager_file_handler_get_event(eventIndex)
+				    ->type != SENSOR_EVENT_RESERVED) {
+				result++;
+			}
+		} else {
+			/* If NULL, start with a blank log */
+			result = 0;
+			eventIndex = TOTAL_NUMBER_EVENTS;
 		}
 	}
 	return (result);
