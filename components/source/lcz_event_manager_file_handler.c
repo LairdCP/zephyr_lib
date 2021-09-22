@@ -229,6 +229,13 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 
 /* Builds a log file in the background */
 int lcz_event_manager_file_handler_background_build_file(uint16_t event_count);
+#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
+/* Builds log files by adding multiple events at a time to the output file */
+int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count);
+#else
+/* Builds log files by adding single events at a time to the output file */
+int lcz_event_manager_file_handler_background_build_single(uint16_t event_count);
+#endif
 
 /* Builds a dummy log file in the background */
 int lcz_event_manager_file_handler_background_build_dummy_file(
@@ -1356,17 +1363,37 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
  */
 int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 {
+	int result;
+
+#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
+	result = lcz_event_manager_file_handler_background_build_multi(
+		event_count);
+#else
+	result = lcz_event_manager_file_handler_background_build_single(
+		event_count);
+#endif
+	/* Then exit with our result */
+	return (result);
+}
+
+#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
+/** @brief Private method used to build log files as a background task.
+ *
+ *  @param [in]event_count - The number of events to add.
+ *
+ *  @returns The result of the operation, non-zero if not successful.
+ */
+int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
+{
 	uint8_t file_name[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	int result = 0;
 	uint32_t event_index;
 	SensorEvent_t *pSensorEvent;
-#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
 	SensorEvent_t sensor_event_buffer
 		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
 	uint8_t buffer_index = 0;
 	uint32_t buffer_indexes
 		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
-#endif
 	/* This is the number of events added to the file */
 	uint32_t events_added = 0;
 	uint8_t full_loops = 0;
@@ -1391,92 +1418,70 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 			/* Get the next event */
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
 				event_index);
-
-			/* Is it blank? */
-			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
-#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
-				memcpy(&sensor_event_buffer[buffer_index],
-				       pSensorEvent, sizeof(SensorEvent_t));
-				buffer_indexes[buffer_index] = event_index;
-				++buffer_index;
-
-				/* Another event read out */
-				lczEventManagerData.eventCount--;
-
-				if (buffer_index ==
-				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE) {
-					/* No, so add it to the file */
-					if (fsu_append_abs(
-						    file_name,
-						    sensor_event_buffer,
-						    sizeof(SensorEvent_t) *
-							    buffer_index) !=
-					    sizeof(SensorEvent_t) *
-						    buffer_index) {
-						/* Failed to update the file,
-						 * should see the number of
-						 * bytes written echoed back
-						 */
-						result = -EINVAL;
-					}
-
-					/* Update event indices only when added
-					 * OK
-					 */
-					if (result == 0) {
-						uint8_t i = 0;
-						while (i < buffer_index) {
-							/* Mark this event as
-							 * free for use later
-							 */
-							memset(lcz_event_manager_file_handler_get_event(
-								       buffer_indexes
-									       [i]),
-							       0x0,
-							       sizeof(SensorEvent_t));
-
-							/* Mark this page as
-							 * needing to be saved
-							 */
-							lcz_event_manager_file_handler_set_page_dirty(
-								buffer_indexes
-									[i]);
-							++i;
-						}
-					}
-
-					buffer_index = 0;
-				}
-#else
-				/* No, so add it to the file */
-				if (fsu_append_abs(file_name, pSensorEvent,
-						   sizeof(SensorEvent_t)) !=
-				    sizeof(SensorEvent_t)) {
-					/* Failed to update the file, should
-					 * see the number of bytes written
-					 * echoed back
-					 */
-					result = -EINVAL;
-				}
-
-				/* Update event indices only when added OK */
-				if (result == 0) {
-					/* Mark this event as free for use
-					 * later
-					 */
-					memset(pSensorEvent, 0x0,
+			/* NULL check it - if NULL, break out here */
+			if (pSensorEvent == NULL) {
+				result = -EINVAL;
+			}
+			if (!result) {
+				/* Is it blank? */
+				if (pSensorEvent->type !=
+				    SENSOR_EVENT_RESERVED) {
+					memcpy(&sensor_event_buffer[buffer_index],
+					       pSensorEvent,
 					       sizeof(SensorEvent_t));
+					buffer_indexes[buffer_index] =
+						event_index;
+					++buffer_index;
 
 					/* Another event read out */
 					lczEventManagerData.eventCount--;
 
-					/* Mark this page as needing to be
-					 * saved
-					 */
-					lcz_event_manager_file_handler_set_page_dirty(
-						event_index);
+					if (buffer_index ==
+					    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE) {
+						/* No, so add it to the file */
+						if (fsu_append_abs(
+							    file_name,
+							    sensor_event_buffer,
+							    sizeof(SensorEvent_t) *
+								    buffer_index) !=
+						    sizeof(SensorEvent_t) *
+							    buffer_index) {
+							/* Failed to update the file,
+							 * should see the number of
+							 * bytes written echoed back
+							 */
+							result = -EINVAL;
+						}
+
+						/* Update event indices only when added
+						 * OK
+						 */
+						if (result == 0) {
+							uint8_t i = 0;
+							while (i <
+							       buffer_index) {
+								/* Mark this event as
+								 * free for use later
+								 */
+								memset(lcz_event_manager_file_handler_get_event(
+									       buffer_indexes
+										       [i]),
+								       0x0,
+								       sizeof(SensorEvent_t));
+
+								/* Mark this page as
+								 * needing to be saved
+								 */
+								lcz_event_manager_file_handler_set_page_dirty(
+									buffer_indexes
+										[i]);
+								++i;
+							}
+						}
+
+						buffer_index = 0;
+					}
 				}
-#endif
 			}
 
 			if (result == 0) {
@@ -1512,7 +1517,6 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 		}
 	}
 
-#if (CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE > 1)
 	if (result == 0 && buffer_index > 0) {
 		/* No, so add it to the file */
 		if (fsu_append_abs(file_name, sensor_event_buffer,
@@ -1540,11 +1544,121 @@ int lcz_event_manager_file_handler_background_build_file(uint16_t event_count)
 			}
 		}
 	}
-#endif
-
 	/* Then exit with our result */
 	return (result);
 }
+#else
+/** @brief Private method used to build log files as a background task.
+ *
+ *  @param [in]event_count - The number of events to add.
+ *
+ *  @returns The result of the operation, non-zero if not successful.
+ */
+int lcz_event_manager_file_handler_background_build_single(uint16_t event_count)
+{
+	uint8_t file_name[LCZ_EVENT_MANAGER_FILENAME_SIZE];
+	int result = 0;
+	uint32_t event_index;
+	SensorEvent_t *pSensorEvent;
+	/* This is the number of events added to the file */
+	uint32_t events_added = 0;
+	uint8_t full_loops = 0;
+
+	/* Build the empty output file */
+	sprintf(file_name, "%s%s",
+		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+
+	/* Create as blank then append events to it */
+	result = fsu_write_abs(file_name, NULL, 0);
+
+	if (result == 0) {
+		/* Now find the oldest event */
+		event_index =
+			lcz_event_manager_file_handler_find_oldest_event();
+		/* Then continue adding to the file and deleting them */
+		/* from the live list as we go */
+		for (events_added = 0;
+		     (events_added < event_count) && (result == 0);
+		     events_added++) {
+			/* Get the next event */
+			pSensorEvent = lcz_event_manager_file_handler_get_event(
+				event_index);
+			/* NULL check the event */
+			if (pSensorEvent == NULL) {
+				/* Stop here if a bad event was found */
+				result = -EINVAL;
+			}
+			if (!result) {
+				/* Is it blank? */
+				if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
+					/* No, so add it to the file */
+					if (fsu_append_abs(file_name, pSensorEvent,
+							   sizeof(SensorEvent_t)) !=
+					    sizeof(SensorEvent_t)) {
+						/* Failed to update the file, should
+						 * see the number of bytes written
+						 * echoed back
+						 */
+						result = -EINVAL;
+					}
+
+					/* Update event indices only when added OK */
+					if (result == 0) {
+						/* Mark this event as free for use
+						 * later
+						 */
+						memset(pSensorEvent, 0x0,
+						       sizeof(SensorEvent_t));
+
+						/* Another event read out */
+						lczEventManagerData.eventCount--;
+
+						/* Mark this page as needing to be
+						 * saved
+						 */
+						lcz_event_manager_file_handler_set_page_dirty(
+							event_index);
+					}
+				}
+			}
+
+			if (result == 0) {
+				/* Check next event */
+				event_index++;
+
+				/* Beware of wrap around here */
+				if (event_index >= TOTAL_NUMBER_EVENTS) {
+					event_index = 0;
+					++full_loops;
+
+					if (full_loops >=
+					    LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS) {
+						/* Something is wrong here, all
+						 * entries have been checked
+						 * multiple times and there are
+						 * insufficient entries, output
+						 * this error and exit checking
+						 * as there is nothing more
+						 * that can be done
+						 */
+						result = -EIO;
+						LOG_ERR("Expected %d events, "
+							"failed after %d events"
+							" with %d loops of all "
+							"event entries",
+							event_count,
+							events_added,
+							full_loops);
+					}
+				}
+			}
+		}
+	}
+	/* Then exit with our result */
+	return (result);
+}
+#endif
 
 /** @brief Private method used to build dummy log files as a background task.
  *
