@@ -27,3 +27,4 @@ zephyr_sources_ifdef(CONFIG_LCZ_SOFTWARE_RESET source/lcz_software_reset.c)
 zephyr_sources_ifdef(CONFIG_LCZ_EVENT_MANAGER source/lcz_event_manager.c
     source/lcz_event_manager_file_handler.c)
 zephyr_sources_ifdef(CONFIG_LCZ_BRACKET source/lcz_bracket.c)
+zephyr_sources_ifdef(CONFIG_LCZ_APPROTECT source/lcz_approtect.c)

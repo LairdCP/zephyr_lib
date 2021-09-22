@@ -1,0 +1,34 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_APPROTECT
+    bool "Enable the APPROTECT enablement feature"
+    help
+        A user application can call the functions to enable readback
+        protection or CPU debug protection on supported silicon, which
+        will enable it and optionally reboot the module if it is not
+        currently enabled
+
+if LCZ_APPROTECT
+
+menuconfig LCZ_APPROTECT_STARTUP
+    bool "Enabling start-up readback protection/CPU debug protection"
+    help
+        At start-up, before the kernel initiates, a task will be ran to
+        enable the requested features which will then reboot the module
+        to apply those settings
+
+config LCZ_APPROTECT_STARTUP_READBACK_PROTECTION
+    depends on LCZ_APPROTECT_STARTUP
+    bool "Start-up readback protection enablement"
+    default y
+
+config LCZ_APPROTECT_STARTUP_CPU_DEBUG_PROTECTION
+    depends on LCZ_APPROTECT_STARTUP
+    bool "Start-up CPU debug protection enablement"
+    default y
+
+endif # LCZ_APPROTECT
