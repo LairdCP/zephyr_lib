@@ -877,44 +877,65 @@ static int32_t lcz_event_manager_file_handler_find_next_free_event(void)
 static uint32_t lcz_event_manager_file_handler_find_oldest_event(void)
 {
 	uint32_t eventIndex = 0;
-	uint32_t timestamp;
+	uint32_t timestamp = 0;
 	uint32_t eventCount;
-	SensorEvent_t *sensorEvent;
+	SensorEvent_t *pSensorEvent = NULL;
 	bool eventFound = false;
 
 	/* Find the first valid event */
 	for (eventIndex = 0;
 	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
 		/* Get the next event */
-		sensorEvent =
+		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
-
-		/* Then check if the event type is valid */
-		if (sensorEvent->type != SENSOR_EVENT_RESERVED) {
-			timestamp = sensorEvent->timestamp;
-			eventFound = true;
+		/* NULL check the event - if NULL, exit with the first
+		 * event to force returning to the start of the event log.
+		 */
+		if (pSensorEvent != NULL) {
+			/* Then check if the event type is valid */
+			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
+				timestamp = pSensorEvent->timestamp;
+				eventFound = true;
+			} else {
+				eventIndex++;
+			}
 		} else {
-			eventIndex++;
+			eventFound = true;
+			eventIndex = 0;
 		}
 	}
-	if (eventFound == false) {
-		/* Empty event set so start at 0 */
-		eventIndex = 0;
-	} else {
-		/* Find the next event with an older timestamp */
-		for (eventCount = eventIndex; eventCount < TOTAL_NUMBER_EVENTS;
-		     eventCount++) {
-			/* Get the next event */
-			sensorEvent = lcz_event_manager_file_handler_get_event(
-				eventCount);
-
-			/* Ignore it if blank */
-			if (sensorEvent->type != SENSOR_EVENT_RESERVED) {
-				/* Is it an earlier event? */
-				if (sensorEvent->timestamp < timestamp) {
-					/* This is the new oldest event */
-					timestamp = sensorEvent->timestamp;
-					eventIndex = eventCount;
+	/* Don't proceed if a NULL event was found */
+	if (pSensorEvent != NULL) {
+		if (eventFound == false) {
+			/* Empty event set so start at 0 */
+			eventIndex = 0;
+		} else {
+			/* Find the next event with an older timestamp */
+			for (eventCount = eventIndex;
+			     eventCount < TOTAL_NUMBER_EVENTS; eventCount++) {
+				/* Get the next event */
+				pSensorEvent =
+					lcz_event_manager_file_handler_get_event(
+						eventCount);
+				/* NULL check before proceeding */
+				if (pSensorEvent != NULL) {
+					/* Ignore it if blank */
+					if (pSensorEvent->type !=
+					    SENSOR_EVENT_RESERVED) {
+						/* Is it an earlier event? */
+						if (pSensorEvent->timestamp <
+						    timestamp) {
+							/* This is the new oldest event */
+							timestamp =
+								pSensorEvent
+									->timestamp;
+							eventIndex = eventCount;
+						}
+					}
+				} else {
+					/* If NULL, go back to the start of the log */
+					eventIndex = 0;
+					eventCount = TOTAL_NUMBER_EVENTS;
 				}
 			}
 		}
