@@ -761,22 +761,30 @@ lcz_event_manager_file_handler_find_first_empty_event_by_type(void)
 	/* Assume there are no free records */
 	int32_t result = -1;
 	uint16_t eventIndex;
-	SensorEvent_t *sensorEvent;
+	SensorEvent_t *pSensorEvent;
 
 	/* Look for the first record with a type of RESERVED */
 	for (eventIndex = 0;
 	     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == -1);) {
 		/* Check the next record */
-		sensorEvent =
+		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
-		if (sensorEvent != NULL) {
-			if (sensorEvent->type == SENSOR_EVENT_RESERVED) {
+		/* Before proceeding, NULL check the event */
+		if (pSensorEvent != NULL) {
+			if (pSensorEvent->type == SENSOR_EVENT_RESERVED) {
 				/* Found it */
 				result = eventIndex;
+			} else {
+				/* Check the next */
+				eventIndex++;
 			}
+		} else {
+			/* If we found a NULL event, break out
+			 * here and exit with no event fount.
+			 */
+			eventIndex = TOTAL_NUMBER_EVENTS;
+			result = -1;
 		}
-		/* Check the next */
-		eventIndex++;
 	}
 	return (result);
 }
