@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020 Laird Connectivity
+# Copyright (c) 2020-2021 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -36,5 +36,15 @@ config LCZ_QRTC_SHELL
     bool "Enable shell commands"
     default n
     depends on SHELL
+
+config LCZ_QRTC_SHELL_ENABLE_WRITE
+    bool "Enable QRTC shell write command"
+    default y
+    depends on LCZ_QRTC_SHELL
+
+config LCZ_QRTC_SHELL_ENABLE_FORMATTED_OUTPUT
+    bool "Enable QRTC shell formatted time/date output commands"
+    default y
+    depends on LCZ_QRTC_SHELL
 
 endif
