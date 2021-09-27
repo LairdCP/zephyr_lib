@@ -15,12 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if(CONFIG_MCUMGR)
-target_include_directories(MCUMGR INTERFACE
-    include
-)
+if(CONFIG_LCZ_MCUMGR_CMD_OS_MGMT)
+zephyr_include_directories(include)
 
-zephyr_library_sources(
+zephyr_sources(
     port/zephyr/src/zephyr_lcz_os_mgmt.c
     src/lcz_os_mgmt.c
     src/stubs.c
