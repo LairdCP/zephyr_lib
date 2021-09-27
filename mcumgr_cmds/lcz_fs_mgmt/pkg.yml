@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,22 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-if(CONFIG_LCZ_MCUMGR_CMD_FS_MGMT)
-zephyr_include_directories(lcz_fs_mgmt/include)
+pkg.name: cmd/lcz_fs_mgmt
+pkg.description: 'File system command handlers for mcumgr.'
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "http://mynewt.apache.org/"
+pkg.keywords:
 
-zephyr_sources(
-    lcz_fs_mgmt/port/zephyr/src/zephyr_lcz_fs_mgmt.c
-    lcz_fs_mgmt/src/lcz_fs_mgmt.c
-)
-endif()
-
-if(CONFIG_LCZ_MCUMGR_CMD_OS_MGMT)
-zephyr_include_directories(lcz_os_mgmt/include)
-
-zephyr_sources(
-    lcz_os_mgmt/port/zephyr/src/zephyr_lcz_os_mgmt.c
-    lcz_os_mgmt/src/lcz_os_mgmt.c
-    lcz_os_mgmt/src/stubs.c
-)
-endif()
+pkg.deps:
+    - '@apache-mynewt-core/fs/fs'

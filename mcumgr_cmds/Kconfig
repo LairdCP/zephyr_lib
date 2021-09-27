@@ -2,4 +2,5 @@
 # Copyright (c) 2021 Laird Connectivity
 #
 
+rsource "lcz_fs_mgmt/Kconfig"
 rsource "lcz_os_mgmt/Kconfig"
