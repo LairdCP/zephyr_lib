@@ -9,7 +9,7 @@ add_subdirectory(utilities)
 add_subdirectory(mcumgr_wrapper)
 add_subdirectory(drivers)
 add_subdirectory(memfault)
-add_subdirectory(mcumgr_os_mgmt)
+add_subdirectory(mcumgr_cmds)
 
 endif()
 

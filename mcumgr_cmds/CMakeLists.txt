@@ -16,11 +16,11 @@
 # under the License.
 
 if(CONFIG_LCZ_MCUMGR_CMD_OS_MGMT)
-zephyr_include_directories(include)
+zephyr_include_directories(lcz_os_mgmt/include)
 
 zephyr_sources(
-    port/zephyr/src/zephyr_lcz_os_mgmt.c
-    src/lcz_os_mgmt.c
-    src/stubs.c
+    lcz_os_mgmt/port/zephyr/src/zephyr_lcz_os_mgmt.c
+    lcz_os_mgmt/src/lcz_os_mgmt.c
+    lcz_os_mgmt/src/stubs.c
 )
 endif()
