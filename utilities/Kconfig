@@ -89,6 +89,17 @@ config FSU_SHELL
 		The built-in file system shell is often sufficient.
 		This shell exposes features like pattern list and delete.
 
+if FSU_SHELL
+
+config FSU_SHELL_ALLOW_CHANGE
+	bool "Enable shell write/change functions"
+	default y
+	help
+		This allows using functions that can change/removes files
+		and/or configuration
+
+endif # FSU_SHELL
+
 config FSU_REWRITE_SIZE_CHECK
 	bool "Enable size check when rewriting a file (truncate)"
 

@@ -21,15 +21,19 @@
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 static int macro_status;
+#endif
 
 static char mount_point[FSU_MAX_ABS_PATH_SIZE];
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 static const char SET_DESCRIPTION[] = "Set a parameter:\r\n"
 				      "mount_point ";
+#endif
 
 #define FSUS_SET_STRING(field, name, src)                                      \
 	do {                                                                   \
@@ -62,12 +66,16 @@ static const char SET_DESCRIPTION[] = "Set a parameter:\r\n"
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 static int fsu_set_cmd(const struct shell *shell, size_t argc, char **argv);
+#endif
 static int fsu_query_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_ls_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_sha_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_crc_cmd(const struct shell *shell, size_t argc, char **argv);
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv);
+#endif
 
 static int fsu_shell_init(const struct device *device);
 
@@ -75,12 +83,17 @@ static int fsu_shell_init(const struct device *device);
 /* Global Function Definitions                                                */
 /******************************************************************************/
 SHELL_STATIC_SUBCMD_SET_CREATE(
-	sub_fsu, SHELL_CMD(set, NULL, SET_DESCRIPTION, fsu_set_cmd),
+	sub_fsu,
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
+	SHELL_CMD(set, NULL, SET_DESCRIPTION, fsu_set_cmd),
+#endif
 	SHELL_CMD(query, NULL, "List shell parameters", fsu_query_cmd),
 	SHELL_CMD(ls, NULL, "List files (with size)", fsu_ls_cmd),
 	SHELL_CMD(sha, NULL, "Get SHA256 of file(s)", fsu_sha_cmd),
 	SHELL_CMD(crc, NULL, "Get CRC32 checksum of file(s)", fsu_crc_cmd),
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 	SHELL_CMD(del, NULL, "Delete file(s) [-f is delete all]", fsu_del_cmd),
+#endif
 	SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(fsu, &sub_fsu, "File System Utilities", NULL);
@@ -90,6 +103,7 @@ SYS_INIT(fsu_shell_init, APPLICATION, 99);
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 static int fsu_set_cmd(const struct shell *shell, size_t argc, char **argv)
 {
 	if ((argc == 3) && (argv[1] != NULL) && (argv[2] != NULL)) {
@@ -104,6 +118,7 @@ static int fsu_set_cmd(const struct shell *shell, size_t argc, char **argv)
 	}
 	return 0;
 }
+#endif
 
 static int fsu_query_cmd(const struct shell *shell, size_t argc, char **argv)
 {
@@ -207,6 +222,7 @@ static int fsu_crc_cmd(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+#if defined(CONFIG_FSU_SHELL_ALLOW_CHANGE)
 static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv)
 {
 	/* -f is used to make it harder to accidentally delete all */
@@ -226,6 +242,7 @@ static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv)
 	shell_print(shell, "Deleted %u matching files", count);
 	return 0;
 }
+#endif
 
 static int fsu_shell_init(const struct device *device)
 {
