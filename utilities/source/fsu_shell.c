@@ -66,6 +66,7 @@ static int fsu_set_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_query_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_ls_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_sha_cmd(const struct shell *shell, size_t argc, char **argv);
+static int fsu_crc_cmd(const struct shell *shell, size_t argc, char **argv);
 static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv);
 
 static int fsu_shell_init(const struct device *device);
@@ -78,6 +79,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	SHELL_CMD(query, NULL, "List shell parameters", fsu_query_cmd),
 	SHELL_CMD(ls, NULL, "List files (with size)", fsu_ls_cmd),
 	SHELL_CMD(sha, NULL, "Get SHA256 of file(s)", fsu_sha_cmd),
+	SHELL_CMD(crc, NULL, "Get CRC32 checksum of file(s)", fsu_crc_cmd),
 	SHELL_CMD(del, NULL, "Delete file(s) [-f is delete all]", fsu_del_cmd),
 	SHELL_SUBCMD_SET_END);
 
@@ -162,6 +164,40 @@ static int fsu_sha_cmd(const struct shell *shell, size_t argc, char **argv)
 			if (status == 0) {
 				shell_hexdump(shell, hash, FSU_HASH_SIZE);
 			} else {
+				break;
+			}
+			i += 1;
+		}
+	}
+	fsu_free_found(pEntries);
+	return 0;
+}
+
+static int fsu_crc_cmd(const struct shell *shell, size_t argc, char **argv)
+{
+	char *name = fsu_name_handler(argc, argv);
+
+	uint32_t checksum = 0;
+	ssize_t status = 0;
+	size_t count = 0;
+	struct fs_dirent *pEntries =
+		fsu_find(mount_point, name, &count, FS_DIR_ENTRY_FILE);
+	if (count == 0) {
+		status = -ENOENT;
+		shell_print(shell, "No files found");
+	} else {
+		shell_print(shell, "Found %u matching files", count);
+		size_t i = 0;
+		while (i < count) {
+			status = fsu_crc32(&checksum, mount_point,
+					   pEntries[i].name, pEntries[i].size);
+
+			if (status == 0) {
+				shell_info(shell, "%08x %s", checksum,
+					   pEntries[i].name);
+			} else {
+				shell_print(shell, "CRC32 of %s status: %d",
+					    pEntries[i].name, status);
 				break;
 			}
 			i += 1;
