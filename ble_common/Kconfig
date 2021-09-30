@@ -22,6 +22,9 @@ config LCZ_SENSOR_ADV_FORMAT
 config LCZ_SENSOR_EVENT
 	bool "Enable sensor event module"
 
+config LCZ_SENSOR_ADV_MATCH
+	bool "Enable sensor advertisement matching module"
+
 rsource "Kconfig.lcz_bt_scan"
 
 endmenu
