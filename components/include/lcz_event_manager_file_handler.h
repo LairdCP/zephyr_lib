@@ -101,4 +101,12 @@ int lcz_event_manager_file_handler_build_test_file(
  */
 void lcz_event_manager_file_handler_set_logging_state(bool save_to_flash);
 
+/** @brief Resets the event manager file handler to factory settings
+ *
+ *         NOTE - This function assumes a software reset will follow. It
+ *                disables the write to flash flag to hold off on adding
+ *                new events to flash.
+ */
+void lcz_event_manager_file_handler_factory_reset(void);
+
 #endif /* ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_H */

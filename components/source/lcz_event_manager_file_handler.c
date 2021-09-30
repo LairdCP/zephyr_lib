@@ -575,6 +575,26 @@ void lcz_event_manager_file_handler_set_logging_state(bool save_to_flash)
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 }
 
+void lcz_event_manager_file_handler_factory_reset(void)
+{
+	int result;
+
+	/* Lock resources whilst performing updates */
+	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
+	/* Purge all local events */
+	memset(eventData, 0x0, sizeof(eventData));
+	memset(&lczEventManagerData, 0x0, sizeof(lczEventManagerData));
+	/* Delete any log files */
+	result = lcz_event_manager_file_handler_delete_file();
+	if (result < 0) {
+		LOG_ERR("Failed to delete user or dummy log file!");
+	}
+	/* Delete any event files */
+	lcz_event_manager_file_handler_rebuild_structure();
+	/* OK to release resources now */
+	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/

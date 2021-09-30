@@ -97,4 +97,9 @@ int lcz_event_manager_prepare_test_log_file(
  */
 void lcz_event_manager_set_logging_state(bool save_to_flash);
 
+/** @brief Resets the event manager to factory defaults
+ *
+ */
+void lcz_event_manager_factory_reset(void);
+
 #endif /* ifdef LCZ_EVENT_MANAGER_H */

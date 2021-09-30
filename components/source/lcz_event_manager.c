@@ -101,3 +101,8 @@ void lcz_event_manager_set_logging_state(bool save_to_flash)
 {
 	lcz_event_manager_file_handler_set_logging_state(save_to_flash);
 }
+
+void lcz_event_manager_factory_reset(void)
+{
+	lcz_event_manager_file_handler_factory_reset();
+}
