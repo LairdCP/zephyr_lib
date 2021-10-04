@@ -47,6 +47,9 @@ int lcz_event_manager_prepare_log_file(uint8_t *log_path,
 {
 	int result = -EBUSY;
 
+	/* Assume log file creation will fail */
+	*log_file_size = 0;
+
 	/* Don't allow a new file to be created if we're
 	 * already preparing one
 	 */
@@ -86,6 +89,9 @@ int lcz_event_manager_prepare_test_log_file(
 	uint32_t *log_file_size)
 {
 	int result = -EBUSY;
+
+	/* Assume log file creation will fail */
+	*log_file_size = 0;
 
 	/* Check a file is not being built before starting a new one */
 	if (lcz_event_manager_file_handler_get_log_file_status() !=
