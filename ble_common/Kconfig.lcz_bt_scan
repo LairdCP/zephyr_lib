@@ -22,4 +22,22 @@ config LCZ_BT_SCAN_LOG_LEVEL
 	range 0 4
 	default 3
 
+config LCZ_BT_SCAN_DEFAULT_WINDOW
+	int "Default amount of time to scan"
+	range 16 16384
+	default 48
+	help
+	  N * 0.625 ms
+	  The default config is a 30 ms window and a 60 ms interval.
+	  The system will attempt to scan 50% of the time.
+
+config LCZ_BT_SCAN_DEFAULT_INTERVAL
+	int "Default amount of time between scans"
+	range 16 16384
+	default 96
+	help
+	  N * 0.625 ms
+	  The default config is a 30 ms window and a 60 ms interval.
+	  The system will attempt to scan 50% of the time.
+
 endif # LCZ_BT_SCAN

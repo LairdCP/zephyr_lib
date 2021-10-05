@@ -21,7 +21,7 @@ LOG_MODULE_REGISTER(lcz_bt_scan, CONFIG_LCZ_BT_SCAN_LOG_LEVEL);
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void scan_start(void);
+static int scan_start(void);
 static bool valid_user_id(int id);
 static void lcz_bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
 				    uint8_t type, struct net_buf_simple *ad);
@@ -40,10 +40,9 @@ static struct {
 	uint32_t num_starts;
 } bts;
 
-/* Use scan window of 40ms with scan interval of 160ms (25% duty cycle) */
 static struct bt_le_scan_param scan_parameters = BT_LE_SCAN_PARAM_INIT(
 	BT_LE_SCAN_TYPE_PASSIVE, BT_LE_SCAN_OPT_FILTER_DUPLICATE,
-	BT_GAP_SCAN_160MS_INTERVAL, BT_GAP_SCAN_40MS_WINDOW);
+	CONFIG_LCZ_BT_SCAN_DEFAULT_INTERVAL, CONFIG_LCZ_BT_SCAN_DEFAULT_WINDOW);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -70,44 +69,62 @@ bool lcz_bt_scan_register(int *pId, bt_le_scan_cb_t *cb)
 	}
 }
 
-void lcz_bt_scan_start(int id)
+int lcz_bt_scan_start(int id)
 {
+	int r = -EPERM;
+
 	if (valid_user_id(id)) {
 		atomic_set_bit(&bts.start_requests, id);
-		scan_start();
+		r = scan_start();
 	}
+
+	return r;
 }
 
-void lcz_bt_scan_stop(int id)
+int lcz_bt_scan_stop(int id)
 {
+	int r = -EPERM;
+
 	if (valid_user_id(id)) {
 		atomic_clear_bit(&bts.start_requests, id);
 		atomic_set_bit(&bts.stop_requests, id);
 		if (atomic_cas(&bts.scanning, 1, 0)) {
-			int err = bt_le_scan_stop();
-			LOG_DBG("%d", err);
-			if (err == 0) {
+			r = bt_le_scan_stop();
+			LOG_DBG("%d", r);
+			if (r == 0) {
 				bts.num_stops += 1;
 			}
+		} else {
+			r = 0;
 		}
 	}
+
+	return r;
 }
 
-void lcz_bt_scan_resume(int id)
+int lcz_bt_scan_resume(int id)
 {
+	int r = -EPERM;
+
 	if (valid_user_id(id)) {
 		atomic_clear_bit(&bts.stop_requests, id);
-		scan_start();
+		r = scan_start();
 	}
+
+	return r;
 }
 
-void lcz_bt_scan_restart(int id)
+int lcz_bt_scan_restart(int id)
 {
+	int r = -EPERM;
+
 	if (valid_user_id(id)) {
 		atomic_clear_bit(&bts.stop_requests, id);
 		atomic_set_bit(&bts.start_requests, id);
-		scan_start();
+		r = scan_start();
 	}
+
+	return r;
 }
 
 bool lcz_bt_scan_active(void)
@@ -125,30 +142,52 @@ uint32_t lcz_bt_scan_get_num_stops(void)
 	return bts.num_stops;
 }
 
+int lcz_bt_scan_update_parameters(int id, const struct bt_le_scan_param *param)
+{
+	int r = -EPERM;
+
+	if (valid_user_id(id)) {
+		r = lcz_bt_scan_stop(id);
+		if (r == 0) {
+			memcpy(&scan_parameters, param,
+			       sizeof(scan_parameters));
+			r = lcz_bt_scan_restart(id);
+		}
+	}
+
+	return r;
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void scan_start(void)
+static int scan_start(void)
 {
+	int r = 0;
+
+	/* Return success if scanning can't be started now.
+	 * This is a multiuser system.
+	 */
 	if (atomic_get(&bts.start_requests) == 0) {
-		return;
+		return r;
 	}
 
 	if (atomic_get(&bts.stop_requests) != 0) {
-		return;
+		return r;
 	}
 
 	if (atomic_cas(&bts.scanning, 0, 1)) {
-		int err = bt_le_scan_start(&scan_parameters,
-					   lcz_bt_scan_adv_handler);
-		if (err != 0) {
-			LOG_ERR("Unable to start scanning: %d", err);
+		r = bt_le_scan_start(&scan_parameters, lcz_bt_scan_adv_handler);
+		if (r != 0) {
+			LOG_ERR("Unable to start scanning: %d", r);
 			atomic_clear(&bts.scanning);
 		} else {
-			LOG_DBG("%d", err);
+			LOG_DBG("%d", r);
 			bts.num_starts += 1;
 		}
 	}
+
+	return r;
 }
 
 static bool valid_user_id(int id)

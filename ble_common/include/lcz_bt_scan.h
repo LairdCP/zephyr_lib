@@ -24,12 +24,6 @@ extern "C" {
 #endif
 
 /******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define BT_GAP_SCAN_40MS_WINDOW 0x40 /* in 0.625ms units */
-#define BT_GAP_SCAN_160MS_INTERVAL 0x100 /* in 0.625ms units */
-
-/******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 /**
@@ -53,26 +47,42 @@ bool lcz_bt_scan_register(int *pId, bt_le_scan_cb_t *cb);
 
 /**
  * @brief Start scanning (if there aren't any stop requests).
+ *
+ * @param id user id
+ *
+ * @return int negative error code, 0 on success
  */
-void lcz_bt_scan_start(int id);
+int lcz_bt_scan_start(int id);
 
 /**
  * @brief Stop scanning.
+ *
+ * @param id user id
+ *
+ * @return int negative error code, 0 on success
  */
-void lcz_bt_scan_stop(int id);
+int lcz_bt_scan_stop(int id);
 
 /**
  * @brief Clear stop request.
  * Restart scanning if there aren't any stop requests and there is at least
  * one start request.
+ *
+ * @param id user id
+ *
+ * @return int negative error code, 0 on success
  */
-void lcz_bt_scan_resume(int id);
+int lcz_bt_scan_resume(int id);
 
 /**
  * @brief Clear stop request, set start request, and start scanning
  * if there aren't any other stop requests.
+ *
+ * @param id user id
+ *
+ * @return int negative error code, 0 on success
  */
-void lcz_bt_scan_restart(int id);
+int lcz_bt_scan_restart(int id);
 
 /**
  * @brief Accessor function
@@ -94,6 +104,16 @@ uint32_t lcz_bt_scan_get_num_starts(void);
  * @retval number of scan stops
  */
 uint32_t lcz_bt_scan_get_num_stops(void);
+
+/**
+ * @brief Stop scanning, update parameters, restart scanning
+ *
+ * @param id user id
+ * @param param Bluetooth scan parameters.
+ *
+ * @return int negative error code, 0 on success
+ */
+int lcz_bt_scan_update_parameters(int id, const struct bt_le_scan_param *param);
 
 #ifdef __cplusplus
 }
