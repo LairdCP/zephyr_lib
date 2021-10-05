@@ -26,21 +26,29 @@ LOG_MODULE_REGISTER(event_manager, CONFIG_LCZ_EVENT_MANAGER_LOG_LEVEL);
 /*****************************************************************************/
 /* Local Constant, Macro and Type Definitions                                */
 /*****************************************************************************/
-/* Data structure for internal use to keep track of file                     */
-/* and timestamp indices                                                     */
+/*
+ *  Data structure for internal use to keep track of file
+ *  and timestamp indices
+ */
 typedef struct __lczEventManagerData_t {
-	/* The index of the next event to be written.                        */
-	uint16_t eventIndex;
-	/* The sub-index last written - this gets incremented when a record  */
-	/* is added with the same timestamp as the previous and reset when   */
-	/* a new timestamp is used.                                          */
+	/* The index of the next event to be written. */
+	uint32_t eventWriteIndex;
+	/* The index of the next event to be read */
+	uint32_t eventReadIndex;
+	/*
+	 * The sub-index last written - this gets incremented when a record
+	 * is added with the same timestamp as the previous and reset when
+	 * a new timestamp is used.
+	 */
 	uint16_t eventSubIndex;
-	/* The last timestamp used when a record was saved. Used to          */
-	/* determine if the sub index needs to be incremented or cleared.    */
+	/*
+	 * The last timestamp used when a record was saved. Used to
+	 * determine if the sub index needs to be incremented or cleared.
+	 */
 	uint32_t lastEventTimestamp;
-	/* The count of events in the event log                              */
+	/* The count of events in the event log */
 	uint32_t eventCount;
-	/* Indicates whether events should be stored in flash                */
+	/* Indicates whether events should be stored in flash */
 	bool saving_enabled;
 } lczEventManagerData_t;
 
@@ -176,22 +184,15 @@ lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item);
 static SensorEvent_t *
 lcz_event_manager_file_handler_get_event(uint16_t eventIndex);
 
-/* Finds the first empty record in the event log structure */
-static int32_t
-lcz_event_manager_file_handler_find_first_empty_event_by_type(void);
+/* Finds the index of the first event in the event log. */
+static SensorEvent_t *
+lcz_event_manager_file_handler_find_first_event(uint32_t *outEventIndex);
 
-/* Finds the oldest record in the event log structure */
-static int32_t
-lcz_event_manager_file_handler_find_first_empty_event_by_age(void);
+/* Finds the newest or oldest record in the event log structure */
+static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest);
 
 /* Finds the count of events in the event log */
-static int32_t lcz_event_manager_file_handler_get_event_count(void);
-
-/* Finds the next free record in the event log structure */
-static int32_t lcz_event_manager_file_handler_find_next_free_event(void);
-
-/* Finds the index of the oldest event in the log */
-static uint32_t lcz_event_manager_file_handler_find_oldest_event(void);
+static void lcz_event_manager_file_handler_get_event_count(void);
 
 /* Flags a page as needing to be saved in the background */
 static void lcz_event_manager_file_handler_set_page_dirty(uint16_t eventIndex);
@@ -638,8 +639,9 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		/* Add new events to the event buffer */
 		do {
 			/* Add the current event */
-			addResult = lcz_event_manager_file_handler_add_event_private(
-				&sensorEvent);
+			addResult =
+				lcz_event_manager_file_handler_add_event_private(
+					&sensorEvent);
 			/* Only update stats if added OK */
 			if (addResult) {
 				/* Another event added */
@@ -776,96 +778,10 @@ lcz_event_manager_file_handler_get_event(uint16_t eventIndex)
 	return (sensorEvent);
 }
 
-/** @brief Gets the absolute index of the next free event. If the absolute
- *         index can't be found, there isn't a free slot and the oldest
- *         event must be found so we can start to overwrite existing events.
- *
- *  @returns The next free event absolute index, -1 if not found.
- */
-static int32_t
-lcz_event_manager_file_handler_find_first_empty_event_by_type(void)
-{
-	/* Assume there are no free records */
-	int32_t result = -1;
-	uint16_t eventIndex;
-	SensorEvent_t *pSensorEvent;
-
-	/* Look for the first record with a type of RESERVED */
-	for (eventIndex = 0;
-	     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == -1);) {
-		/* Check the next record */
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
-		/* Before proceeding, NULL check the event */
-		if (pSensorEvent != NULL) {
-			if (pSensorEvent->type == SENSOR_EVENT_RESERVED) {
-				/* Found it */
-				result = eventIndex;
-			} else {
-				/* Check the next */
-				eventIndex++;
-			}
-		} else {
-			/* If we found a NULL event, break out
-			 * here and exit with no event fount.
-			 */
-			eventIndex = TOTAL_NUMBER_EVENTS;
-			result = -1;
-		}
-	}
-	return (result);
-}
-
-/** @brief Gets the absolute index of the event with the oldest timestamp.
- *         This is used when the event log is full and we need to overwrite
- *         existing events.
- *
- *  @returns The absolute index of the event with the oldest timestamp.
- */
-static int32_t
-lcz_event_manager_file_handler_find_first_empty_event_by_age(void)
-{
-	/* Assume the first record is the newest */
-	int32_t result = 0;
-	uint16_t eventIndex;
-	bool eventFound = false;
-	uint32_t lastTimestamp;
-	SensorEvent_t *sensorEvent;
-
-	lastTimestamp = lcz_event_manager_file_handler_get_event(0)->timestamp;
-
-	/* If all events get checked and we don't find a match, it */
-	/* means (highly unlikely) all events are in chronological */
-	/* order and the first one is the oldest. We finish this loop */
-	/* with result left at 0 in this case */
-	for (eventIndex = 1;
-	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
-		/* Get the next event */
-		sensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
-
-		/* Compare this and the previous event's timestamps */
-		/* Is the previous newer than the next? */
-		if (lastTimestamp > sensorEvent->timestamp) {
-			/* Yes - Found the oldest, here's where we */
-			/* start to overwrite events */
-			eventFound = true;
-			result = eventIndex;
-		} else {
-			/* No, so store the details of the current event */
-			/* timestamp and check the next */
-			lastTimestamp = sensorEvent->timestamp;
-			eventIndex++;
-		}
-	}
-	return (result);
-}
-
 /** @brief Gets the count of events in the event log.
  *
- *  @returns The count of events.
  */
-static int32_t lcz_event_manager_file_handler_get_event_count(void)
+static void lcz_event_manager_file_handler_get_event_count(void)
 {
 	/* Assume the log is empty */
 	int32_t result = 0;
@@ -888,104 +804,157 @@ static int32_t lcz_event_manager_file_handler_get_event_count(void)
 			eventIndex = TOTAL_NUMBER_EVENTS;
 		}
 	}
-	return (result);
+	/* Store the event count for later */
+	lczEventManagerData.eventCount = result;
 }
 
-/** @brief Gets the absolute index of the next free event in the event log.
- *         This is either the first empty slot found, or the event with the
- *         oldest timestamp in event of the event log being full.
+/** @brief Finds the index of the first event in the event log.
  *
- *  @returns The absolute index of the next free event.
+ *  @param [out]outEventIndex - Index where the event resides.
+ *  @returns Pointer to the first event, NULL if none found.
  */
-static int32_t lcz_event_manager_file_handler_find_next_free_event(void)
-{
-	int32_t result;
-
-	/* First check for empty records */
-	result =
-		lcz_event_manager_file_handler_find_first_empty_event_by_type();
-	/* Did we find one? */
-	if (result == -1) {
-		/* No, so check via timestamp age */
-		result =
-			lcz_event_manager_file_handler_find_first_empty_event_by_age();
-	}
-	return (result);
-}
-
-/** @brief Finds the index of the oldest event in the event log. Finds the
- *         oldest timestamp in the event log and ensures that there are
- *         contiguous records after it.
- *
- *  @returns The index of the oldest log.
- */
-static uint32_t lcz_event_manager_file_handler_find_oldest_event(void)
+static SensorEvent_t *
+lcz_event_manager_file_handler_find_first_event(uint32_t *outEventIndex)
 {
 	uint32_t eventIndex = 0;
-	uint32_t timestamp = 0;
-	uint32_t eventCount;
-	SensorEvent_t *pSensorEvent = NULL;
 	bool eventFound = false;
+	SensorEvent_t *pSensorEvent = (SensorEvent_t *)NULL;
+	uint32_t eventsChecked = lczEventManagerData.eventCount;
 
-	/* Find the first valid event */
-	for (eventIndex = 0;
-	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
+	/* First find the first event in the log */
+	for (eventIndex = 0; (eventIndex < TOTAL_NUMBER_EVENTS) &&
+			     (!eventFound) && (eventsChecked);
+	     eventIndex++) {
 		/* Get the next event */
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_event(eventIndex);
-		/* NULL check the event - if NULL, exit with the first
-		 * event to force returning to the start of the event log.
-		 */
+		/* Validate it */
 		if (pSensorEvent != NULL) {
-			/* Then check if the event type is valid */
+			/* Any content ? */
 			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
-				timestamp = pSensorEvent->timestamp;
+				/* Found our first event */
 				eventFound = true;
-			} else {
-				eventIndex++;
+				/* Store index for use later */
+				*outEventIndex = eventIndex;
 			}
-		} else {
-			eventFound = true;
-			eventIndex = 0;
 		}
 	}
-	/* Don't proceed if a NULL event was found */
+	return (pSensorEvent);
+}
+
+/** @brief Finds the index of either the newest or oldest event in the event
+ *         log.
+ *
+ *         NOTE - Assumes the event count has been determined with a call
+ *                to get event count.
+ *
+ *         NOTE - Assumes events are added contiguously.
+ *
+ *  @returns The index of either the newest or oldest log.
+ */
+static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest)
+{
+	uint32_t eventIndex = 0;
+	SensorEvent_t *pSensorEvent;
+	uint32_t timestamp = 0;
+	uint32_t eventsChecked = lczEventManagerData.eventCount;
+	uint32_t foundEventIndex = 0;
+	uint16_t salt = 0;
+
+	pSensorEvent =
+		lcz_event_manager_file_handler_find_first_event(&eventIndex);
+	/* Validate it */
 	if (pSensorEvent != NULL) {
-		if (eventFound == false) {
-			/* Empty event set so start at 0 */
-			eventIndex = 0;
-		} else {
-			/* Find the next event with an older timestamp */
-			for (eventCount = eventIndex;
-			     eventCount < TOTAL_NUMBER_EVENTS; eventCount++) {
-				/* Get the next event */
-				pSensorEvent =
-					lcz_event_manager_file_handler_get_event(
-						eventCount);
-				/* NULL check before proceeding */
-				if (pSensorEvent != NULL) {
-					/* Ignore it if blank */
-					if (pSensorEvent->type !=
-					    SENSOR_EVENT_RESERVED) {
-						/* Is it an earlier event? */
-						if (pSensorEvent->timestamp <
+		/* Assume this is our found event */
+		foundEventIndex = eventIndex;
+		/* Take the timestamp from this event and check
+		 * successive events. When we find a later
+		 * timestamp this indicates a newer event.
+		 */
+		timestamp = pSensorEvent->timestamp;
+		/* Store the salt for later */
+		salt = pSensorEvent->salt;
+		/* Another event checked */
+		eventsChecked--;
+		/* Index the next event */
+		eventIndex++;
+	}
+	/* Do we have a valid event? */
+	if (pSensorEvent != NULL) {
+		while (eventsChecked > 0) {
+			/* Get the next event */
+			pSensorEvent = lcz_event_manager_file_handler_get_event(
+				eventIndex);
+			/* Valid event? */
+			if (pSensorEvent != NULL) {
+				/* Does this event have any content? */
+				if (pSensorEvent->type !=
+				    SENSOR_EVENT_RESERVED) {
+					/* Yes, so we have another valid event */
+					eventsChecked--;
+					/* Check if we're looking for the newest */
+					if (findNewest) {
+						/* Is this a newer timestamp? */
+						if (pSensorEvent->timestamp >
 						    timestamp) {
-							/* This is the new oldest event */
+							/* Yes, so we store this index for later */
 							timestamp =
 								pSensorEvent
 									->timestamp;
-							eventIndex = eventCount;
+							/* And update the found event index */
+							foundEventIndex =
+								eventIndex;
+							/* And the salt */
+							salt = pSensorEvent
+								->salt;
+						} else if (pSensorEvent
+								   ->timestamp ==
+							   timestamp) {
+							/* If the timestamps are equal, check the salts */
+							if (pSensorEvent->salt >
+							    salt) {
+								/* This event is newer */
+								foundEventIndex =
+									eventIndex;
+								salt = pSensorEvent
+									       ->salt;
+							}
+						}
+					} else {
+						/* Is this an older timestamp? */
+						if (pSensorEvent->timestamp <
+						    timestamp) {
+							/* Yes, so we store this index for later */
+							timestamp =
+								pSensorEvent
+									->timestamp;
+							/* And update the found event index */
+							foundEventIndex =
+								eventIndex;
+							/* And the salt */
+							salt = pSensorEvent
+								->salt;
+						} else if (pSensorEvent
+								   ->timestamp ==
+							   timestamp) {
+							/* Check if the salt is earlier */
+							if (pSensorEvent->salt <
+							    salt) {
+								/* This is an older event */
+								foundEventIndex =
+									eventIndex;
+								salt = pSensorEvent
+									       ->salt;
+							}
 						}
 					}
-				} else {
-					/* If NULL, go back to the start of the log */
-					eventIndex = 0;
-					eventCount = TOTAL_NUMBER_EVENTS;
 				}
 			}
+			/* Check the next */
+			eventIndex++;
 		}
 	}
-	return (eventIndex);
+	return (foundEventIndex);
 }
 
 /** @brief Sets a page of event logger shadow memory as dirty when a new event
@@ -1072,14 +1041,30 @@ static void lcz_event_manager_file_handler_save_files(void)
  */
 static void lcz_event_manager_file_handler_get_indices(void)
 {
-	/* Get the count of events in the log. We need to do this first */
-	/* because handling changes slightly if there are limited numbers */
-	/* of events in the log */
-	lczEventManagerData.eventCount =
-		lcz_event_manager_file_handler_get_event_count();
-	/* Get the index of the next free record */
-	lczEventManagerData.eventIndex =
-		lcz_event_manager_file_handler_find_next_free_event();
+	uint32_t eventIndex;
+
+	/*
+	 * Get the count of events in the log. The count gets used later
+	 * during calls to find event.
+	 */
+	lcz_event_manager_file_handler_get_event_count();
+	/* If there are no events, we can start at the beginning of the log */
+	if (!lczEventManagerData.eventCount) {
+		lczEventManagerData.eventWriteIndex = 0;
+		lczEventManagerData.eventReadIndex = 0;
+	} else {
+		/* First set up the write index */
+		eventIndex = lcz_event_manager_file_handler_find_event(true);
+		/* This is the last written event, just move to the next */
+		eventIndex++;
+		if (eventIndex >= TOTAL_NUMBER_EVENTS) {
+			eventIndex = 0;
+		}
+		lczEventManagerData.eventWriteIndex = eventIndex;
+		/* Then the read index */
+		lczEventManagerData.eventReadIndex =
+			lcz_event_manager_file_handler_find_event(false);
+	}
 	/* Reset the sub index for duplicate event timestamps */
 	lczEventManagerData.eventSubIndex = 0;
 	/* And reset the timestamp */
@@ -1264,7 +1249,7 @@ bool lcz_event_manager_file_handler_add_event_private(
 	/* Now add the event */
 	/* First get a reference to it */
 	pAddedSensorEvent = lcz_event_manager_file_handler_get_event(
-		lczEventManagerData.eventIndex);
+		lczEventManagerData.eventWriteIndex);
 	/* If either are NULL, exit here */
 	if ((pAddedSensorEvent != NULL) && (pSensorEvent != NULL)) {
 		/* Then set the event data */
@@ -1278,14 +1263,27 @@ bool lcz_event_manager_file_handler_add_event_private(
 		/* Set the page where the event resides as dirty for */
 		/* saving later in the background */
 		lcz_event_manager_file_handler_set_page_dirty(
-			lczEventManagerData.eventIndex);
+			lczEventManagerData.eventWriteIndex);
 
 		/* Index the next event for writing later */
-		lczEventManagerData.eventIndex++;
+		lczEventManagerData.eventWriteIndex++;
 		/* Check for wrap around here */
-		if (lczEventManagerData.eventIndex >= TOTAL_NUMBER_EVENTS) {
+		if (lczEventManagerData.eventWriteIndex >=
+		    TOTAL_NUMBER_EVENTS) {
 			/* Go back to the start of the list */
-			lczEventManagerData.eventIndex = 0;
+			lczEventManagerData.eventWriteIndex = 0;
+		}
+		/* Check if the read index has been overwritten.
+		 * If so we need to push it forward.
+		 */
+		if (lczEventManagerData.eventWriteIndex ==
+		    lczEventManagerData.eventReadIndex) {
+			lczEventManagerData.eventReadIndex++;
+			/* And check again for wrap around */
+			if (lczEventManagerData.eventReadIndex >=
+			    TOTAL_NUMBER_EVENTS) {
+				lczEventManagerData.eventReadIndex = 0;
+			}
 		}
 		/* Update the count of events in the log */
 		lczEventManagerData.eventCount++;
@@ -1295,7 +1293,7 @@ bool lcz_event_manager_file_handler_add_event_private(
 		/* Added OK */
 		result = true;
 	}
-	return(result);
+	return (result);
 }
 
 /** @brief Finds the first event with the passed timestamp in the event log
@@ -1415,7 +1413,7 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 	uint32_t buffer_indexes
 		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
 	/* This is the number of events added to the file */
-	uint32_t events_added = 0;
+	uint32_t events_added;
 	uint8_t full_loops = 0;
 
 	/* Build the empty output file */
@@ -1428,12 +1426,10 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 
 	if (result == 0) {
 		/* Now find the oldest event */
-		event_index =
-			lcz_event_manager_file_handler_find_oldest_event();
+		event_index = lczEventManagerData.eventReadIndex;
 		/* Then continue adding to the file and deleting them */
 		/* from the live list as we go */
-		for (events_added = 0;
-		     (events_added < event_count) && (result == 0);
+		for (events_added = 0; (lczEventManagerData.eventCount) && (result == 0);
 		     events_added++) {
 			/* Get the next event */
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
@@ -1455,6 +1451,12 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 
 					/* Another event read out */
 					lczEventManagerData.eventCount--;
+					lczEventManagerData.eventReadIndex++;
+					if (lczEventManagerData.eventReadIndex >=
+					    TOTAL_NUMBER_EVENTS) {
+						lczEventManagerData
+							.eventReadIndex = 0;
+					}
 
 					if (buffer_index ==
 					    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE) {
@@ -1611,10 +1613,12 @@ int lcz_event_manager_file_handler_background_build_single(uint16_t event_count)
 			}
 			if (!result) {
 				/* Is it blank? */
-				if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
+				if (pSensorEvent->type !=
+				    SENSOR_EVENT_RESERVED) {
 					/* No, so add it to the file */
-					if (fsu_append_abs(file_name, pSensorEvent,
-							   sizeof(SensorEvent_t)) !=
+					if (fsu_append_abs(
+						    file_name, pSensorEvent,
+						    sizeof(SensorEvent_t)) !=
 					    sizeof(SensorEvent_t)) {
 						/* Failed to update the file, should
 						 * see the number of bytes written
@@ -2450,7 +2454,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 		}
 		if (result == 0) {
-			if ((lczEventManagerData.eventIndex != 1) ||
+			if ((lczEventManagerData.eventWriteIndex != 1) ||
 			    (lczEventManagerData.eventSubIndex != 0) ||
 			    (lczEventManagerData.lastEventTimestamp != 0)) {
 				result = failResult;
@@ -2509,7 +2513,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 		}
 		if (result == 0) {
-			if ((lczEventManagerData.eventIndex != 0) ||
+			if ((lczEventManagerData.eventWriteIndex != 0) ||
 			    (lczEventManagerData.eventSubIndex != 0) ||
 			    (lczEventManagerData.lastEventTimestamp != 0)) {
 				result = failResult;
@@ -2609,7 +2613,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		/* We added two events so should be indexing the 3rd but */
 		/* still expecting the next to arrive with the same timestamp */
 		if (result == 0) {
-			if ((lczEventManagerData.eventIndex != 2) ||
+			if ((lczEventManagerData.eventWriteIndex != 2) ||
 			    (lczEventManagerData.eventSubIndex != 2) ||
 			    (lczEventManagerData.lastEventTimestamp !=
 			     0xFFFF)) {
@@ -2790,8 +2794,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 			/* Check that all events are blank */
 			if (result == 0) {
-				if (lcz_event_manager_file_handler_get_event_count() !=
-				    0) {
+				lcz_event_manager_file_handler_get_event_count();
+				if (lczEventManagerData.eventCount != 0) {
 					result = failResult;
 				}
 			}
@@ -2927,8 +2931,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 			/* Check that all events are blank */
 			if (result == 0) {
-				if (lcz_event_manager_file_handler_get_event_count() !=
-				    0) {
+				lcz_event_manager_file_handler_get_event_count();
+				if (lczEventManagerData.eventCount != 0) {
 					result = failResult;
 				}
 			}
