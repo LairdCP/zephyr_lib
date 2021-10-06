@@ -88,27 +88,32 @@ typedef struct {
  */
 #define LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS 3
 
+/* The array type used to store event data */
+typedef SensorEvent_t eventBuffer_t[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES]
+				 [CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE];
+
+/* Constructor for data used for live and back up event storage */
+#define CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA(x)\
+	static bool dirtyFlags##x[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES];\
+	static eventBuffer_t eventData##x;\
+	static lczEventManagerFileData_t eventManagerFileData##x = {\
+		dirtyFlags##x, eventData##x\
+	};\
+	static lczEventManagerData_t lczEventManagerData##x;
+
 /*****************************************************************************/
 /* Local Data Definitions                                                    */
 /*****************************************************************************/
-/* Constructor for the above */
-#define CONSTRUCTOR_LCZ_EVENT_MANAGER_FILE_DATA()                              \
-	static bool dirtyFlags[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES];      \
-	static SensorEvent_t                                                   \
-		eventData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES]            \
-			 [CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE];           \
-	static lczEventManagerFileData_t eventManagerFileData = { dirtyFlags,  \
-								  eventData }
+/* The instance of event file data that acts as a shadow of the content of
+ * the event files stored to the file system. It also has flags used to
+ * indicate when the shadow data needs to be written back to the files.
+ */
+CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA();
 
-/* The instance of event file data that acts as a shadow of the content of   */
-/* the event files stored to the file system. It also has flags used to      */
-/* indicate when the shadow data needs to be written back to the files.      */
-CONSTRUCTOR_LCZ_EVENT_MANAGER_FILE_DATA();
-
-/* Instance of lczEventManagerData for event management. This is used to     */
-/* track where in the shadow RAM data where we last added an event and other */
-/* details of the event.                                                     */
-static lczEventManagerData_t lczEventManagerData;
+/* The instance of event file data that acts as a backup of the main content
+ * used during log file creation.
+ */
+CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA(Backup);
 
 /* This is the mutex used to protect the shadow event log when it's          */
 /* being updated.                                                            */
@@ -906,7 +911,7 @@ static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest)
 								eventIndex;
 							/* And the salt */
 							salt = pSensorEvent
-								->salt;
+								       ->salt;
 						} else if (pSensorEvent
 								   ->timestamp ==
 							   timestamp) {
@@ -933,7 +938,7 @@ static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest)
 								eventIndex;
 							/* And the salt */
 							salt = pSensorEvent
-								->salt;
+								       ->salt;
 						} else if (pSensorEvent
 								   ->timestamp ==
 							   timestamp) {
@@ -1429,7 +1434,8 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 		event_index = lczEventManagerData.eventReadIndex;
 		/* Then continue adding to the file and deleting them */
 		/* from the live list as we go */
-		for (events_added = 0; (lczEventManagerData.eventCount) && (result == 0);
+		for (events_added = 0;
+		     (lczEventManagerData.eventCount) && (result == 0);
 		     events_added++) {
 			/* Get the next event */
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
