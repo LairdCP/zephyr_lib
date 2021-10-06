@@ -187,7 +187,7 @@ lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item);
 
 /* Gets the indexed event from the event structure */
 static SensorEvent_t *
-lcz_event_manager_file_handler_get_event(uint16_t eventIndex);
+lcz_event_manager_file_handler_get_event(uint16_t eventIndex, eventBuffer_t eventBuffer);
 
 /* Finds the index of the first event in the event log. */
 static SensorEvent_t *
@@ -476,7 +476,7 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 		/* OK to count events now */
 		while (allEventsFound == false) {
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex);
+				eventIndex, eventData);
 			/* Check for NULL before proceeding */
 			if (pSensorEvent != NULL) {
 				if (pSensorEvent->timestamp == timestamp) {
@@ -762,7 +762,7 @@ lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item)
  *  @returns SensorEvent_t * - Pointer to the sensor event, NULL if not found.
  */
 static SensorEvent_t *
-lcz_event_manager_file_handler_get_event(uint16_t eventIndex)
+lcz_event_manager_file_handler_get_event(uint16_t eventIndex, eventBuffer_t eventBuffer)
 {
 	SensorEvent_t *sensorEvent = (SensorEvent_t *)NULL;
 	uint16_t fileIndex;
@@ -777,8 +777,7 @@ lcz_event_manager_file_handler_get_event(uint16_t eventIndex)
 			eventIndex -
 			(CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE * fileIndex);
 		/* Then get the event location */
-		sensorEvent = eventManagerFileData.pFileData[fileIndex] +
-			      fileEventIndex;
+		sensorEvent = eventBuffer[fileIndex] + fileEventIndex;
 	}
 	return (sensorEvent);
 }
@@ -796,10 +795,10 @@ static void lcz_event_manager_file_handler_get_event_count(void)
 	/* Now check subsequent events */
 	for (eventIndex = 0; eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
 		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
+			lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* NULL check the event before proceeding */
 		if (pSensorEvent != NULL) {
-			if (lcz_event_manager_file_handler_get_event(eventIndex)
+			if (lcz_event_manager_file_handler_get_event(eventIndex, eventData)
 				    ->type != SENSOR_EVENT_RESERVED) {
 				result++;
 			}
@@ -832,7 +831,7 @@ lcz_event_manager_file_handler_find_first_event(uint32_t *outEventIndex)
 	     eventIndex++) {
 		/* Get the next event */
 		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
+			lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* Validate it */
 		if (pSensorEvent != NULL) {
 			/* Any content ? */
@@ -889,7 +888,7 @@ static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest)
 		while (eventsChecked > 0) {
 			/* Get the next event */
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex);
+				eventIndex, eventData);
 			/* Valid event? */
 			if (pSensorEvent != NULL) {
 				/* Does this event have any content? */
@@ -1207,7 +1206,7 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
 	for (eventCount = 0; (eventCount < count) && (eventFound == false);
 	     eventCount++) {
 		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
+			lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* Check if the event is valid before proceeding */
 		if (pSensorEvent != NULL) {
 			/* Is this the sub-indexed event ? */
@@ -1254,7 +1253,7 @@ bool lcz_event_manager_file_handler_add_event_private(
 	/* Now add the event */
 	/* First get a reference to it */
 	pAddedSensorEvent = lcz_event_manager_file_handler_get_event(
-		lczEventManagerData.eventWriteIndex);
+		lczEventManagerData.eventWriteIndex, eventData);
 	/* If either are NULL, exit here */
 	if ((pAddedSensorEvent != NULL) && (pSensorEvent != NULL)) {
 		/* Then set the event data */
@@ -1319,7 +1318,7 @@ int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
 	for (eventIndex = 0;
 	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
 		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
+			lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* NULL check the event and break out if invalid */
 		if (pSensorEvent != NULL) {
 			if (pSensorEvent->timestamp == timestamp) {
@@ -1357,7 +1356,7 @@ int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
 	for (eventIndex = (TOTAL_NUMBER_EVENTS - 1);
 	     (eventIndex > 0) && (eventFound == false);) {
 		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(eventIndex);
+			lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 
 		/* NULL check the sensor event before proceeding */
 		if (pSensorEvent != NULL) {
@@ -1439,7 +1438,7 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 		     events_added++) {
 			/* Get the next event */
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				event_index);
+				event_index, eventData);
 			/* NULL check it - if NULL, break out here */
 			if (pSensorEvent == NULL) {
 				result = -EINVAL;
@@ -1493,7 +1492,7 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 								 */
 								memset(lcz_event_manager_file_handler_get_event(
 									       buffer_indexes
-										       [i]),
+										       [i], eventData),
 								       0x0,
 								       sizeof(SensorEvent_t));
 
@@ -1562,7 +1561,7 @@ int lcz_event_manager_file_handler_background_build_multi(uint16_t event_count)
 			while (i < buffer_index) {
 				/* Mark this event as free for use later */
 				memset(lcz_event_manager_file_handler_get_event(
-					       buffer_indexes[i]),
+					       buffer_indexes[i], eventData),
 				       0x0, sizeof(SensorEvent_t));
 
 				/* Mark this page as needing to be saved */
@@ -2389,7 +2388,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 				pSensorEvent =
 					lcz_event_manager_file_handler_get_event(
-						eventIndex);
+						eventIndex, eventData);
 				if ((pSensorEvent->data.u32 != eventIndex) ||
 				    (pSensorEvent->reserved1 != eventType) ||
 				    (pSensorEvent->reserved2 !=
@@ -2435,7 +2434,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 		     eventIndex++) {
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex);
+				eventIndex, eventData);
 
 			/* Only first event should be different */
 			if (eventIndex == 0) {
@@ -2502,7 +2501,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 		     eventIndex++) {
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex);
+				eventIndex, eventData);
 
 			/* All events should have been updated */
 			if ((pSensorEvent->data.u32 != eventIndex + 1) ||
@@ -2579,7 +2578,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 		     eventIndex++) {
 			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex);
+				eventIndex, eventData);
 
 			if (eventIndex == 0) {
 				if ((pSensorEvent->data.u32 != 0xFE) ||
@@ -2991,7 +2990,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				0, 0, 1);
 
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0)) {
+		    lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3007,7 +3006,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				TOTAL_NUMBER_EVENTS - 1, 0, 1);
 
 		if (pSensorEvent != lcz_event_manager_file_handler_get_event(
-					    TOTAL_NUMBER_EVENTS - 1)) {
+					    TOTAL_NUMBER_EVENTS - 1, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3024,7 +3023,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				TOTAL_NUMBER_EVENTS - 1, 0, 2);
 
 		if (pSensorEvent != lcz_event_manager_file_handler_get_event(
-					    TOTAL_NUMBER_EVENTS - 1)) {
+					    TOTAL_NUMBER_EVENTS - 1, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3035,14 +3034,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		lcz_event_manager_file_handler_get_event(0)->salt = 1;
+		lcz_event_manager_file_handler_get_event(0, eventData)->salt = 1;
 
 		pSensorEvent =
 			lcz_event_manager_file_handler_get_subindexed_event(
 				TOTAL_NUMBER_EVENTS - 1, 1, 2);
 
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0)) {
+		    lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3055,7 +3054,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent = lcz_event_manager_file_handler_get_event(0);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(0, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x1;
 
@@ -3064,7 +3063,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				0xFFA, 0, &eventCount);
 
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0)) {
+		    lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 
@@ -3083,11 +3082,11 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		       TOTAL_FILE_SIZE_BYTES);
 
 		/* This is the event at index 0 */
-		pSensorEvent = lcz_event_manager_file_handler_get_event(0);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(0, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x1;
 		/* This is the event at index 1 */
-		pSensorEvent = lcz_event_manager_file_handler_get_event(1);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(1, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x2;
 		pSensorEvent->salt = 0x1;
@@ -3098,7 +3097,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		/* First event OK? */
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0)) {
+		    lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 		/* Count correct? */
@@ -3113,7 +3112,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 					0xFFA, 1, &eventCount);
 			if (pSensorEvent !=
-			    lcz_event_manager_file_handler_get_event(1)) {
+			    lcz_event_manager_file_handler_get_event(1, eventData)) {
 				result = failResult;
 			}
 		}
@@ -3126,10 +3125,10 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		       TOTAL_FILE_SIZE_BYTES);
 
 		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			TOTAL_NUMBER_EVENTS - 1);
+			TOTAL_NUMBER_EVENTS - 1, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x1;
-		pSensorEvent = lcz_event_manager_file_handler_get_event(0);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(0, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x2;
 		pSensorEvent->salt = 0x1;
@@ -3140,7 +3139,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		/* First event OK? */
 		if (pSensorEvent != lcz_event_manager_file_handler_get_event(
-					    TOTAL_NUMBER_EVENTS - 1)) {
+					    TOTAL_NUMBER_EVENTS - 1, eventData)) {
 			result = failResult;
 		}
 		/* Count correct? */
@@ -3155,7 +3154,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 					0xFFA, 1, &eventCount);
 			if (pSensorEvent !=
-			    lcz_event_manager_file_handler_get_event(0)) {
+			    lcz_event_manager_file_handler_get_event(0, eventData)) {
 				result = failResult;
 			}
 		}
