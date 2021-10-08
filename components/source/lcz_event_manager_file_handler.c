@@ -50,6 +50,16 @@ typedef struct __lczEventManagerData_t {
 	uint32_t eventCount;
 	/* Indicates whether events should be stored in flash */
 	bool saving_enabled;
+	/* The absolute index to write to the next event. This indicates the
+	 * the point at which the event was added to to the event buffer and
+	 * is used to avoid using timestamps to index events. Should the RTC
+	 * be cleared or set before the time used in previous events, a
+	 * discontinuity is introduced into the event log making it impossible
+	 * to correctly index events without performing some kind of recovery
+	 * operation to remove events that that have occurred after the new
+	 * RTC value.
+	 */
+	uint16_t absoluteIndex;
 } lczEventManagerData_t;
 
 /* This is the size of each file used to store private event data */
@@ -190,13 +200,12 @@ lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
 
 /* Finds the index of the first event in the event log. */
 static SensorEvent_t *
-lcz_event_manager_file_handler_find_first_event(uint32_t *outEventIndex);
-
-/* Finds the newest or oldest record in the event log structure */
-static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest);
+lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
+						eventBuffer_t eventBuffer);
 
 /* Finds the count of events in the event log */
-static void lcz_event_manager_file_handler_get_event_count(void);
+static uint16_t
+lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer);
 
 /* Flags a page as needing to be saved in the background */
 static void lcz_event_manager_file_handler_set_page_dirty(uint16_t eventIndex);
@@ -251,6 +260,22 @@ void lcz_event_manager_file_handler_background_build_dummy_event(
 	SensorEvent_t *sensor_event, uint32_t time_stamp,
 	DummyLogFileProperties_t *dummy_log_file_properties,
 	uint32_t event_data);
+
+uint16_t
+lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
+					      bool findHighest);
+
+SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(
+	eventBuffer_t eventBuffer, uint16_t absIndex,
+	uint16_t *eventBufferIndex);
+
+/* Resolves read index when a wrap around has occurred */
+int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh,
+						       uint16_t startIndex);
+
+/* Resolves write index when a wrap around has occurred */
+int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow,
+						       uint16_t startIndex);
 
 /* Module test code for the following */
 /* Uncomment the following to enable module test */
@@ -780,23 +805,25 @@ lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
 
 /** @brief Gets the count of events in the event log.
  *
+ *  @param [in]eventBuffer - Event data to search through.
+ *  @return The count of events in the buffer.
  */
-static void lcz_event_manager_file_handler_get_event_count(void)
+static uint16_t
+lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer)
 {
 	/* Assume the log is empty */
-	int32_t result = 0;
+	uint16_t result = 0;
 	uint32_t eventIndex;
 	SensorEvent_t *pSensorEvent;
 
 	/* Now check subsequent events */
 	for (eventIndex = 0; eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
 		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			eventIndex, eventData);
+			eventIndex, eventBuffer);
 		/* NULL check the event before proceeding */
 		if (pSensorEvent != NULL) {
-			if (lcz_event_manager_file_handler_get_event(eventIndex,
-								     eventData)
-				    ->type != SENSOR_EVENT_RESERVED) {
+			/* Any type other than RESERVED indicates an event */
+			if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
 				result++;
 			}
 		} else {
@@ -805,17 +832,18 @@ static void lcz_event_manager_file_handler_get_event_count(void)
 			eventIndex = TOTAL_NUMBER_EVENTS;
 		}
 	}
-	/* Store the event count for later */
-	lczEventManagerData.eventCount = result;
+	return (result);
 }
 
 /** @brief Finds the index of the first event in the event log.
  *
  *  @param [out]outEventIndex - Index where the event resides.
+ *  @param [in]eventBuffer - Buffer to search through.
  *  @returns Pointer to the first event, NULL if none found.
  */
 static SensorEvent_t *
-lcz_event_manager_file_handler_find_first_event(uint32_t *outEventIndex)
+lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
+						eventBuffer_t eventBuffer)
 {
 	uint32_t eventIndex = 0;
 	bool eventFound = false;
@@ -841,121 +869,6 @@ lcz_event_manager_file_handler_find_first_event(uint32_t *outEventIndex)
 		}
 	}
 	return (pSensorEvent);
-}
-
-/** @brief Finds the index of either the newest or oldest event in the event
- *         log.
- *
- *         NOTE - Assumes the event count has been determined with a call
- *                to get event count.
- *
- *         NOTE - Assumes events are added contiguously.
- *
- *  @returns The index of either the newest or oldest log.
- */
-static uint32_t lcz_event_manager_file_handler_find_event(bool findNewest)
-{
-	uint32_t eventIndex = 0;
-	SensorEvent_t *pSensorEvent;
-	uint32_t timestamp = 0;
-	uint32_t eventsChecked = lczEventManagerData.eventCount;
-	uint32_t foundEventIndex = 0;
-	uint16_t salt = 0;
-
-	pSensorEvent =
-		lcz_event_manager_file_handler_find_first_event(&eventIndex);
-	/* Validate it */
-	if (pSensorEvent != NULL) {
-		/* Assume this is our found event */
-		foundEventIndex = eventIndex;
-		/* Take the timestamp from this event and check
-		 * successive events. When we find a later
-		 * timestamp this indicates a newer event.
-		 */
-		timestamp = pSensorEvent->timestamp;
-		/* Store the salt for later */
-		salt = pSensorEvent->salt;
-		/* Another event checked */
-		eventsChecked--;
-		/* Index the next event */
-		eventIndex++;
-	}
-	/* Do we have a valid event? */
-	if (pSensorEvent != NULL) {
-		while (eventsChecked > 0) {
-			/* Get the next event */
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex, eventData);
-			/* Valid event? */
-			if (pSensorEvent != NULL) {
-				/* Does this event have any content? */
-				if (pSensorEvent->type !=
-				    SENSOR_EVENT_RESERVED) {
-					/* Yes, so we have another valid event */
-					eventsChecked--;
-					/* Check if we're looking for the newest */
-					if (findNewest) {
-						/* Is this a newer timestamp? */
-						if (pSensorEvent->timestamp >
-						    timestamp) {
-							/* Yes, so we store this index for later */
-							timestamp =
-								pSensorEvent
-									->timestamp;
-							/* And update the found event index */
-							foundEventIndex =
-								eventIndex;
-							/* And the salt */
-							salt = pSensorEvent
-								       ->salt;
-						} else if (pSensorEvent
-								   ->timestamp ==
-							   timestamp) {
-							/* If the timestamps are equal, check the salts */
-							if (pSensorEvent->salt >
-							    salt) {
-								/* This event is newer */
-								foundEventIndex =
-									eventIndex;
-								salt = pSensorEvent
-									       ->salt;
-							}
-						}
-					} else {
-						/* Is this an older timestamp? */
-						if (pSensorEvent->timestamp <
-						    timestamp) {
-							/* Yes, so we store this index for later */
-							timestamp =
-								pSensorEvent
-									->timestamp;
-							/* And update the found event index */
-							foundEventIndex =
-								eventIndex;
-							/* And the salt */
-							salt = pSensorEvent
-								       ->salt;
-						} else if (pSensorEvent
-								   ->timestamp ==
-							   timestamp) {
-							/* Check if the salt is earlier */
-							if (pSensorEvent->salt <
-							    salt) {
-								/* This is an older event */
-								foundEventIndex =
-									eventIndex;
-								salt = pSensorEvent
-									       ->salt;
-							}
-						}
-					}
-				}
-			}
-			/* Check the next */
-			eventIndex++;
-		}
-	}
-	return (foundEventIndex);
 }
 
 /** @brief Sets a page of event logger shadow memory as dirty when a new event
@@ -1047,32 +960,99 @@ static void lcz_event_manager_file_handler_save_files(void)
  */
 static void lcz_event_manager_file_handler_get_indices(void)
 {
-	uint32_t eventIndex;
 	uint8_t firstPage;
 	uint8_t lastPage;
 	uint8_t pageIndex;
+	uint16_t absIndexLow;
+	uint16_t absIndexHigh;
+	SensorEvent_t *absLowSensorEvent;
+	SensorEvent_t *absHighSensorEvent;
+	SensorEvent_t *lastWrittenSensorEvent = NULL;
+	uint16_t absLowBufferIndex;
+	uint16_t absHighBufferIndex;
 
 	/*
 	 * Get the count of events in the log. The count gets used later
 	 * during calls to find event.
 	 */
-	lcz_event_manager_file_handler_get_event_count();
+	lczEventManagerData.eventCount =
+		lcz_event_manager_file_handler_get_event_count(eventData);
 	/* If there are no events, we can start at the beginning of the log */
 	if (!lczEventManagerData.eventCount) {
 		lczEventManagerData.eventWriteIndex = 0;
 		lczEventManagerData.eventReadIndex = 0;
+		lczEventManagerData.absoluteIndex = 0;
+		lczEventManagerData.eventSubIndex = 0;
+		lczEventManagerData.lastEventTimestamp = 0;
 	} else {
-		/* First set up the write index */
-		eventIndex = lcz_event_manager_file_handler_find_event(true);
-		/* This is the last written event, just move to the next */
-		eventIndex++;
-		if (eventIndex >= TOTAL_NUMBER_EVENTS) {
-			eventIndex = 0;
+		/* Read back the highest and lowest absolute indexes. We
+		 * use these to determine what our read and write indexes
+		 * should be.
+		 */
+		absIndexLow = lcz_event_manager_file_handler_find_abs_index(
+			eventData, false);
+		absIndexHigh = lcz_event_manager_file_handler_find_abs_index(
+			eventData, true);
+
+		/* Also determine where the abs low and high reside */
+		absLowSensorEvent =
+			lcz_event_manager_file_handler_find_event_at_abs_index(
+				eventData, absIndexLow, &absLowBufferIndex);
+		absHighSensorEvent =
+			lcz_event_manager_file_handler_find_event_at_abs_index(
+				eventData, absIndexHigh, &absHighBufferIndex);
+
+		/* Is the buffer full and is the highest abs index before
+		 * the lowest abs index in the buffer?
+		 */
+		if ((lczEventManagerData.eventCount == TOTAL_NUMBER_EVENTS) &&
+			(absHighBufferIndex < absLowBufferIndex)) {
+				/* If so, we need to work out where
+				 * our read and write indices are.
+				 */
+				lczEventManagerData.eventReadIndex =
+					lcz_event_manager_file_handler_find_read_index(
+						absIndexHigh, absHighBufferIndex);
+				lczEventManagerData.eventWriteIndex =
+					lcz_event_manager_file_handler_find_write_index(
+						absIndexLow, absLowBufferIndex);
+		} else {
+			/* If not, we can set the
+			 * read and write indexes directly.
+			 */
+			lczEventManagerData.eventReadIndex = absLowBufferIndex;
+			lczEventManagerData.eventWriteIndex = absHighBufferIndex;
 		}
-		lczEventManagerData.eventWriteIndex = eventIndex;
-		/* Then the read index */
-		lczEventManagerData.eventReadIndex =
-			lcz_event_manager_file_handler_find_event(false);
+
+		/* The next absolute index to use
+		 * lives in the write event.
+		 */
+		lastWrittenSensorEvent = lcz_event_manager_file_handler_get_event(
+			lczEventManagerData.eventWriteIndex, eventData);
+		lczEventManagerData.absoluteIndex = lastWrittenSensorEvent->index;
+
+
+		/* Now update up the write index */
+		lczEventManagerData.eventWriteIndex++;
+		if (lczEventManagerData.eventWriteIndex >=
+		    TOTAL_NUMBER_EVENTS) {
+			lczEventManagerData.eventWriteIndex = 0;
+		}
+		/* Check if the read and write indexes now match */
+		if (lczEventManagerData.eventWriteIndex ==
+			lczEventManagerData.eventReadIndex) {
+			/* If so, also bump the read index along */
+			lczEventManagerData.eventReadIndex++;
+			/* And check for wrap around */
+			if (lczEventManagerData.eventReadIndex >=
+				TOTAL_NUMBER_EVENTS) {
+				lczEventManagerData.eventReadIndex = 0;
+			}
+		}
+
+		/* And the absolute index */
+		lczEventManagerData.absoluteIndex++;
+
 		/* Now work out the initial backup dirty flags.
 		 * These are pages that need to be blanked once the
 		 * content has been transferred during a log file build.
@@ -1111,10 +1091,16 @@ static void lcz_event_manager_file_handler_get_indices(void)
 			}
 		}
 	}
-	/* Reset the sub index for duplicate event timestamps */
-	lczEventManagerData.eventSubIndex = 0;
-	/* And reset the timestamp */
-	lczEventManagerData.lastEventTimestamp = 0;
+	/* On the very outside chance we're rebooting with the same timestamp
+	 * as the last event written, set up the last timestamp and sub-index
+	 * accordingly.
+	 */
+	if (lastWrittenSensorEvent != NULL) {
+		lczEventManagerData.eventSubIndex =
+			++lastWrittenSensorEvent->salt;
+		lczEventManagerData.lastEventTimestamp =
+			lastWrittenSensorEvent->timestamp;
+	}
 }
 
 /** @brief Checks if all Event Manager files are present and of the right size.
@@ -1302,12 +1288,14 @@ bool lcz_event_manager_file_handler_add_event_private(
 		pAddedSensorEvent->type = pSensorEvent->type;
 		*&pAddedSensorEvent->data = pSensorEvent->data;
 		pAddedSensorEvent->timestamp = pSensorEvent->timestamp;
+		pAddedSensorEvent->index = lczEventManagerData.absoluteIndex++;
 
-		/* And assume the next event will be at the same time */
+		/* And assume the next event will be at the same timestamp */
 		pAddedSensorEvent->salt = lczEventManagerData.eventSubIndex++;
 
-		/* Set the page where the event resides as dirty for */
-		/* saving later in the background */
+		/* Set the page where the event resides as dirty for
+		 * saving later in the background
+		 */
 		lcz_event_manager_file_handler_set_page_dirty(
 			lczEventManagerData.eventWriteIndex);
 
@@ -1769,6 +1757,190 @@ void lcz_event_manager_file_handler_background_build_dummy_event(
 	default:
 		sensor_event->data.u16 = ((uint16_t)(event_data));
 	}
+}
+
+/** @brief Finds either the highest or lowest absolute index for a set of
+ *         events.
+ *
+ *  @param [in]eventBuffer - The event buffer to search through.
+ *  @param [in]findHighest - True to find the highest absolute index.
+ *  @returns The requested absolute index value.
+ */
+uint16_t
+lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
+					      bool findHighest)
+{
+	uint16_t absIndex = 0;
+	uint16_t index;
+	SensorEvent_t *sensorEvent;
+	uint16_t eventCount;
+
+	/* Get the starting point in the event buffer */
+	sensorEvent = lcz_event_manager_file_handler_find_first_event(
+		&index, eventBuffer);
+
+	if (sensorEvent != NULL) {
+		absIndex = sensorEvent->index;
+	}
+	/* And the count of events in the buffer to limit the search */
+	eventCount =
+		lcz_event_manager_file_handler_get_event_count(eventBuffer);
+	/* Store the first found absolute index for use later */
+	if ((sensorEvent != NULL) && (eventCount)) {
+		absIndex = sensorEvent->index;
+		eventCount--;
+		/* Find the requested absolute index */
+		while (eventCount--) {
+			/* Point at the next event in the buffer */
+			index++;
+			/* Get the next event */
+			sensorEvent = lcz_event_manager_file_handler_get_event(
+				index, eventBuffer);
+			/* And check its absolute index */
+			if (findHighest) {
+				if (sensorEvent->index > absIndex) {
+					absIndex = sensorEvent->index;
+				}
+			} else {
+				if (sensorEvent->index < absIndex) {
+					absIndex = sensorEvent->index;
+				}
+			}
+		}
+	}
+	return (absIndex);
+}
+
+/** @brief Finds an event at the given absolute index.
+ *
+ *  @param [in]eventBuffer - The event buffer to search through.
+ *  @param [in]absIndex - The absolute index to find the event for.
+ *  @param [out]eventBufferIndex - The buffer index where the event resides.
+ *  @returns The event data.
+ */
+SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(
+	eventBuffer_t eventBuffer, uint16_t absIndex,
+	uint16_t *eventBufferIndex)
+{
+	uint16_t index;
+	SensorEvent_t *sensorEvent;
+	uint16_t eventCount;
+	bool eventFound = false;
+
+	/* Get the starting point in the event buffer */
+	sensorEvent = lcz_event_manager_file_handler_find_first_event(
+		&index, eventBuffer);
+	/* And the count of events in the buffer to limit the search */
+	eventCount =
+		lcz_event_manager_file_handler_get_event_count(eventBuffer);
+	/* Find the requested absolute index */
+	while ((eventCount) && (!eventFound)) {
+		/* Get the next event */
+		sensorEvent = lcz_event_manager_file_handler_get_event(
+			index, eventBuffer);
+		/* And check its absolute index */
+		if (sensorEvent->index == absIndex) {
+			eventFound = true;
+			*eventBufferIndex = index;
+		} else {
+			eventCount--;
+			index++;
+		}
+	}
+	return (sensorEvent);
+}
+
+/** @brief When an event buffer is full, used to determine the buffer
+ *         index where the next event to read resides. Required because
+ *         if a wrap around of absolute index occurs, the highest value
+ *         after the wrap around is actually the write index and the
+ *         lowest value before the wrap around is the read index. But these
+ *         may not be the highest and lowest absolute index values so this
+ *         additional handling is needed.
+ *
+ *  @param [in]startAbsHigh - The initial absolute index value to use.
+ *  @param [in]startIndex - The index in the buffer where the event resides.
+ *  @returns The index of the read event.
+ */
+int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh,
+						       uint16_t startIndex)
+{
+	bool eventFound = false;
+	uint16_t eventsChecked;
+	uint16_t absHighBufferIndexTemp = startIndex;
+	uint16_t absHighTemp = startAbsHigh;
+	int32_t result = -1;
+	SensorEvent_t *sensorEvent;
+
+	eventsChecked = lczEventManagerData.eventCount;
+
+	while ((eventsChecked) && (!eventFound)) {
+		absHighBufferIndexTemp--;
+		absHighTemp--;
+		/* Check for wraparound of the index */
+		if (absHighBufferIndexTemp >= TOTAL_NUMBER_EVENTS) {
+			absHighBufferIndexTemp = TOTAL_NUMBER_EVENTS - 1;
+		}
+		sensorEvent = lcz_event_manager_file_handler_get_event(
+			absHighBufferIndexTemp, eventData);
+		if (sensorEvent->index != absHighTemp) {
+			/* Without a match, it's the event after this one */
+			absHighBufferIndexTemp++;
+			if (absHighBufferIndexTemp >= TOTAL_NUMBER_EVENTS) {
+				absHighBufferIndexTemp = 0;
+			}
+			eventFound = true;
+		}
+		eventsChecked--;
+	}
+	if (eventFound) {
+		result = absHighBufferIndexTemp;
+	}
+	return (result);
+}
+
+/** @brief Similar handling as per above for finding the write index in a
+ *         full event buffer.
+ *
+ *  @param [in]startAbsLow - The initial absolute index value to use.
+ *  @param [in]startIndex - The index in the buffer where the event resides.
+ *  @returns The index of the read event.
+ */
+int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow,
+						       uint16_t startIndex)
+{
+	bool eventFound = false;
+	uint16_t eventsChecked;
+	uint16_t absLowBufferIndexTemp = startIndex;
+	uint16_t absLowTemp = startAbsLow;
+	int32_t result = -1;
+	SensorEvent_t *sensorEvent;
+
+	eventsChecked = lczEventManagerData.eventCount;
+
+	while ((eventsChecked) && (!eventFound)) {
+		absLowBufferIndexTemp++;
+		absLowTemp++;
+		/* Check for wraparound of the index */
+		if (absLowBufferIndexTemp >= TOTAL_NUMBER_EVENTS) {
+			absLowBufferIndexTemp = 0;
+		}
+		sensorEvent = lcz_event_manager_file_handler_get_event(
+			absLowBufferIndexTemp, eventData);
+		if (sensorEvent->index != absLowTemp) {
+			/* Without a match, it's the event preceeding this one */
+			absLowBufferIndexTemp--;
+			if (absLowBufferIndexTemp >= TOTAL_NUMBER_EVENTS) {
+				absLowBufferIndexTemp = (TOTAL_NUMBER_EVENTS - 1);
+			}
+			eventFound = true;
+		}
+		eventsChecked--;
+	}
+	if (eventFound) {
+		result = absLowBufferIndexTemp;
+	}
+	return (result);
 }
 
 #ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_UNIT_TEST
