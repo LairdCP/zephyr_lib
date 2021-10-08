@@ -137,8 +137,7 @@ typedef struct __attribute__((packed)) SensorEvent {
 	SensorEventData_t data;
 	SensorEventType_t type;
 	uint8_t salt;
-	uint8_t reserved1;
-	uint8_t reserved2;
+	uint16_t index;
 } SensorEvent_t;
 BUILD_ASSERT(sizeof(SensorEvent_t) == 12, "Sensor event NOT packed");
 
