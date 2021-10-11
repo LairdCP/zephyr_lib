@@ -141,8 +141,7 @@ int fsu_crc32(uint32_t *checksum, const char *path, const char *name,
  *
  * @retval 0 on success, otherwise negative system error code.
  */
-int fsu_crc32_abs(uint32_t *checksum, const char *abs_path,
-		  size_t size);
+int fsu_crc32_abs(uint32_t *checksum, const char *abs_path, size_t size);
 
 /**
  * @brief Build name with path "%s/%s" using snprintk.
@@ -267,7 +266,7 @@ int fsu_delete_files(const char *path, const char *name);
 int fsu_mkdir(const char *path, const char *name);
 
 /**
- * @brief Opens file, writes data, and closes file.
+ * @brief Opens file, reads data, and closes file.
  *
  * @param path directory path
  * @param name file name
@@ -279,7 +278,7 @@ int fsu_mkdir(const char *path, const char *name);
 ssize_t fsu_read(const char *path, const char *name, void *data, size_t size);
 
 /**
- * @brief Opens file, writes data, and closes file.
+ * @brief Opens file, reads data, and closes file.
  *
  * @param abs_path directory path and name
  * @param data pointer to data
