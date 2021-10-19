@@ -1,0 +1,52 @@
+mcuboot:
+  address: 0x0
+  placement:
+    before:
+      - mcuboot_primary
+  region: flash_primary
+  size: 0x18000
+mcuboot_pad:
+  address: 0x18000
+  placement:
+    before:
+      - mcuboot_primary_app
+  region: flash_primary
+  size: 0x200
+mcuboot_primary:
+  address: 0x18000
+  orig_span: &id001
+    - mcuboot_pad
+    - app
+  region: flash_primary
+  size: 0xE0000
+  span: *id001
+mcuboot_primary_app:
+  address: 0x18200
+  orig_span: &id002
+    - app
+  region: flash_primary
+  size: 0xDFE00
+  span: *id002
+nvs_storage:
+  address: 0xf8000
+  placement:
+    before:
+      - end
+  region: flash_primary
+  size: 0x8000
+external_flash:
+  address: 0x0
+  region: external_flash
+  size: 0x800000
+mcuboot_secondary:
+  address: 0x0
+  region: external_flash
+  size: 0xE0000
+scratch:
+  address: 0xE0000
+  region: external_flash
+  size: 0x20000
+lfs_storage:
+  address: 0x100000
+  region: external_flash
+  size: 0x700000
