@@ -101,6 +101,13 @@ config LCZ_FS_MGMT_APPLICATION_ACCESS_CHECK
 	  user application can implement an allow or deny list based upon any
 	  parameters that are needed.
 
+config LCZ_FS_MGMT_INTERCEPT
+	bool "Application-layer file upload intercept"
+	default n
+	help
+	  Passes control of file upload to the application so it can decide how
+	  to proceed in processing the request.
+
 endif # LCZ_MCUMGR_CMD_FS_MGMT
 
 endif # MCUMGR

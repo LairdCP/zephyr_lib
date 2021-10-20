@@ -41,10 +41,28 @@ typedef enum access_type {
 	ACCESS_TYPE_COUNT
 } access_type_t;
 
+#if defined(CONFIG_LCZ_FS_MGMT_INTERCEPT)
+/* This file must exist in the application and contain the desired filesystem
+ * management structure
+ */
+#include "lcz_fs_mgmt_intercept.h"
+#else
+typedef struct fs_mgmt_ctxt {
+    /** Whether an upload is currently in progress. */
+    bool uploading;
+
+    /** Expected offset of next upload request. */
+    size_t off;
+
+    /** Total length of file currently being uploaded. */
+    size_t len;
+} fs_mgmt_ctxt_t;
+#endif
+
 #if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_ACCESS_CHECK)
 /**
  * @brief Callback to be implemented in an application when file read/write
- * access is requested (must be implmented in the user application)
+ * access is requested (must be implemented in the user application)
  *
  * @param access_type           Type of file access (access_type_t)
  * @param path                  The path of the file which is being accessed.
@@ -53,6 +71,29 @@ typedef enum access_type {
  */
 extern int fs_mgmt_impl_app_access_check(uint8_t access_type, const char *path);
 #endif
+
+#if defined(CONFIG_LCZ_FS_MGMT_INTERCEPT)
+/**
+ * @brief Callback to be implemented in an application when file write
+ * occurs which can then decide what action to take (must be implemented in the
+ * user application)
+ *
+ * @param file_name             Name of file being written
+ * @param fs_mgmt_ctxt          Filesystem management context
+ * @param len                   Length of file write
+ * @param off                   Offset of file write
+ * @param file_data             Data being written
+ * @param data_len              Size of data
+ *
+ * @return                      0 on success, MGMT_ERR_[...] code on failure.
+ */
+extern int fs_mgmt_impl_app_intercept(char *file_name,
+				      fs_mgmt_ctxt_t *fs_mgmt_ctxt,
+				      unsigned long long len,
+				      unsigned long long off,
+				      uint8_t *file_data, size_t data_len);
+#endif
+
 
 /**
  * @brief Retrieves the length of the file at the specified path.

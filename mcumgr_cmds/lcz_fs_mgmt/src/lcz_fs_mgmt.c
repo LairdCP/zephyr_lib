@@ -27,17 +27,7 @@
 
 static mgmt_handler_fn fs_mgmt_file_download;
 static mgmt_handler_fn fs_mgmt_file_upload;
-
-static struct {
-    /** Whether an upload is currently in progress. */
-    bool uploading;
-
-    /** Expected offset of next upload request. */
-    size_t off;
-
-    /** Total length of file currently being uploaded. */
-    size_t len;
-} fs_mgmt_ctxt;
+static struct fs_mgmt_ctxt fs_mgmt_ctxt;
 
 static const struct mgmt_handler fs_mgmt_handlers[] = {
     [FS_MGMT_ID_FILE] = {
@@ -246,8 +236,15 @@ fs_mgmt_file_upload(struct mgmt_ctxt *ctxt)
     }
 
     if (data_len > 0) {
+#if defined(CONFIG_LCZ_FS_MGMT_INTERCEPT)
+        /* Pass to application to decide action */
+        rc = fs_mgmt_impl_app_intercept(file_name, &fs_mgmt_ctxt, len, off,
+                                        file_data, data_len);
+#else
         /* Write the data chunk to the file. */
         rc = fs_mgmt_impl_write(file_name, off, file_data, data_len);
+#endif
+
         if (rc != 0) {
             return rc;
         }
