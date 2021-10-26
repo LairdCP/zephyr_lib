@@ -1,0 +1,33 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_RPMSG
+	bool "RPMSG send/receive component"
+	select RPMSG_SERVICE
+	depends on HAS_HW_NRF_IPC
+	default y
+	help
+	  Enable RPMSG (remote procedure message) for cross-core message
+	  sending/receiving.
+
+if LCZ_RPMSG
+
+config LCZ_RPMSG_MAX_USERS
+        int "Maximum number of users of the RPMSG component"
+        range 1 32
+        default 2
+
+config LCZ_RPMSG_LOG_LEVEL
+        int "Log level for RPMSG component"
+        range 0 4
+        default 3
+
+config LCZ_RPMSG_MAX_MESSAGE_SIZE
+        int "Maximum size of messages that can be sent over RPMSG"
+        range 1 256
+        default 32
+
+endif # LCZ_RPMSG

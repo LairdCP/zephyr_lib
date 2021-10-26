@@ -118,5 +118,6 @@ rsource "Kconfig.lcz_no_init_ram_var"
 rsource "Kconfig.lcz_event_manager"
 rsource "Kconfig.lcz_bracket"
 rsource "Kconfig.lcz_approtect"
+rsource "Kconfig.lcz_rpmsg"
 
 endmenu
