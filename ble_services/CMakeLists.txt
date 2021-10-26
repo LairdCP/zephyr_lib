@@ -11,6 +11,7 @@ zephyr_include_directories(../components/include)
 zephyr_include_directories(../utilities/include)
 zephyr_include_directories(include)
 
+if(CONFIG_LCZ_BT)
 zephyr_sources_ifdef(CONFIG_BT source/vsp_definitions.c)
 
 zephyr_sources_ifdef(CONFIG_UNIVERSAL_BOOTLOADER_SERVICE source/universal_bootloader_service.c)
@@ -19,3 +20,4 @@ zephyr_sources_ifdef(CONFIG_BLE_POWER_SERVICE source/ble_power_service.c)
 zephyr_sources_ifdef(CONFIG_BLE_ESS_SERVICE source/ble_ess_service.c)
 zephyr_sources_ifdef(CONFIG_LCZ_BLE_DIS source/dis.c)
 zephyr_sources_ifdef(CONFIG_FOTA_SERVICE source/fota.c)
+endif()
