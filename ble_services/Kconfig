@@ -52,8 +52,8 @@ config FOTA_SERVICE
 	bool "Enable Firmware Update Over-the-Air Service"
 	depends on FILE_SYSTEM_UTILITIES
 	help
-		This service can be used in conjunction with mcumgr file transfer to update
-		the HL7800 modem.
+		This service can be used in conjunction with mcumgr
+		file transfer to update the HL7800 modem.
 
 if FOTA_SERVICE
 
@@ -70,6 +70,9 @@ config FOTA_FS_MOUNT
 	default "/lfs"
 
 endif
+
+config BLE_VSP_DEFINITIONS
+	bool "Enable vSP Service definition constants"
 
 endmenu
 
