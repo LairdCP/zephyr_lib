@@ -1,0 +1,32 @@
+# BL5340PA configuration options
+
+# Copyright (c) 2021, Laird Connectivity
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig LCZ_BL5340PA
+	bool "BL5340PA"
+	select GPIO
+	select LCZ_RPMSG
+	depends on BOARD_BL5340PA_DVK_CPUNET
+	default y
+	help
+	  Enable module detection for internal or external antenna module
+	  variant. This information can be retrieved over RPMSG.
+
+if LCZ_BL5340PA
+
+config LCZ_BL5340PA_LOG_LEVEL
+        int "Log level for BL5340PA component"
+        range 0 4
+        default 3
+
+config LCZ_BL5340PA_ANTENNA_SELECTION
+	bool "Allow antenna selection at runtime"
+	help
+	  Allows changing the antenna selection at runtime to use the internal
+	  or external antenna. Note that this is only functional on external
+	  module variants as they have 2 antenna ports, internal module
+	  variants do not have an external antenna port and so cannot use this
+	  functionality. This can be set over RPMSG.
+
+endif # LCZ_BL5340PA

@@ -14,5 +14,6 @@ if LCZ_DRIVER
 	rsource "accelerometer/Kconfig"
 	rsource "mg100_lis2dh/Kconfig"
 	rsource "lcz_nrf_qspi_nor/Kconfig"
+	rsource "bl5340pa/Kconfig"
 
 endif # LCZ_DRIVER
