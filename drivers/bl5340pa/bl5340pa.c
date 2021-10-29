@@ -28,7 +28,11 @@ LOG_MODULE_REGISTER(bl5340pa, CONFIG_LCZ_BL5340PA_LOG_LEVEL);
 						      ant_sel_gpios)
 #define ANT_SEL_PIN DT_GPIO_PIN(DT_NODELABEL(nrf_radio_fem), ant_sel_gpios)
 
+#if defined(CONFIG_LIMIT_RADIO_POWER)
+#define BL5340PA_RPMSG_RESPONSE_BUFFER_SIZE 16
+#else
 #define BL5340PA_RPMSG_RESPONSE_BUFFER_SIZE 2
+#endif
 
 #define RPMSG_LENGTH_BL5340PA_MIN 1
 
@@ -39,10 +43,21 @@ static uint8_t module_variant = BL5340PA_VARIANT_INTERNAL_ANTENNA;
 static uint8_t antenna_io;
 static const struct device *ant_sel_gpio = NULL;
 static bool setup_finished = false;
+#if defined(CONFIG_LIMIT_RADIO_POWER)
+static uint8_t radio_status_complete = false;
+static uint8_t radio_status_type;
+static uint8_t radio_status_option;
+static int32_t radio_status_error;
+#endif
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
+#if defined(CONFIG_LIMIT_RADIO_POWER)
+static void get_status(uint8_t *buffer, size_t len, uint8_t *response,
+		       uint8_t *response_length);
+#endif
+
 static void get_module_variant(uint8_t *buffer, size_t len, uint8_t *response,
 			       uint8_t *response_length);
 
@@ -60,6 +75,52 @@ static bool rpmsg_handler(uint8_t component, void *data, size_t len,
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
+#if defined(CONFIG_LIMIT_RADIO_POWER)
+static void get_status(uint8_t *buffer, size_t len, uint8_t *response,
+		       uint8_t *response_length)
+{
+	if (len != RPMSG_LENGTH_BL5340PA_GET_STATUS) {
+		response[RPMSG_BL5340PA_OFFSET_OPCODE] =
+			RPMSG_OPCODE_BL5340PA_INVALID_LENGTH;
+		return;
+	}
+
+	memset(response, 0, BL5340PA_RPMSG_RESPONSE_BUFFER_SIZE);
+	response[RPMSG_BL5340PA_OFFSET_OPCODE] =
+		RPMSG_OPCODE_BL5340PA_GET_STATUS;
+	*response_length = RPMSG_LENGTH_BL5340PA_GET_STATUS_RESPONSE;
+
+	if (radio_status_complete == true) {
+		/* Radio status is known, return the data */
+		uint8_t pos = RPMSG_BL5340PA_OFFSET_DATA;
+		if (radio_status_error == 0) {
+			/* Radio is good to use */
+			response[pos] = BL5340PA_RADIO_STATUS_ENABLED;
+		} else {
+			/* Radio is disabled due to issue with setting
+			 * regulatory limit
+			 */
+			response[pos] = BL5340PA_RADIO_STATUS_DISABLED;
+		}
+
+		pos += sizeof(radio_status_complete);
+		memcpy(&response[pos], &radio_status_type,
+		       sizeof(radio_status_type));
+		pos += sizeof(radio_status_type);
+		memcpy(&response[pos], &radio_status_option,
+		       sizeof(radio_status_option));
+		pos += sizeof(radio_status_option);
+		memcpy(&response[pos], &radio_status_error,
+		       sizeof(radio_status_error));
+		pos += sizeof(radio_status_error);
+	} else {
+		/* Radio status is not yet known, return empty data */
+		response[RPMSG_BL5340PA_OFFSET_DATA] =
+			BL5340PA_RADIO_STATUS_NOT_KNOWN;
+	}
+}
+#endif
+
 static void get_module_variant(uint8_t *buffer, size_t len, uint8_t *response,
 			       uint8_t *response_length)
 {
@@ -162,6 +223,12 @@ static bool rpmsg_handler(uint8_t component, void *data, size_t len,
 				/* Get active antenna */
 				get_active_antenna(buffer, len, response_buffer,
 						   &response_length);
+#if defined(CONFIG_LIMIT_RADIO_POWER)
+			} else if (opcode == RPMSG_OPCODE_BL5340PA_GET_STATUS) {
+				/* Check operational status of network core */
+				get_status(buffer, len, response_buffer,
+					   &response_length);
+#endif
 #if defined(CONFIG_LCZ_BL5340PA_ANTENNA_SELECTION)
 			} else if (opcode == RPMSG_OPCODE_BL5340PA_SET_ANTENNA) {
 				/* Set the active antenna */
@@ -246,6 +313,16 @@ static int bl5340pa_antenna_setup(const struct device *arg)
 
 	return rc;
 }
+
+#if defined(CONFIG_LIMIT_RADIO_POWER)
+void bl5340pa_regulatory_error(uint8_t type, uint8_t option, int32_t error)
+{
+	radio_status_type = type;
+	radio_status_option = option;
+	radio_status_error = error;
+	radio_status_complete = true;
+}
+#endif
 
 SYS_INIT(bl5340pa_antenna_setup, POST_KERNEL,
 	 CONFIG_RPMSG_SERVICE_EP_REG_PRIORITY);
