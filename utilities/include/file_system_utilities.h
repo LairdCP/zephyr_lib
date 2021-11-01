@@ -243,10 +243,11 @@ int fsu_delete(const char *path, const char *name);
 int fsu_delete_abs(const char *abs_path);
 
 /**
- * @brief Deletes all files matching name.
+ * @brief Delete all files matching name.  If the name is blank
+ * all files in a directory will be deleted.
  *
- * @note fsu_find is used internally.
- * Not recommended when deleting a single file. Use fs_unlink instead.
+ * @note fsu_find is used internally (memory intensive).
+ * Not recommended when deleting a single file. Use fsu_delete instead.
  *
  * @param path directory path
  * @param name file name (or partial name; no wildcard needed)
