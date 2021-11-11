@@ -141,21 +141,6 @@ const char *lbt_get_hci_err_string(uint8_t code);
 const char *lbt_get_security_err_string(uint8_t code);
 
 /**
- * @retval Reset reason code
- */
-uint32_t lbt_get_and_clear_nrf52_reset_reason_register(void);
-
-/**
- * @brief The reset reason register can have multiple bits set.
- * The reset reason should be cleared after it is used to prevent this.
- * This function returns the code for the first bit that is set in its
- * prioritized list.
- *
- * @retval Reset reason code as a string (from reset reason register).
- */
-const char *lbt_get_nrf52_reset_reason_string_from_register(uint32_t reg);
-
-/**
  * @retval true if central role, false if peripheral role or there
  * was an error getting connection info.
  */

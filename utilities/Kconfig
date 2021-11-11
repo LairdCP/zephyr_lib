@@ -108,4 +108,7 @@ endif # FILE_SYSTEM_UTILITIES
 config ERRNO_STR
     bool "Enable generation of string representations of errno"
 
+config LCZ_NRF_RESET_REASON
+    bool "Enable module that reads/clears nRF5X reset reason"
+
 endmenu
