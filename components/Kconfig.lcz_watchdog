@@ -1,0 +1,47 @@
+# Copyright (c) 2021 Laird Connectivity
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig LCZ_WDT
+    bool "Enable Watchdog timer component"
+    imply WATCHDOG
+    help
+        Enable-to-Disable requires power cycle or watchdog reset.
+        Watchdog cannot be stopped once started.
+        It can be reconfigured after a reset.
+        If a watchdog reset occurs, then it won't cause another
+        reset unless it is re-enabled.
+
+if LCZ_WDT
+
+config LCZ_WDT_INIT_PRIORITY
+    int "System init priority (Application)"
+    default 0
+
+config LCZ_WDT_LOG_LEVEL
+    int "Log level for watchdog module"
+    range 0 4
+    default 3
+
+config LCZ_WDT_TIMEOUT_MILLISECONDS
+    int "Rate in milliseconds for watchdog"
+    range 18000 1200000
+    default 600000
+
+config LCZ_WDT_MEMFAULT_PRE_FIRE_MS
+    int "The software timer fires before the HW WDT"
+    default 8000
+    help
+        This software timer is used to save a core dump before reset.
+        This must be large enough so that the system can reboot and
+        feed the watchdog. The memfault software watchdog causes a
+        reset assertion. Kernel with HL7800 modem requires 3 seconds
+        to boot.
+
+config LCZ_WDT_WORK_QUEUE_STACK_SIZE
+    int
+    default 320
+
+config LCZ_WDT_TEST
+    bool "Force the watchdog to timeout (set during initialisation)"
+
+endif # WDT
