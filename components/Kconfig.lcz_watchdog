@@ -24,6 +24,7 @@ config LCZ_WDT_LOG_LEVEL
 
 config LCZ_WDT_TIMEOUT_MILLISECONDS
     int "Rate in milliseconds for watchdog"
+    range 4000 1200000 if ZTEST
     range 18000 1200000
     default 600000
 
