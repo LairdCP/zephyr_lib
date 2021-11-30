@@ -1,0 +1,4 @@
+tests:
+  components.lcz_qrtc.sync:
+    tags: drivers lcz_qrtc
+    harness: ztest
