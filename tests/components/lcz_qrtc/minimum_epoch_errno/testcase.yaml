@@ -1,0 +1,4 @@
+tests:
+  components.lcz_qrtc.minimum_epoch_errno:
+    tags: drivers lcz_qrtc
+    harness: ztest
