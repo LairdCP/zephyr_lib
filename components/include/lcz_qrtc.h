@@ -27,6 +27,8 @@ extern "C" {
  *
  * @param epoch in seconds from Jan 1, 1970
  *
+ * @note On failure, the time will remain unchanged (which will be returned)
+ *
  * @retval recomputed value for testing
  */
 uint32_t lcz_qrtc_set_epoch(uint32_t epoch);
@@ -35,15 +37,19 @@ uint32_t lcz_qrtc_set_epoch(uint32_t epoch);
  * @brief Set the epoch using time structure.
  *
  * @param pTm is a pointer to a time structure
- * @param offset_seconds is the offset in seconds from UTC that the time structure
- * contains.
+ * @param offset_seconds is the offset in seconds from UTC that the time
+ * structure contains (acceptable values are from -86400 to 86400 (24 hours),
+ * a value outside of this range is invalid).
  *
  * @note The cellular modem provides local time and an offset and it is much
  * easier to add the offset to the epoch than to adjust the time structure.
  *
+ * @note On failure, the time will remain unchanged (which will be returned)
+ *
  * @retval epoch for testing
  */
-uint32_t lcz_qrtc_set_epoch_from_tm(struct tm *pTm, int32_t offset_seconds);
+uint32_t lcz_qrtc_set_epoch_from_tm(struct tm *time_data,
+				    int32_t offset_seconds);
 
 /**
  * @retval Seconds since Jan 1, 1970.
@@ -60,10 +66,9 @@ bool lcz_qrtc_epoch_was_set(void);
  *
  * @note Override the weak implementation in application.
  *
+ * @note Requires LCZ_QRTC_SYNC_INTERVAL_SECONDS be set to a non-zero value
  */
-#if CONFIG_LCZ_QRTC_SYNC_INTERVAL_SECONDS != 0
 void lcz_qrtc_sync_handler(void);
-#endif
 
 #ifdef __cplusplus
 }
