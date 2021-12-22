@@ -172,8 +172,8 @@ static int lcz_wdt_initialise(const struct device *device)
 		wdt_config.window.max = CONFIG_LCZ_WDT_TIMEOUT_MILLISECONDS;
 		wdt_config.callback = NULL;
 
-		lcz_wdt.channel_id = wdt_install_timeout(lcz_wdt.dev,
-							 &wdt_config);
+		lcz_wdt.channel_id =
+			wdt_install_timeout(lcz_wdt.dev, &wdt_config);
 		if (lcz_wdt.channel_id < 0) {
 			LOG_ERR("Watchdog install error");
 			r = -EPERM;
@@ -182,8 +182,7 @@ static int lcz_wdt_initialise(const struct device *device)
 
 		k_work_queue_start(&lcz_wdt.work_q, wdt_workq_stack,
 				   K_THREAD_STACK_SIZEOF(wdt_workq_stack),
-				   K_LOWEST_APPLICATION_THREAD_PRIO,
-				   NULL);
+				   K_LOWEST_APPLICATION_THREAD_PRIO, NULL);
 
 		k_work_init_delayable(&lcz_wdt.feed, lcz_wdt_feeder);
 		r = k_work_schedule_for_queue(&lcz_wdt.work_q, &lcz_wdt.feed,
@@ -201,8 +200,8 @@ static int lcz_wdt_initialise(const struct device *device)
 
 #if defined(CONFIG_LCZ_MEMFAULT)
 		r = LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT(
-			CONFIG_WDT_TIMEOUT_MILLISECONDS -
-			CONFIG_WDT_MEMFAULT_PRE_FIRE_MS);
+			CONFIG_LCZ_WDT_TIMEOUT_MILLISECONDS -
+			CONFIG_LCZ_WDT_MEMFAULT_PRE_FIRE_MS);
 		if (r < 0) {
 			LOG_ERR("Unable to set memfault software watchdog time");
 			break;
