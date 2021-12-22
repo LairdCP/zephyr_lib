@@ -262,7 +262,7 @@ int lcz_param_file_append_feedback(param_id_t id, uint8_t error_code,
 	result = append_parameter(id, PARAM_BIN, (const void *)&error_code,
 				  sizeof(uint8_t), write_data);
 
-	return (result);
+	return result;
 }
 
 /******************************************************************************/
@@ -388,6 +388,14 @@ static int append_parameter(param_id_t id, param_t type, const void *data,
 
 	} while (0);
 
+	if (r < 0) {
+		LOG_ERR("Unable to append id: %d "
+			"string size: %d data size: %d max string: %d max data: %d",
+			id, length, dsize,
+			CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH,
+			CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH);
+	}
+
 	return r;
 }
 
@@ -422,8 +430,6 @@ static int append_id(char *str, size_t *length, param_id_t id)
 			str[*length] = DELIMITER_CHAR;
 			*length += SIZE_OF_DELIMITER;
 		}
-	} else {
-		LOG_ERR("Parameter file string too small");
 	}
 	return r;
 }
@@ -477,8 +483,6 @@ static int append_value(char *str, size_t *length, param_t type,
 			str[*length] = '\0';
 			/* Don't update length for terminator or it won't equal strlen */
 		}
-	} else {
-		LOG_ERR("Parameter file string too small");
 	}
 
 	return r;
