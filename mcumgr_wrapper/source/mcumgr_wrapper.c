@@ -49,6 +49,9 @@ LOG_MODULE_REGISTER(mcumgr_wrapper, LOG_LEVEL_DBG);
 #ifdef CONFIG_LCZ_MCUMGR_SIMPLE_BLUETOOTH
 #include "simple_bluetooth.h"
 #endif
+#ifdef CONFIG_MCUMGR_CMD_SHELL_MGMT
+#include "shell_mgmt/shell_mgmt.h"
+#endif
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
@@ -128,6 +131,9 @@ void mcumgr_wrapper_register_subsystems(void)
 #if CONFIG_SIMPLE_BLUETOOTH
 	simple_bluetooth_init();
 #endif
+#endif
+#ifdef CONFIG_MCUMGR_CMD_SHELL_MGMT
+	shell_mgmt_register_group();
 #endif
 }
 
