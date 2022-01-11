@@ -25,8 +25,13 @@
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 
-#include "attr.h"
 #include "event_log_mgmt.h"
+#include "lcz_sensor_event.h"
+#include "lcz_event_manager.h"
+
+#ifdef CONFIG_ATTR_SETTINGS_LOCK
+#include "attr.h"
+#endif
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -86,12 +91,16 @@ static int event_log_mgmt_init(const struct device *device)
 static int prepare_log(struct mgmt_ctxt *ctxt)
 {
 	uint8_t n[LCZ_EVENT_MANAGER_FILENAME_SIZE];
-	int r = -EINVAL;
+	int r = 0;
 	uint32_t s = 0;
 
-	if (Attribute_IsLocked() == true) {
+#ifdef CONFIG_ATTR_SETTINGS_LOCK
+	if (attr_is_locked() == true) {
 		r = -EPERM;
-	} else {
+	}
+#endif
+
+	if (r == 0) {
 		/* Check if we can prepare the log file OK */
 		r = lcz_event_manager_prepare_log_file(n, &s);
 		if (r != 0) {
@@ -121,11 +130,15 @@ static int prepare_log(struct mgmt_ctxt *ctxt)
 
 static int ack_log(struct mgmt_ctxt *ctxt)
 {
-	int r = -EINVAL;
+	int r = 0;
 
-	if (Attribute_IsLocked() == true) {
+#ifdef CONFIG_ATTR_SETTINGS_LOCK
+	if (attr_is_locked() == true) {
 		r = -EPERM;
-	} else {
+	}
+#endif
+
+	if (r == 0) {
 		r = lcz_event_manager_delete_log_file();
 	}
 
@@ -144,7 +157,7 @@ static int generate_test_log(struct mgmt_ctxt *ctxt)
 {
 	uint8_t n[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	uint32_t s = 0;
-	int r = -EINVAL;
+	int r = 0;
 	long long unsigned int start_time_stamp = 0;
 	long long unsigned int update_rate = 0;
 	long long unsigned int event_type = 0;
@@ -176,9 +189,13 @@ static int generate_test_log(struct mgmt_ctxt *ctxt)
 		{ .attribute = NULL }
 	};
 
-	if (Attribute_IsLocked() == true) {
+#ifdef CONFIG_ATTR_SETTINGS_LOCK
+	if (attr_is_locked() == true) {
 		r = -EPERM;
-	} else {
+	}
+#endif
+
+	if (r == 0) {
 		if (cbor_read_object(&ctxt->it, params_attr) != 0) {
 			return -EINVAL;
 		}
