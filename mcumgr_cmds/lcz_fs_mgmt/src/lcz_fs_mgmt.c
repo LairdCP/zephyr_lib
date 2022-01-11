@@ -21,18 +21,34 @@
 #include <string.h>
 #include "cborattr/cborattr.h"
 #include "mgmt/mgmt.h"
+#include "file_system_utilities.h"
 #include "lcz_fs_mgmt/fs_mgmt.h"
 #include "lcz_fs_mgmt/fs_mgmt_impl.h"
 #include "lcz_fs_mgmt/fs_mgmt_config.h"
 
 static mgmt_handler_fn fs_mgmt_file_download;
 static mgmt_handler_fn fs_mgmt_file_upload;
+static mgmt_handler_fn fs_mgmt_file_size;
+static mgmt_handler_fn fs_mgmt_file_crc32;
+static mgmt_handler_fn fs_mgmt_file_sha256;
 static struct fs_mgmt_ctxt fs_mgmt_ctxt;
 
 static const struct mgmt_handler fs_mgmt_handlers[] = {
     [FS_MGMT_ID_FILE] = {
         .mh_read = fs_mgmt_file_download,
         .mh_write = fs_mgmt_file_upload,
+    },
+    [FS_MGMT_ID_SIZE] = {
+        .mh_read = fs_mgmt_file_size,
+        .mh_write = NULL,
+    },
+    [FS_MGMT_ID_CRC32] = {
+        .mh_read = fs_mgmt_file_crc32,
+        .mh_write = NULL,
+    },
+    [FS_MGMT_ID_SHA256] = {
+        .mh_read = fs_mgmt_file_sha256,
+        .mh_write = NULL,
     },
 };
 
@@ -258,6 +274,198 @@ fs_mgmt_file_upload(struct mgmt_ctxt *ctxt)
 
     /* Send the response. */
     return fs_mgmt_file_upload_rsp(ctxt, 0, fs_mgmt_ctxt.off);
+}
+
+/**
+ * Command handler: fs size (read)
+ */
+static int
+fs_mgmt_file_size(struct mgmt_ctxt *ctxt)
+{
+    CborError err = 0;
+    int r = 0;
+    char path[FS_MGMT_PATH_SIZE + 1];
+    size_t name_length;
+    int32_t file_size = 0;
+
+    memset(path, 0, sizeof(path));
+
+    const struct cbor_attr_t params_attr[] = {
+        {
+            .attribute = "name",
+            .type = CborAttrTextStringType,
+            .addr.string = path,
+            .len = sizeof(path),
+            .nodefault = true
+        },
+	{
+            0
+        }
+    };
+
+    if (cbor_read_object(&ctxt->it, params_attr) != 0) {
+        return MGMT_ERR_EINVAL;
+    }
+
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_ACCESS_CHECK)
+    /* Check with the application if access should be granted */
+    r = fs_mgmt_impl_app_access_check(ACCESS_TYPE_READ, path);
+
+    if (r != 0) {
+        /* Access has not been granted, deny */
+        return MGMT_ERR_EPERUSER;
+    }
+#endif
+
+    name_length = strlen(path);
+    if ((name_length > 0) && (name_length < CONFIG_FSU_MAX_FILE_NAME_SIZE)) {
+        file_size = fsu_get_file_size_abs(path);
+    }
+
+    err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
+    err |= cbor_encode_int(&ctxt->encoder, r);
+    err |= cbor_encode_text_stringz(&ctxt->encoder, "s");
+    err |= cbor_encode_uint(&ctxt->encoder, file_size);
+
+    if (err != 0) {
+        return MGMT_ERR_ENOMEM;
+    }
+
+    return 0;
+}
+
+/**
+ * Command handler: fs crc32 (read)
+ */
+static int
+fs_mgmt_file_crc32(struct mgmt_ctxt *ctxt)
+{
+#ifdef CONFIG_FSU_CHECKSUM
+    CborError err = 0;
+    int r = 0;
+    char path[FS_MGMT_PATH_SIZE + 1];
+    uint32_t checkfile_file = 0;
+    size_t name_length;
+    size_t file_size;
+
+    memset(path, 0, sizeof(path));
+
+    const struct cbor_attr_t params_attr[] = {
+        {
+            .attribute = "name",
+            .type = CborAttrTextStringType,
+            .addr.string = path,
+            .len = sizeof(path),
+            .nodefault = true
+        },
+	{
+            0
+        }
+    };
+
+    if (cbor_read_object(&ctxt->it, params_attr) != 0) {
+        return MGMT_ERR_EINVAL;
+    }
+
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_ACCESS_CHECK)
+    /* Check with the application if access should be granted */
+    r = fs_mgmt_impl_app_access_check(ACCESS_TYPE_READ, path);
+
+    if (r != 0) {
+        /* Access has not been granted, deny */
+        return MGMT_ERR_EPERUSER;
+    }
+#endif
+
+    name_length = strlen(path);
+    if ((name_length > 0) && (name_length < CONFIG_FSU_MAX_FILE_NAME_SIZE)) {
+        file_size = fsu_get_file_size_abs(path);
+
+        if (file_size > 0) {
+            r = fsu_crc32_abs(&checkfile_file, path, file_size);
+        }
+    }
+
+    err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
+    err |= cbor_encode_int(&ctxt->encoder, r);
+    err |= cbor_encode_text_stringz(&ctxt->encoder, "c");
+    err |= cbor_encode_uint(&ctxt->encoder, checkfile_file);
+
+    if (err != 0) {
+        return MGMT_ERR_ENOMEM;
+    }
+
+    return 0;
+#else
+    return MGMT_ERR_ENOTSUP;
+#endif
+}
+
+/**
+ * Command handler: fs sha256 (read)
+ */
+static int
+fs_mgmt_file_sha256(struct mgmt_ctxt *ctxt)
+{
+#ifdef CONFIG_FSU_HASH
+    CborError err = 0;
+    int r = 0;
+    char path[FS_MGMT_PATH_SIZE + 1];
+    uint8_t hash[FSU_HASH_SIZE] = { 0x00 };
+    size_t name_length;
+    size_t file_size;
+
+    memset(path, 0, sizeof(path));
+
+    const struct cbor_attr_t params_attr[] = {
+        {
+            .attribute = "name",
+            .type = CborAttrTextStringType,
+            .addr.string = path,
+            .len = sizeof(path),
+            .nodefault = true
+        },
+	{
+            0
+        }
+    };
+
+    if (cbor_read_object(&ctxt->it, params_attr) != 0) {
+        return MGMT_ERR_EINVAL;
+    }
+
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_ACCESS_CHECK)
+    /* Check with the application if access should be granted */
+    r = fs_mgmt_impl_app_access_check(ACCESS_TYPE_READ, path);
+
+    if (r != 0) {
+        /* Access has not been granted, deny */
+        return MGMT_ERR_EPERUSER;
+    }
+#endif
+
+    name_length = strlen(path);
+    if ((name_length > 0) && (name_length < CONFIG_FSU_MAX_FILE_NAME_SIZE)) {
+        file_size = fsu_get_file_size_abs(path);
+
+        if (file_size > 0) {
+            r = fsu_sha256_abs(hash, path, file_size);
+        }
+    }
+
+    err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
+    err |= cbor_encode_int(&ctxt->encoder, r);
+    err |= cbor_encode_text_stringz(&ctxt->encoder, "h");
+    err |= cbor_encode_byte_string(&ctxt->encoder, hash, FSU_HASH_SIZE);
+
+    if (err != 0) {
+        return MGMT_ERR_ENOMEM;
+    }
+
+    return 0;
+#else
+    return MGMT_ERR_ENOTSUP;
+#endif
 }
 
 void
