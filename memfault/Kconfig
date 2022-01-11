@@ -65,4 +65,13 @@ config LCZ_MEMFAULT_FILE_CHUNK_SIZE
 
 endif # LCZ_MEMFAULT_FILE
 
+config MCUMGR_CMD_MEMFAULT_MGMT
+        bool "Enable the memfault MCUMGR interface"
+        depends on MCUMGR
+
+config MGMT_GROUP_ID_MEMFAULT
+        int "MCU manager group id for memfault management"
+        default 66
+	depends on MCUMGR_CMD_MEMFAULT_MGMT
+
 endif # LCZ_MEMFAULT
