@@ -73,8 +73,17 @@ config LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE
 		A value of 1 will use the original read-once-write-once system
 
 config LCZ_EVENT_MANAGER_LOG_LEVEL
-    int "Log level for event manager module"
-    range 0 4
-    default 3
+	int "Log level for event manager module"
+	range 0 4
+	default 3
+
+config MCUMGR_CMD_EVENT_LOG_MGMT
+        bool "Enable the event log MCUMGR interface"
+        depends on MCUMGR
+
+config MGMT_GROUP_ID_EVENT_LOG
+        int "MCU manager group id for event log management"
+        default 67
+	depends on MCUMGR_CMD_EVENT_LOG_MGMT
 
 endif # LCZ_EVENT_MANAGER
