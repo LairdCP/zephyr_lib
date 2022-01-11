@@ -57,5 +57,6 @@ config LCZ_PARAM_FILE_4_DIGIT_ID
 
 config LCZ_PARAM_FILE_SHELL
 	bool "Enable parameters shell"
+	depends on SHELL
 
 endif # LCZ_PARAM_FILE
