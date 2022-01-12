@@ -1,7 +1,7 @@
 #
 # Laird Connectivity Zephyr Components
 #
-# Copyright (c) 2020-2021 Laird Connectivity
+# Copyright (c) 2020-2022 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -31,3 +31,4 @@ zephyr_sources_ifdef(CONFIG_LCZ_BRACKET source/lcz_bracket.c)
 zephyr_sources_ifdef(CONFIG_LCZ_APPROTECT source/lcz_approtect.c)
 zephyr_sources_ifdef(CONFIG_LCZ_RPMSG source/lcz_rpmsg.c)
 zephyr_sources_ifdef(CONFIG_LCZ_WDT source/lcz_watchdog.c)
+zephyr_sources_ifdef(CONFIG_MCUMGR_CMD_SHELL_LOG_MGMT source/shell_log_mgmt.c)

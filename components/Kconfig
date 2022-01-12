@@ -120,5 +120,6 @@ rsource "Kconfig.lcz_bracket"
 rsource "Kconfig.lcz_approtect"
 rsource "Kconfig.lcz_rpmsg"
 rsource "Kconfig.lcz_watchdog"
+rsource "Kconfig.lcz_shell_log"
 
 endmenu
