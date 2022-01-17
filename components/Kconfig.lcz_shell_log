@@ -1,0 +1,14 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig MCUMGR_CMD_SHELL_LOG_MGMT
+        bool "Enable the shell log MCUMGR interface"
+        depends on MCUMGR
+
+config MGMT_GROUP_ID_SHELL_LOG
+        int "MCU manager group id for shell log management"
+        default 68
+	depends on MCUMGR_CMD_SHELL_LOG_MGMT
