@@ -257,7 +257,7 @@ bool lbt_central_role(struct bt_conn *conn)
 	struct bt_conn_info info;
 	int rc = bt_conn_get_info(conn, &info);
 	if (rc == 0) {
-		return (info.role == BT_CONN_ROLE_MASTER);
+		return (info.role == BT_CONN_ROLE_CENTRAL);
 	} else {
 		return false;
 	}
@@ -268,7 +268,7 @@ bool lbt_peripheral_role(struct bt_conn *conn)
 	struct bt_conn_info info;
 	int rc = bt_conn_get_info(conn, &info);
 	if (rc == 0) {
-		return (info.role == BT_CONN_ROLE_SLAVE);
+		return (info.role == BT_CONN_ROLE_PERIPHERAL);
 	} else {
 		return false;
 	}
