@@ -1,0 +1,23 @@
+# Copyright (c) 2014-2015 Wind River Systems, Inc.
+# Copyright (c) 2016 Cadence Design Systems, Inc.
+# Copyright (c) 2021-2022 Laird Connectivity
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig DUMMY_SMP
+	bool "Enable dummy SMP component"
+	depends on MCUMGR
+	help
+	  Enables the dummy SMP component which can be used for unit
+	  testing SMP functionality without needing a real interface.
+
+if DUMMY_SMP
+
+config DUMMY_SMP_RX_BUF_SIZE
+	int "Size of receive buffer for mcumgr fragments received via dummy interface, in bytes"
+	default 128
+	help
+	  Specifies the size of the mcumgr dummy interface receive
+	  buffer, in bytes. This value must be large enough to
+	  accommodate any line sent by an mcumgr client.
+
+endif # DUMMY_SMP
