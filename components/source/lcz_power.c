@@ -1,62 +1,57 @@
 /**
- * @file laird_power.c
+ * @file lcz_power.c
  * @brief Voltage measurement control
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <logging/log.h>
-#include <logging/log_output.h>
-#include <logging/log_ctrl.h>
-#define LOG_LEVEL LOG_LEVEL_INF
-LOG_MODULE_REGISTER(oob_power);
-
-#define POWER_LOG_INF(...) LOG_INF(__VA_ARGS__)
-#define POWER_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
+LOG_MODULE_REGISTER(lcz_power, CONFIG_LCZ_POWER_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-
 #include <stdio.h>
 #include <zephyr/types.h>
 #include <kernel.h>
 #include <drivers/gpio.h>
 #include <hal/nrf_saadc.h>
 #include <drivers/adc.h>
+#include <logging/log_ctrl.h>
+
 #ifdef CONFIG_REBOOT
 #include <power/reboot.h>
 #endif
-#include "laird_power.h"
+
+#include "lcz_power.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
+/* clang-format off */
+/* Port and pin number of the voltage measurement enabling functionality */
+#if defined(CONFIG_BOARD_MG100)
+#define MEASURE_ENABLE_PORT DT_PROP(DT_NODELABEL(gpio1), label)
+#define MEASURE_ENABLE_PIN 10
+#elif defined(CONFIG_BOARD_PINNACLE_100_DVK)
+#define MEASURE_ENABLE_PORT DT_PROP(DT_NODELABEL(gpio0), label)
+#define MEASURE_ENABLE_PIN 28
+#else
+#error "A measurement enable pin must be defined for this board."
+#endif
 
 /* clang-format off */
-#define ADC_RESOLUTION               12
-#define ADC_ACQUISITION_TIME         ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 10)
-#define ADC_CHANNEL_ID               0
-#define ADC_SATURATION               2048
-#define ADC_LIMIT_VALUE              4095.0
-#define ADC_REFERENCE_VOLTAGE        0.6
 #define ADC_VOLTAGE_TOP_RESISTOR     14.1
 #define ADC_VOLTAGE_BOTTOM_RESISTOR  1.1
-#define ADC_DECIMAL_DIVISION_FACTOR  100.0 /* Keeps to 2 decimal places */
-#define ADC_GAIN_FACTOR_TWO          2.0
-#define ADC_GAIN_FACTOR_ONE          1.0
-#define ADC_GAIN_FACTOR_HALF         0.5
 #define MEASURE_STATUS_ENABLE        1
 #define MEASURE_STATUS_DISABLE       0
-#define GPREGRET_BOOTLOADER_VALUE    0xb1
 /* clang-format on */
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
-
 /* NEED CONFIG_ADC_CONFIGURABLE_INPUTS */
 
 static struct adc_channel_cfg m_1st_channel_cfg = {
@@ -81,7 +76,6 @@ static bool timer_enabled;
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-
 static void power_adc_to_voltage(int16_t adc, float scaling,
 				 uint8_t *voltage_int, uint8_t *voltage_dec);
 static bool power_measure_adc(const struct device *adc_dev, enum adc_gain gain,
@@ -93,7 +87,6 @@ static void power_timer_callback(struct k_timer *timer_id);
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-
 void power_init(void)
 {
 	int ret;
@@ -156,7 +149,6 @@ void power_reboot_module(uint8_t type)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-
 static void power_adc_to_voltage(int16_t adc, float scaling,
 				 uint8_t *voltage_int, uint8_t *voltage_dec)
 {
@@ -279,7 +271,6 @@ static void system_workq_power_timer_handler(struct k_work *item)
 /******************************************************************************/
 /* Override in application                                                    */
 /******************************************************************************/
-
 __weak void power_measurement_callback(uint8_t integer, uint8_t decimal)
 {
 	ARG_UNUSED(integer);
@@ -289,7 +280,6 @@ __weak void power_measurement_callback(uint8_t integer, uint8_t decimal)
 /******************************************************************************/
 /* Interrupt Service Routines                                                 */
 /******************************************************************************/
-
 static void power_timer_callback(struct k_timer *timer_id)
 {
 	/* Add item to system work queue so that it can be handled in task
