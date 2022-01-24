@@ -42,6 +42,8 @@ config LCZ_POWER
 	select ADC_NRFX_SAADC
 	select REBOOT
 
+if LCZ_POWER
+
 choice LCZ_POWER_TYPE
 	prompt "Power monitoring type"
 	default LCZ_POWER_TYPE_EXTERNAL if BOARD_MG100 || BOARD_PINNACLE_100_DVK
@@ -60,8 +62,6 @@ config LCZ_POWER_TYPE_EXTERNAL
 	  Measure voltage using external potential divider.
 
 endchoice
-
-if LCZ_POWER
 
 config LCZ_POWER_LOG_LEVEL
 	int "Log level for power module"
