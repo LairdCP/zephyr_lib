@@ -53,4 +53,16 @@ config LCZ_QRTC_USE_ERRNO
 	help
 	  Will store errors in errno (provided by errno.h) if enabled
 
+config MCUMGR_CMD_QRTC_MGMT
+        bool "Enable the QRTC MCUMGR interface"
+        depends on MCUMGR
+
+if MCUMGR_CMD_QRTC_MGMT
+
+config MGMT_GROUP_ID_QRTC
+        int "MCU manager group id for QRTC management"
+        default 69
+
+endif # MCUMGR_CMD_QRTC_MGMT
+
 endif
