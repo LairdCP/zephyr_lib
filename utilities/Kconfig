@@ -49,6 +49,14 @@ config FSU_MOUNT_POINT
 	string "Default mount point"
 	default "/lfs"
 
+config FSU_LFS_MOUNT
+	bool "Configure lfs partition mount"
+	select FILE_SYSTEM_LITTLEFS
+	help
+	  If disabled, then the partition will need to be manually mounted prior
+	  to function use by an application or module (or nRF Connect SDK
+	  partition manager) instead of calling fsu_lfs_mount().
+
 config FSU_MAX_PATH_SIZE
 	int "The maximum size of the file system mount + path"
 	default 16

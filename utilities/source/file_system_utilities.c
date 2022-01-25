@@ -47,7 +47,7 @@ K_MUTEX_DEFINE(lfs_init_mutex);
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
-#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
+#ifdef CONFIG_FSU_LFS_MOUNT
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
 static struct fs_mount_t littlefs_mnt = { .type = FS_LITTLEFS,
 					  .fs_data = &cstorage,
@@ -73,7 +73,7 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 int fsu_lfs_mount(void)
 {
 	int rc = -ENOSYS;
-#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
+#ifdef CONFIG_FSU_LFS_MOUNT
 	k_mutex_lock(&lfs_init_mutex, K_FOREVER);
 	if (!lfs_mounted) {
 		rc = fs_mount(&littlefs_mnt);
