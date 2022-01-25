@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020 Laird Connectivity
+# Copyright (c) 2020-2022 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -10,7 +10,7 @@ menu "Laird Connectivity Zephyr Utilities"
 config JSON_LOG_ENABLED
 	bool "Print JSON strings using printk"
 	help
-		JSON strings can be too large for LOG system.
+	  JSON strings can be too large for LOG system.
 
 config FILE_SYSTEM_UTILITIES
 	bool "Helper functions for using file system"
@@ -20,9 +20,9 @@ config FILE_SYSTEM_UTILITIES
 if FILE_SYSTEM_UTILITIES
 
 config FSU_LOG_LEVEL
-    int "Log level for Parameters Module"
-    range 0 4
-    default 3
+	int "Log level for Parameters Module"
+	range 0 4
+	default 3
 
 config FSU_HASH
 	bool "Enable hash generation functions"
@@ -33,7 +33,7 @@ config FSU_HASH_CHUNK_SIZE
 	depends on FSU_HASH
 	default 1024
 	help
-		Chunk buffer and SHA256 context use heap.
+	  Chunk buffer and SHA256 context use heap.
 
 config FSU_CHECKSUM
 	bool "Enable CRC32 checksum generation functions"
@@ -43,7 +43,7 @@ config FSU_CHECKSUM_CHUNK_SIZE
 	depends on FSU_CHECKSUM
 	default 1024
 	help
-		Chunk buffer use heap.
+	  Chunk buffer use heap.
 
 config FSU_MOUNT_POINT
 	string "Default mount point"
@@ -53,41 +53,41 @@ config FSU_MAX_PATH_SIZE
 	int "The maximum size of the file system mount + path"
 	default 16
 	help
-		This must be large enough for the value of
-		FSU_MOUNT_POINT and the folder name.
-		"/lfs/app" "/lfs/hl7800" "/lfs/logs" "/lfs/certs"
+	  This must be large enough for the value of FSU_MOUNT_POINT and the
+	  folder name. "/lfs/app" "/lfs/hl7800" "/lfs/logs" "/lfs/certs"
 
 config FSU_MAX_FILE_NAME_SIZE
 	int "The maximum size of a file name."
 	default 48
 	help
-		hl7800: 123.567.9ab.def_123.567.9ab.def.bin (15+1+15+4+1)=36
-		app: 480-00070-R123.567.9ab.def_LTE-M_FOTA.bin (41+1)=42
-		app: 480-00070-R123.567.9ab.def_NB-IoT_FOTA.bin (42+1)=43
+	  hl7800: 123.567.9ab.def_123.567.9ab.def.bin (15+1+15+4+1)=36
+	  app: 480-00070-R123.567.9ab.def_LTE-M_FOTA.bin (41+1)=42
+	  app: 480-00070-R123.567.9ab.def_NB-IoT_FOTA.bin (42+1)=43
 
 config FSU_MAX_VERSION_SIZE
 	int "The maximum size of a version string"
 	default 16
 	help
-		123.567.9ab.def
+	  123.567.9ab.def
 
 config FSU_MAX_IMAGE_NAME_SIZE
 	int "The maximum size of the image name"
 	default 8
 	help
-		Examples: app, hl7800
+	  Examples: app, hl7800
 
 config FSU_MAX_PRODUCT_NAME_SIZE
 	int "The maximum size of a product name string"
 	default 24
 	help
-		Examples: mg100, pinnacle-mg100, pinnacle-100-dvk, BT510
+	  Examples: mg100, pinnacle-mg100, pinnacle-100-dvk, BT510
 
 config FSU_SHELL
 	bool "Enable the file system utility shell"
+	depends on SHELL
 	help
-		The built-in file system shell is often sufficient.
-		This shell exposes features like pattern list and delete.
+	  The built-in file system shell is often sufficient. This shell
+	  exposes features like pattern list and delete.
 
 if FSU_SHELL
 
@@ -95,8 +95,8 @@ config FSU_SHELL_ALLOW_CHANGE
 	bool "Enable shell write/change functions"
 	default y
 	help
-		This allows using functions that can change/removes files
-		and/or configuration
+	  This allows using functions that can change/removes files and/or
+	  configuration.
 
 endif # FSU_SHELL
 
@@ -106,9 +106,9 @@ config FSU_REWRITE_SIZE_CHECK
 endif # FILE_SYSTEM_UTILITIES
 
 config ERRNO_STR
-    bool "Enable generation of string representations of errno"
+	bool "Enable generation of string representations of errno"
 
 config LCZ_NRF_RESET_REASON
-    bool "Enable module that reads/clears nRF5X reset reason"
+	bool "Enable module that reads/clears nRF5X reset reason"
 
 endmenu
