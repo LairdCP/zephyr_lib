@@ -43,22 +43,27 @@ external_flash:
   address: 0x0
   region: external_flash
   size: 0x800000
+  device: MX25R64
 mcuboot_secondary:
   address: 0x0
   region: external_flash
   size: 0xe0000
+  device: MX25R64
 mcuboot_secondary_1:
   address: 0xe0000
   region: external_flash
   size: 0x40000
+  device: MX25R64
 scratch:
   address: 0x120000
   region: external_flash
   size: 0x20000
+  device: MX25R64
 lfs_storage:
   address: 0x140000
   region: external_flash
   size: 0x6c0000
+  device: MX25R64
 otp:
   address: 0xff8100
   end_address: 0xff83fc
