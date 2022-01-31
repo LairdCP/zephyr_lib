@@ -62,12 +62,6 @@ void power_init(void);
  */
 void power_mode_set(bool enable);
 
-/**
- * @brief Callback when measurement system is enabled.
- * Override in application or weak implementation will be used.
- */
-void power_measurement_callback(uint8_t integer, uint8_t decimal);
-
 #ifdef CONFIG_REBOOT
 /**
  * @brief Reboots the module

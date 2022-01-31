@@ -20,6 +20,14 @@ LOG_MODULE_REGISTER(lcz_power, CONFIG_LCZ_POWER_LOG_LEVEL);
 #include <hal/nrf_saadc.h>
 #include <drivers/adc.h>
 #include <logging/log_ctrl.h>
+#include <Framework.h>
+#include <FrameworkMacros.h>
+#include <framework_ids.h>
+#include <framework_msgcodes.h>
+#include <framework_types.h>
+#include <BufferPool.h>
+#include <locking_defs.h>
+#include <locking.h>
 
 #ifdef CONFIG_REBOOT
 #include <power/reboot.h>
@@ -68,7 +76,6 @@ static struct adc_channel_cfg m_1st_channel_cfg = {
 };
 
 static int16_t m_sample_buffer;
-static struct k_mutex adc_mutex;
 static struct k_timer power_timer;
 static struct k_work power_work;
 static bool timer_enabled;
@@ -76,8 +83,6 @@ static bool timer_enabled;
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void power_adc_to_voltage(int16_t adc, float scaling,
-				 uint8_t *voltage_int, uint8_t *voltage_dec);
 static bool power_measure_adc(const struct device *adc_dev, enum adc_gain gain,
 			      const struct adc_sequence sequence);
 static void power_run(void);
@@ -91,8 +96,7 @@ void power_init(void)
 {
 	int ret;
 
-	/* Setup mutex work-queue and repetitive timer */
-	k_mutex_init(&adc_mutex);
+	/* Setup work-queue and repetitive timer */
 	k_timer_init(&power_timer, power_timer_callback, NULL);
 	k_work_init(&power_work, system_workq_power_timer_handler);
 
@@ -149,18 +153,6 @@ void power_reboot_module(uint8_t type)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void power_adc_to_voltage(int16_t adc, float scaling,
-				 uint8_t *voltage_int, uint8_t *voltage_dec)
-{
-	float voltage = (float)adc / ADC_LIMIT_VALUE * ADC_REFERENCE_VOLTAGE *
-			ADC_VOLTAGE_TOP_RESISTOR / ADC_VOLTAGE_BOTTOM_RESISTOR *
-			scaling;
-
-	*voltage_int = voltage;
-	*voltage_dec = ((voltage - (float)(*voltage_int)) *
-			ADC_DECIMAL_DIVISION_FACTOR);
-}
-
 static bool power_measure_adc(const struct device *adc_dev, enum adc_gain gain,
 			      const struct adc_sequence sequence)
 {
@@ -187,9 +179,8 @@ static bool power_measure_adc(const struct device *adc_dev, enum adc_gain gain,
 static void power_run(void)
 {
 	int ret;
-	uint8_t voltage_int;
-	uint8_t voltage_dec;
 	bool finished = false;
+	uint8_t scaling;
 
 	/* Find the ADC device */
 	const struct device *adc_dev = device_get_binding(ADC0);
@@ -208,7 +199,7 @@ static void power_run(void)
 	};
 
 	/* Prevent other ADC uses */
-	k_mutex_lock(&adc_mutex, K_FOREVER);
+	locking_take(LOCKING_ID_adc, K_FOREVER);
 
 	/* Enable power supply voltage to be monitored */
 	ret = gpio_pin_set(device_get_binding(MEASURE_ENABLE_PORT),
@@ -221,8 +212,7 @@ static void power_run(void)
 	/* Measure voltage with 1/2 scaling which is suitable for higher
 	   voltage supplies */
 	power_measure_adc(adc_dev, ADC_GAIN_1_2, sequence);
-	power_adc_to_voltage(m_sample_buffer, ADC_GAIN_FACTOR_TWO, &voltage_int,
-			     &voltage_dec);
+	scaling = ADC_GAIN_FACTOR_TWO;
 
 	if (m_sample_buffer >= ADC_SATURATION) {
 		/* We have reached saturation point, do not try the next ADC
@@ -234,8 +224,7 @@ static void power_run(void)
 		/* Measure voltage with unity scaling which is suitable for
 		   medium voltage supplies */
 		power_measure_adc(adc_dev, ADC_GAIN_1, sequence);
-		power_adc_to_voltage(m_sample_buffer, ADC_GAIN_FACTOR_ONE,
-				     &voltage_int, &voltage_dec);
+		scaling = ADC_GAIN_FACTOR_ONE;
 
 		if (m_sample_buffer >= ADC_SATURATION) {
 			/* We have reached saturation point, do not try the
@@ -248,8 +237,7 @@ static void power_run(void)
 		/* Measure voltage with double scaling which is suitable for
 		   low voltage supplies, such as 2xAA batteries */
 		power_measure_adc(adc_dev, ADC_GAIN_2, sequence);
-		power_adc_to_voltage(m_sample_buffer, ADC_GAIN_FACTOR_HALF,
-				     &voltage_int, &voltage_dec);
+		scaling = ADC_GAIN_FACTOR_HALF;
 	}
 
 	/* Disable the voltage monitoring FET */
@@ -259,22 +247,38 @@ static void power_run(void)
 	if (ret) {
 		LOG_ERR("Error setting power GPIO");
 	}
-	k_mutex_unlock(&adc_mutex);
-	power_measurement_callback(voltage_int, voltage_dec);
+
+	locking_give(LOCKING_ID_adc);
+
+	power_measure_msg_t *fmsg = (power_measure_msg_t *)BufferPool_Take(
+						sizeof(power_measure_msg_t));
+
+	if (fmsg != NULL) {
+		fmsg->header.msgCode = FMC_POWER_MEASURED;
+		fmsg->header.txId = FWK_ID_POWER;
+		fmsg->header.rxId = FWK_ID_RESERVED;
+		fmsg->instance = 0;
+		fmsg->configuration = LCZ_POWER_CONFIGURATION_POTENTIAL_DIVIDER;
+
+		if (scaling == ADC_GAIN_FACTOR_TWO) {
+			fmsg->gain = ADC_GAIN_2;
+		} else if (scaling == ADC_GAIN_FACTOR_ONE) {
+			fmsg->gain = ADC_GAIN_1;
+		} else if (scaling == ADC_GAIN_FACTOR_HALF) {
+			fmsg->gain = ADC_GAIN_1_2;
+		}
+
+		fmsg->voltage = (float)m_sample_buffer / ADC_LIMIT_VALUE *
+				ADC_REFERENCE_VOLTAGE * scaling;
+
+		Framework_Broadcast((FwkMsg_t *)fmsg,
+				    sizeof(power_measure_msg_t));
+	}
 }
 
 static void system_workq_power_timer_handler(struct k_work *item)
 {
 	power_run();
-}
-
-/******************************************************************************/
-/* Override in application                                                    */
-/******************************************************************************/
-__weak void power_measurement_callback(uint8_t integer, uint8_t decimal)
-{
-	ARG_UNUSED(integer);
-	ARG_UNUSED(decimal);
 }
 
 /******************************************************************************/

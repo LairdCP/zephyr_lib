@@ -35,3 +35,12 @@ zephyr_sources_ifdef(CONFIG_LCZ_RPMSG source/lcz_rpmsg.c)
 zephyr_sources_ifdef(CONFIG_LCZ_WDT source/lcz_watchdog.c)
 zephyr_sources_ifdef(CONFIG_MCUMGR_CMD_SHELL_LOG_MGMT source/shell_log_mgmt.c)
 zephyr_sources_ifdef(CONFIG_DUMMY_SMP source/dummy_smp.c)
+
+if((CONFIG_FRAMEWORK))
+    # Add framework ID, msgcode and type files
+    if((CONFIG_LCZ_POWER_TYPE_EXTERNAL) OR (CONFIG_LCZ_POWER_TYPE_DIRECT))
+        add_fwk_id_file(${CMAKE_CURRENT_SOURCE_DIR}/framework/power_ids.h)
+        add_fwk_msgcode_file(${CMAKE_CURRENT_SOURCE_DIR}/framework/power_msgcodes.h)
+        add_fwk_type_file(${CMAKE_CURRENT_SOURCE_DIR}/framework/power_types.h)
+    endif()
+endif()
