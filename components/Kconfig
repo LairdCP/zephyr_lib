@@ -150,5 +150,6 @@ rsource "Kconfig.lcz_rpmsg"
 rsource "Kconfig.lcz_watchdog"
 rsource "Kconfig.lcz_shell_log"
 rsource "Kconfig.dummy_smp"
+rsource "Kconfig.lcz_ramdisk"
 
 endmenu

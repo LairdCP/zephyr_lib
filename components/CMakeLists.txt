@@ -35,6 +35,7 @@ zephyr_sources_ifdef(CONFIG_LCZ_RPMSG source/lcz_rpmsg.c)
 zephyr_sources_ifdef(CONFIG_LCZ_WDT source/lcz_watchdog.c)
 zephyr_sources_ifdef(CONFIG_MCUMGR_CMD_SHELL_LOG_MGMT source/shell_log_mgmt.c)
 zephyr_sources_ifdef(CONFIG_DUMMY_SMP source/dummy_smp.c)
+zephyr_sources_ifdef(CONFIG_LCZ_RAMDISK source/lcz_ramdisk.c)
 
 if((CONFIG_FRAMEWORK))
     # Add framework ID, msgcode and type files

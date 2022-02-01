@@ -1,0 +1,39 @@
+#
+# Copyright (c) 2022 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_RAMDISK
+	bool "RAMDISK"
+	depends on FILE_SYSTEM
+	depends on LCZ
+
+if LCZ_RAMDISK
+
+config LCZ_RAMDISK_MOUNT_POINT
+	string "Default mount point"
+	default "/ramfs"
+
+config LCZ_RAMDISK_LFS_MOUNT
+	bool "Mount RAMDISK lfs partition at boot"
+	select FILE_SYSTEM_LITTLEFS
+	help
+	  If disabled, then the partition will need to be manually mounted prior
+	  to usage of it.
+
+if LCZ_RAMDISK_LFS_MOUNT
+
+config LCZ_RAMDISK_INIT_PRIORITY
+        int "RAMDISK init priority (APPLICATION)"
+        range 0 99
+        default 0
+
+endif # LCZ_RAMDISK_LFS_MOUNT
+
+config LCZ_RAMDISK_LOG_LEVEL
+        int "Log level for RAMDISK module"
+        range 0 4
+        default 3
+
+endif # LCZ_RAMDISK
