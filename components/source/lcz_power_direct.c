@@ -48,6 +48,7 @@ static int16_t m_sample_buffer;
 static struct k_timer power_timer;
 static struct k_work power_work;
 static bool timer_enabled;
+static uint32_t timer_interval = DEFAULT_POWER_TIMER_PERIOD_MS;
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -71,8 +72,8 @@ void power_init(void)
 void power_mode_set(bool enable)
 {
 	if (enable == true && timer_enabled == false) {
-		k_timer_start(&power_timer, POWER_TIMER_PERIOD,
-			      POWER_TIMER_PERIOD);
+		k_timer_start(&power_timer, K_MSEC(timer_interval),
+			      K_MSEC(timer_interval));
 	} else if (enable == false && timer_enabled == true) {
 		k_timer_stop(&power_timer);
 	}
@@ -82,6 +83,18 @@ void power_mode_set(bool enable)
 		/* Take a reading right away */
 		power_run();
 	}
+}
+
+void power_interval_set(uint32_t interval_time)
+{
+	if (interval_time >= MINIMUM_POWER_TIMER_PERIOD_MS) {
+		timer_interval = interval_time;
+	}
+}
+
+uint32_t power_interval_get(void)
+{
+	return timer_interval;
 }
 
 #ifdef CONFIG_REBOOT

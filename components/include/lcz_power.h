@@ -22,8 +22,9 @@ extern "C" {
 /* Board definitions                                                          */
 /******************************************************************************/
 
-/* Measurement time between readings */
-#define POWER_TIMER_PERIOD K_MSEC(CONFIG_LCZ_ADC_SAMPLE_PERIOD * 1000)
+/* Default and minimum measurement times between readings */
+#define DEFAULT_POWER_TIMER_PERIOD_MS (CONFIG_LCZ_ADC_SAMPLE_PERIOD * 1000)
+#define MINIMUM_POWER_TIMER_PERIOD_MS 500
 
 /* Reboot types */
 #define REBOOT_TYPE_NORMAL 0
@@ -50,7 +51,6 @@ extern "C" {
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
-
 /**
  * @brief Init the power measuring system
  */
@@ -58,13 +58,34 @@ void power_init(void);
 
 /**
  * @brief Enables or disables the power measurement system
+ *
+ * @note Will perform a reading immediately after enabled
+ *
  * @param true to enable, false to disable
  */
 void power_mode_set(bool enable);
 
+/**
+ * @brief Sets the power measurement interval between readings
+ *
+ * @note Power measuresurement will need to be stopped and started using
+ *       power_mode_set() for changes to take effect
+ *
+ * @param Time in ms (must be >= 500)
+ */
+void power_interval_set(uint32_t interval_time);
+
+/**
+ * @brief Gets the power measurement interval between readings
+ *
+ * @return Time in ms
+ */
+uint32_t power_interval_get(void);
+
 #ifdef CONFIG_REBOOT
 /**
  * @brief Reboots the module
+ *
  * @param 0 = normal reboot, 1 = stay in UART bootloader
  */
 void power_reboot_module(uint8_t type);
