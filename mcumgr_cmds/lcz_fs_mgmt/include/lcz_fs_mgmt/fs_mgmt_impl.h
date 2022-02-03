@@ -72,6 +72,18 @@ typedef struct fs_mgmt_ctxt {
 extern int fs_mgmt_impl_app_access_check(uint8_t access_type, const char *path);
 #endif
 
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_REDIRECT)
+/**
+ * @brief Callback to be implemented in an application when file read/write
+ * access is allowed but the path can (optionally) be rewritten to something
+ * else (must be implemented in the user application)
+ *
+ * @param access_type           Type of file access (access_type_t)
+ * @param path                  The path of the file (to optionally rewrite)
+ */
+extern void fs_mgmt_impl_app_redirect(uint8_t access_type, char *path);
+#endif
+
 #if defined(CONFIG_LCZ_FS_MGMT_INTERCEPT)
 /**
  * @brief Callback to be implemented in an application when file write

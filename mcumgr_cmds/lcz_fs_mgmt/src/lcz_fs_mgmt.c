@@ -106,6 +106,10 @@ fs_mgmt_file_download(struct mgmt_ctxt *ctxt)
     }
 #endif
 
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_REDIRECT)
+    fs_mgmt_impl_app_redirect(ACCESS_TYPE_READ, path);
+#endif
+
     /* Only the response to the first download request contains the total file
      * length.
      */
@@ -224,6 +228,10 @@ fs_mgmt_file_upload(struct mgmt_ctxt *ctxt)
     }
 #endif
 
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_REDIRECT)
+    fs_mgmt_impl_app_redirect(ACCESS_TYPE_WRITE, file_name);
+#endif
+
     if (off == 0) {
         /* Total file length is a required field in the first chunk request. */
         if (len == ULLONG_MAX) {
@@ -317,6 +325,10 @@ fs_mgmt_file_size(struct mgmt_ctxt *ctxt)
     }
 #endif
 
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_REDIRECT)
+    fs_mgmt_impl_app_redirect(ACCESS_TYPE_READ, path);
+#endif
+
     name_length = strlen(path);
     if ((name_length > 0) && (name_length < CONFIG_FSU_MAX_FILE_NAME_SIZE)) {
         file_size = fsu_get_file_size_abs(path);
@@ -375,6 +387,10 @@ fs_mgmt_file_crc32(struct mgmt_ctxt *ctxt)
         /* Access has not been granted, deny */
         return MGMT_ERR_EPERUSER;
     }
+#endif
+
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_REDIRECT)
+    fs_mgmt_impl_app_redirect(ACCESS_TYPE_READ, path);
 #endif
 
     name_length = strlen(path);
@@ -442,6 +458,10 @@ fs_mgmt_file_sha256(struct mgmt_ctxt *ctxt)
         /* Access has not been granted, deny */
         return MGMT_ERR_EPERUSER;
     }
+#endif
+
+#if defined(CONFIG_LCZ_FS_MGMT_APPLICATION_REDIRECT)
+    fs_mgmt_impl_app_redirect(ACCESS_TYPE_READ, path);
 #endif
 
     name_length = strlen(path);

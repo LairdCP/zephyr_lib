@@ -99,14 +99,25 @@ config LCZ_FS_MGMT_APPLICATION_ACCESS_CHECK
 	  Prevents file access by passing the desired action and filename to the
 	  application so it can be approved or declined prior to continuing, the
 	  user application can implement an allow or deny list based upon any
-	  parameters that are needed.
+	  parameters that are needed (see fs_mgmt_impl_app_access_check() in
+	  include/lcz_fs_mgmt/fs_mgmt_impl.h for callback details).
 
 config LCZ_FS_MGMT_INTERCEPT
 	bool "Application-layer file upload intercept"
-	default n
 	help
 	  Passes control of file upload to the application so it can decide how
-	  to proceed in processing the request.
+	  to proceed in processing the request (see fs_mgmt_impl_app_intercept()
+	  in include/lcz_fs_mgmt/fs_mgmt_impl.h for callback details).
+
+config LCZ_FS_MGMT_APPLICATION_REDIRECT
+	bool "Application-layer filename redirection"
+	help
+	  Passes filenames to the application so it can decide if they should be
+	  rewritten or used as-is (see fs_mgmt_impl_app_redirect() in
+	  include/lcz_fs_mgmt/fs_mgmt_impl.h for callback details).
+
+	  Note: Filenames are passed after the application access check is
+	        accepted (if enabled) and must not exceed the maximum path size.
 
 endif # LCZ_MCUMGR_CMD_FS_MGMT
 
