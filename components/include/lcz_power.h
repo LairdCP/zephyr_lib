@@ -13,6 +13,7 @@
 /* Includes                                                                   */
 /******************************************************************************/
 #include <devicetree.h>
+#include <hal/nrf_power.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +82,17 @@ void power_interval_set(uint32_t interval_time);
  * @return Time in ms
  */
 uint32_t power_interval_get(void);
+
+/**
+ * @brief Enables or disables the power fail comparator
+ *
+ * @note Once the power fail warning has been sent, internal flash cannot be
+ *       written to until the power fail feature is disabled
+ *
+ * @param true to enable, false to disable
+ * @param Power level to trigger the warning on (see nrf_power.h)
+ */
+void power_fail_set(bool enable, nrf_power_pof_thr_t power_level);
 
 #ifdef CONFIG_REBOOT
 /**

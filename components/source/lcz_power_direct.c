@@ -17,6 +17,7 @@ LOG_MODULE_REGISTER(lcz_power, CONFIG_LCZ_POWER_LOG_LEVEL);
 #include <zephyr/types.h>
 #include <kernel.h>
 #include <hal/nrf_saadc.h>
+#include <nrfx_power.h>
 #include <drivers/adc.h>
 #include <logging/log_ctrl.h>
 #include <Framework.h>
@@ -30,6 +31,10 @@ LOG_MODULE_REGISTER(lcz_power, CONFIG_LCZ_POWER_LOG_LEVEL);
 
 #ifdef CONFIG_REBOOT
 #include <power/reboot.h>
+#endif
+
+#if defined(CONFIG_LCZ_POWER_POWER_FAILURE) && defined(CONFIG_MPSL)
+#include <mpsl.h>
 #endif
 
 #include "lcz_power.h"
@@ -47,6 +52,7 @@ static struct adc_channel_cfg m_1st_channel_cfg = {
 static int16_t m_sample_buffer;
 static struct k_timer power_timer;
 static struct k_work power_work;
+static struct k_work power_fail_work;
 static bool timer_enabled;
 static uint32_t timer_interval = DEFAULT_POWER_TIMER_PERIOD_MS;
 
@@ -59,6 +65,10 @@ static void power_run(void);
 static void system_workq_power_timer_handler(struct k_work *item);
 static void power_timer_callback(struct k_timer *timer_id);
 
+#ifdef CONFIG_LCZ_POWER_POWER_FAILURE
+static void system_workq_power_fail_handler(struct k_work *item);
+#endif
+
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
@@ -67,6 +77,10 @@ void power_init(void)
 	/* Setup work-queue and repetitive timer */
 	k_timer_init(&power_timer, power_timer_callback, NULL);
 	k_work_init(&power_work, system_workq_power_timer_handler);
+
+#ifdef CONFIG_LCZ_POWER_POWER_FAILURE
+	k_work_init(&power_fail_work, system_workq_power_fail_handler);
+#endif
 }
 
 void power_mode_set(bool enable)
@@ -96,6 +110,23 @@ uint32_t power_interval_get(void)
 {
 	return timer_interval;
 }
+
+#ifdef CONFIG_LCZ_POWER_POWER_FAILURE
+void power_fail_set(bool enable, nrf_power_pof_thr_t power_level)
+{
+	if (enable == true) {
+		nrf_power_pofcon_set(NRF_POWER, true, power_level);
+		nrf_power_int_enable(NRF_POWER, NRF_POWER_INT_POFWARN_MASK);
+	} else {
+		if (nrf_power_int_enable_check(NRF_POWER,
+					       NRF_POWER_INT_POFWARN_MASK)) {
+			nrf_power_int_disable(NRF_POWER,
+					      NRF_POWER_INT_POFWARN_MASK);
+		}
+		nrf_power_pofcon_set(NRF_POWER, false, NRF_POWER_POFTHR_V28);
+	}
+}
+#endif
 
 #ifdef CONFIG_REBOOT
 void power_reboot_module(uint8_t type)
@@ -189,12 +220,38 @@ static void system_workq_power_timer_handler(struct k_work *item)
 	power_run();
 }
 
+#ifdef CONFIG_LCZ_POWER_POWER_FAILURE
+static void system_workq_power_fail_handler(struct k_work *item)
+{
+	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_POWER,
+					   FMC_POWER_FAIL_TRIGGERED);
+}
+#endif
+
 /******************************************************************************/
 /* Interrupt Service Routines                                                 */
 /******************************************************************************/
 static void power_timer_callback(struct k_timer *timer_id)
 {
 	/* Add item to system work queue so that it can be handled in task
-	 * context because ADC cannot be used in interrupt context (mutex). */
+	 * context because ADC cannot be used in interrupt context (mutex)
+	 */
 	k_work_submit(&power_work);
 }
+
+#ifdef CONFIG_LCZ_POWER_POWER_FAILURE
+void nrfx_power_clock_irq_handler(void)
+{
+#ifdef CONFIG_MPSL
+        MPSL_IRQ_CLOCK_Handler();
+#endif
+
+	if (NRF_POWER->EVENTS_POFWARN == 1) {
+		/* Power failure warning, clear event and queue up a work item
+		 * to send a message
+		 */
+		NRF_POWER->EVENTS_POFWARN = 0;
+		k_work_submit(&power_fail_work);
+	}
+}
+#endif

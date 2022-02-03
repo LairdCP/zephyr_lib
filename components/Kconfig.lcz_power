@@ -51,4 +51,8 @@ config LCZ_ADC_ALWAYS_SAMPLING
 	bool "Keeps the ADC sampling always active regardless of BLE state"
 	default y
 
+config LCZ_POWER_POWER_FAILURE
+	bool "Enable power failure comparator feature"
+	depends on LCZ_POWER_TYPE_DIRECT
+
 endif # LCZ_POWER
