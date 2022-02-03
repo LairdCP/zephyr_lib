@@ -33,82 +33,6 @@ config LCZ_HWREV
 	help
 		Enable Hardware Revision ID checking.
 
-# Splitting ADC and reset could make dependencies cleaner
-# nothing else in zephyr wraps with CONFIG_REBOOT (mcumgr selects it).
-config LCZ_POWER
-	bool "Controls ADC and reset"
-	select ADC
-	select NRFX_SAADC
-	select ADC_NRFX_SAADC
-	select REBOOT
-
-if LCZ_POWER
-
-choice LCZ_POWER_TYPE
-	prompt "Power monitoring type"
-	default LCZ_POWER_TYPE_EXTERNAL if BOARD_MG100 || BOARD_PINNACLE_100_DVK
-	default LCZ_POWER_TYPE_DIRECT if !(BOARD_MG100 && BOARD_PINNACLE_100_DVK)
-	help
-	  Type of power measurement (board dependent)
-
-config LCZ_POWER_TYPE_DIRECT
-	bool "Direct VDD measurement"
-	help
-	  Measure VDD voltage directly for voltage level determination.
-
-config LCZ_POWER_TYPE_EXTERNAL
-	bool "External input (voltage divider)"
-	help
-	  Measure voltage using external potential divider.
-
-endchoice
-
-config LCZ_POWER_LOG_LEVEL
-	int "Log level for power module"
-	range 0 4
-	default 3
-
-config LCZ_CUSTOM_FATAL_ERROR_HANDLER
-	bool "Custom fatal error handler that resets on fatal error"
-	depends on !BT_LL_NRFXLIB_DEFAULT
-
-config LCZ_ADC_SAMPLE_PERIOD
-	int "Number of seconds in between ADC readings"
-	default 15
-
-config LCZ_ADC_ALWAYS_SAMPLING
-	bool "Keeps the ADC sampling always active regardless of BLE state"
-	default y
-
-endif # LCZ_POWER
-
-config LCZ_NFC
-	bool "Enables NFC Support"
-	select NFC_T2T_NRFXLIB
-	select NFC_NDEF
-	select NFC_NDEF_MSG
-	select NFC_NDEF_RECORD
-	select NFC_NDEF_LE_OOB_REC
-	select NFC_NDEF_LE_OOB_REC_PARSER
-	select NFC_NDEF_TEXT_RECORD
-	select NFC_NDEF_URI_MSG
-	select NFC_NDEF_URI_REC
-	select NFC_NDEF_PARSER
-	select NFC_NDEF_PAYLOAD_TYPE_COMMON
-	select NFC_NDEF_TNEP_RECORD
-
-if LCZ_NFC
-
-config LCZ_NFC_REC1_STR
-	string "NFC Record 1 String"
-	default "https://apps.apple.com/us/app/laird-pinnacle-connect/id1481075861?ls=1"
-
-config LCZ_NFC_REC2_STR
-	string "NFC Record 2 String"
-	default "http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect"
-
-endif # LCZ_NFC
-
 config LCZ_SOCK
 	bool "Wrapper for single socket"
 	depends on NET_SOCKETS
@@ -138,6 +62,8 @@ config LCZ_SOFTWARE_RESET_LOG_LEVEL
     range 0 4
     default 3
 
+rsource "Kconfig.lcz_power"
+rsource "Kconfig.lcz_nfc"
 rsource "Kconfig.lcz_qrtc"
 rsource "Kconfig.lcz_param_file"
 rsource "Kconfig.lcz_led"
