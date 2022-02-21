@@ -7,19 +7,37 @@
 menuconfig LCZ_LED
 	bool "Enable the LED component"
 	help
-		Simple on/off and pattern control for multiple LEDs.
+	  Simple on/off and pattern control for multiple LEDs.
 
 if LCZ_LED
 
+choice LCZ_LED_DRIVER_TYPE
+	prompt "Select locking mechanism for LED driver"
+	default LCZ_LED_DRIVER_MUTEX
+
+config LCZ_LED_DRIVER_MUTEX
+	bool "Mutex used for locking"
+	help
+	  Prevents API calls from ISR context.
+	  One mutex for all operations.
+
+config LCZ_LED_DRIVER_ATOMIC
+	bool "Atomic variable for locking"
+	help
+	  Allows calls from ISR context.
+	  Each LED has its own lock.
+
+endchoice
+
 config LCZ_LED_LOG_LEVEL
-    int "Log level for LED Module"
-    range 0 4
-    default 3
+	int "Log level for LED Module"
+	range 0 4
+	default 3
 
 config LCZ_LED_CUSTOM_ON_OFF
 	bool "Allow custom on/off functions"
 	help
-		When this is selected the LED driver will not initialize pins.
+	  When this is selected the LED driver will not initialize pins.
 
 config DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK
 	int "On time in milliseconds"

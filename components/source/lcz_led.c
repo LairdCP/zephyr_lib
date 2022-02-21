@@ -2,7 +2,7 @@
  * @file lcz_led.c
  * @brief LED control
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -38,6 +38,8 @@ enum led_blink_state {
 };
 
 struct led {
+	bool initialized;
+	led_index_t index;
 	enum led_state state;
 #ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
 	void (*on)(void);
@@ -51,13 +53,19 @@ struct led {
 	struct lcz_led_blink_pattern pattern;
 	struct k_timer timer;
 	struct k_work work;
+#ifdef CONFIG_LCZ_LED_DRIVER_ATOMIC
+	atomic_t locked;
+#endif
 	void (*pattern_complete_function)(void);
 };
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
+#ifdef CONFIG_LCZ_LED_DRIVER_MUTEX
 static struct k_mutex led_mutex;
+#endif
+
 static struct led led[CONFIG_LCZ_NUMBER_OF_LEDS];
 
 /******************************************************************************/
@@ -67,6 +75,8 @@ static void led_timer_callback(struct k_timer *timer_id);
 static void system_workq_led_timer_handler(struct k_work *item);
 static void turn_on(struct led *pLed);
 static void turn_off(struct led *pLed);
+static void set_pattern(struct led *pLed,
+			struct lcz_led_blink_pattern const *pPattern);
 static void change_state(struct led *pLed, bool state, bool blink);
 
 #ifndef CONFIG_LCZ_LED_CUSTOM_ON_OFF
@@ -76,6 +86,8 @@ static void led_configure_pin(led_index_t index, uint32_t pin);
 #endif
 
 static bool valid_index(led_index_t index);
+static int led_lock(led_index_t index);
+static void led_unlock(led_index_t index);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -85,8 +97,10 @@ void lcz_led_init(struct lcz_led_configuration *pConfig, size_t size)
 	size_t i;
 	struct lcz_led_configuration *pc = pConfig;
 
+#ifdef CONFIG_LCZ_LED_DRIVER_MUTEX
 	k_mutex_init(&led_mutex);
 	TAKE_MUTEX(led_mutex);
+#endif
 
 	for (i = 0; i < MIN(size, CONFIG_LCZ_NUMBER_OF_LEDS); i++) {
 		k_timer_init(&led[i].timer, led_timer_callback, NULL);
@@ -99,74 +113,80 @@ void lcz_led_init(struct lcz_led_configuration *pConfig, size_t size)
 #else
 		led_bind_and_configure(pc);
 #endif
+		led[i].initialized = true;
+#ifdef CONFIG_LCZ_LED_DRIVER_ATOMIC
+		led[i].locked = false;
+#endif
+		led[i].index = i;
 		pc += 1;
 	}
+
+#ifdef CONFIG_LCZ_LED_DRIVER_MUTEX
 	GIVE_MUTEX(led_mutex);
+#endif
 }
 
-void lcz_led_turn_on(led_index_t index)
+int lcz_led_turn_on(led_index_t index)
 {
-	if (!valid_index(index)) {
-		return;
+	int r = led_lock(index);
+	if (r == 0) {
+		change_state(&led[index], ON, DONT_BLINK);
+		led_unlock(index);
 	}
-	TAKE_MUTEX(led_mutex);
-	change_state(&led[index], ON, DONT_BLINK);
-	GIVE_MUTEX(led_mutex);
+
+	return r;
 }
 
-void lcz_led_turn_off(led_index_t index)
+int lcz_led_turn_off(led_index_t index)
 {
-	if (!valid_index(index)) {
-		return;
+	int r = led_lock(index);
+	if (r == 0) {
+		change_state(&led[index], OFF, DONT_BLINK);
+		led_unlock(index);
 	}
-	TAKE_MUTEX(led_mutex);
-	change_state(&led[index], OFF, DONT_BLINK);
-	GIVE_MUTEX(led_mutex);
+
+	return r;
 }
 
-void lcz_led_blink(led_index_t index,
-		   struct lcz_led_blink_pattern const *pPattern)
+int lcz_led_blink(led_index_t index,
+		  struct lcz_led_blink_pattern const *pPattern)
 {
-	if (!valid_index(index)) {
-		return;
-	}
+	int r = -EINVAL;
+
 	if (pPattern != NULL) {
-		TAKE_MUTEX(led_mutex);
-		led[index].pattern_busy = true;
-		memcpy(&led[index].pattern, pPattern,
-		       sizeof(struct lcz_led_blink_pattern));
-		led[index].pattern.on_time =
-			MAX(led[index].pattern.on_time, MINIMUM_ON_TIME_MSEC);
-		led[index].pattern.off_time =
-			MAX(led[index].pattern.off_time, MINIMUM_OFF_TIME_MSEC);
-		change_state(&led[index], ON, BLINK);
-		GIVE_MUTEX(led_mutex);
+		r = led_lock(index);
+		if (r == 0) {
+			led[index].pattern_busy = true;
+			set_pattern(&led[index], pPattern);
+			change_state(&led[index], ON, BLINK);
+			led_unlock(index);
+		}
 	} else {
 		__ASSERT(false, "NULL LED pattern");
 	}
+
+	return r;
 }
 
-void lcz_led_register_pattern_complete_function(led_index_t index,
-						void (*function)(void))
+int lcz_led_register_pattern_complete_function(led_index_t index,
+					       void (*function)(void))
 {
-	if (!valid_index(index)) {
-		return;
+	int r = led_lock(index);
+	if (r == 0) {
+		led[index].pattern_complete_function = function;
+		led_unlock(index);
 	}
-	TAKE_MUTEX(led_mutex);
-	led[index].pattern_complete_function = function;
-	GIVE_MUTEX(led_mutex);
+
+	return r;
 }
 
 bool lcz_led_pattern_busy(led_index_t index)
 {
-	bool result = false;
 	if (!valid_index(index)) {
 		return false;
 	}
-	TAKE_MUTEX(led_mutex);
-	result = led[index].pattern_busy;
-	GIVE_MUTEX(led_mutex);
-	return result;
+
+	return led[index].pattern_busy;
 }
 
 /******************************************************************************/
@@ -211,28 +231,33 @@ static void led_configure_pin(led_index_t index, uint32_t pin)
 
 static void system_workq_led_timer_handler(struct k_work *item)
 {
-	TAKE_MUTEX(led_mutex);
 	struct led *pLed = CONTAINER_OF(item, struct led, work);
-	if (pLed->pattern.repeat_count == 0) {
-		change_state(pLed, OFF, DONT_BLINK);
-		if (pLed->pattern_complete_function != NULL) {
-			pLed->pattern_busy = false;
-			pLed->pattern_complete_function();
-		}
-	} else {
-		/* Blink patterns start with the LED on, so check the repeat count
-		 * after the first on->off cycle has completed (when the repeat
-		 * count is non-zero). */
-		if (pLed->state == ON) {
-			change_state(pLed, OFF, BLINK);
-		} else {
-			if (pLed->pattern.repeat_count != REPEAT_INDEFINITELY) {
-				pLed->pattern.repeat_count -= 1;
+
+	int r = led_lock(pLed->index);
+	if (r == 0) {
+		if (pLed->pattern.repeat_count == 0) {
+			change_state(pLed, OFF, DONT_BLINK);
+			if (pLed->pattern_complete_function != NULL) {
+				pLed->pattern_busy = false;
+				pLed->pattern_complete_function();
 			}
-			change_state(pLed, ON, BLINK);
+		} else {
+			/* Blink patterns start with the LED on, so check the repeat count
+			 * after the first on->off cycle has completed (when the repeat
+			 * count is non-zero).
+			 */
+			if (pLed->state == ON) {
+				change_state(pLed, OFF, BLINK);
+			} else {
+				if (pLed->pattern.repeat_count !=
+				    REPEAT_INDEFINITELY) {
+					pLed->pattern.repeat_count -= 1;
+				}
+				change_state(pLed, ON, BLINK);
+			}
 		}
+		led_unlock(pLed->index);
 	}
-	GIVE_MUTEX(led_mutex);
 }
 
 static void change_state(struct led *pLed, bool state, bool blink)
@@ -262,6 +287,16 @@ static void change_state(struct led *pLed, bool state, bool blink)
 	LOG_DBG("%s %s", state ? "On" : "Off", blink ? "blink" : "Don't blink");
 }
 
+static void set_pattern(struct led *pLed,
+			struct lcz_led_blink_pattern const *pPattern)
+{
+	memcpy(&pLed->pattern, pPattern, sizeof(struct lcz_led_blink_pattern));
+	pLed->pattern.on_time =
+		MAX(pLed->pattern.on_time, MINIMUM_ON_TIME_MSEC);
+	pLed->pattern.off_time =
+		MAX(pLed->pattern.off_time, MINIMUM_OFF_TIME_MSEC);
+}
+
 static void turn_on(struct led *pLed)
 {
 #ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
@@ -289,11 +324,39 @@ static void turn_off(struct led *pLed)
 static bool valid_index(led_index_t index)
 {
 	if (index < CONFIG_LCZ_NUMBER_OF_LEDS) {
-		return true;
+		return led[index].initialized;
 	} else {
 		__ASSERT(false, "Invalid LED Index");
 		return false;
 	}
+}
+
+static int led_lock(led_index_t index)
+{
+	if (!valid_index(index)) {
+		return -EINVAL;
+	}
+
+#ifdef CONFIG_LCZ_LED_DRIVER_ATOMIC
+	if (atomic_cas(&led[index].locked, 0, 1)) {
+		return 0;
+	}
+#else
+	TAKE_MUTEX(led_mutex);
+	return 0;
+#endif
+
+	LOG_WRN("Unable to lock led %d", index);
+	return -ENOLCK;
+}
+
+static void led_unlock(led_index_t index)
+{
+#ifdef CONFIG_LCZ_LED_DRIVER_ATOMIC
+	atomic_clear(&led[index].locked);
+#else
+	GIVE_MUTEX(led_mutex);
+#endif
 }
 
 /******************************************************************************/
@@ -302,7 +365,11 @@ static bool valid_index(led_index_t index)
 static void led_timer_callback(struct k_timer *timer_id)
 {
 	/* Add item to system work queue so that it can be handled in task
-	 * context because LEDs cannot be handed in interrupt context (mutex). */
+	 * context because LEDs cannot be handed in interrupt context (mutex).
+	 *
+	 * This doesn't apply for atomic version of driver, but the same
+	 * flow is kept.
+	 */
 	struct led *pLed = (struct led *)k_timer_user_data_get(timer_id);
 	k_work_submit(&pLed->work);
 }

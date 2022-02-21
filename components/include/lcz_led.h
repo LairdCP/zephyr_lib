@@ -2,7 +2,7 @@
  * @file lcz_led.h
  * @brief On/Off and simple blink patterns for LED.
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -64,39 +64,46 @@ typedef struct lcz_led_configuration {
  * @brief Init the LEDs for the board.
  *
  * LEDs should be off after completion.
- * Creates mutex used by on/off/blink functions.
  *
+ * @param pConfig configuration structure
+ * @param size size of structure
  */
 void lcz_led_init(struct lcz_led_configuration *pConfig, size_t size);
 
 /**
  * @param index is a Valid LED
+ * @return int negative error, 0 on success
  */
-void lcz_led_turn_on(led_index_t index);
+int lcz_led_turn_on(led_index_t index);
 
 /**
  * @param index is a Valid LED
+ * @return int negative error, 0 on success
  */
-void lcz_led_turn_off(led_index_t index);
+int lcz_led_turn_off(led_index_t index);
 
 /**
  * @param index is a Valid LED
  * @param lcz_led_blink_pattern @ref struct lcz_led_blink_pattern
+ * @return int negative error, 0 on success
  *
  * @note The pattern is copied by the LED driver.
  */
-void lcz_led_blink(led_index_t index,
-		   struct lcz_led_blink_pattern const *pPattern);
+int lcz_led_blink(led_index_t index,
+		  struct lcz_led_blink_pattern const *pPattern);
 
 /**
  * @param param function called in system work queue context
  * when pattern is complete (use NULL to disable).
+ * @return int negative error, 0 on success
  */
-void lcz_led_register_pattern_complete_function(led_index_t index,
-						void (*function)(void));
+int lcz_led_register_pattern_complete_function(led_index_t index,
+					       void (*function)(void));
 
 /**
- * @param retval true if a blink pattern is running, false if it is complete
+ * @param index of LED
+ * @return true if a blink pattern is running
+ * @return false if it is complete
  */
 bool lcz_led_pattern_busy(led_index_t index);
 
