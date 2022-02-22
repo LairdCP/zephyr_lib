@@ -30,7 +30,7 @@ LOG_MODULE_REGISTER(lcz_power, CONFIG_LCZ_POWER_LOG_LEVEL);
 #include <locking.h>
 
 #ifdef CONFIG_REBOOT
-#include <power/reboot.h>
+#include <sys/reboot.h>
 #endif
 
 #include "lcz_power.h"

@@ -15,7 +15,7 @@ LOG_MODULE_REGISTER(lcz_software_reset, CONFIG_LCZ_SOFTWARE_RESET_LOG_LEVEL);
 /******************************************************************************/
 #include <kernel.h>
 #include <logging/log_ctrl.h>
-#include <power/reboot.h>
+#include <sys/reboot.h>
 
 #ifdef CONFIG_LCZ_MEMFAULT
 #include "lcz_memfault.h"
