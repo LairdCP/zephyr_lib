@@ -51,7 +51,7 @@ static uint8_t ndef_msg_buf[NDEF_MSG_BUF_SIZE];
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void nfc_callback(void *context, enum nfc_t2t_event event,
+static void nfc_callback(void *context, nfc_t2t_event_t event,
 			 const uint8_t *data, size_t data_length);
 static int device_msg_encode(uint8_t *buffer, uint32_t *len);
 
@@ -91,7 +91,7 @@ int laird_connectivity_nfc_init()
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void nfc_callback(void *context, enum nfc_t2t_event event,
+static void nfc_callback(void *context, nfc_t2t_event_t event,
 			 const uint8_t *data, size_t data_length)
 {
 	ARG_UNUSED(context);
