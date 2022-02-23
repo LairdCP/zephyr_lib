@@ -245,7 +245,7 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 	mbedtls_sha256_context *pCtx = k_malloc(sizeof(mbedtls_sha256_context));
 	if ((pBuffer != NULL) && (pCtx != NULL)) {
 		mbedtls_sha256_init(pCtx);
-		rc = mbedtls_sha256_starts_ret(pCtx, 0);
+		rc = mbedtls_sha256_starts(pCtx, 0);
 
 		size_t rem = size;
 		ssize_t bytes_read;
@@ -254,8 +254,8 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 			length = MIN(rem, CONFIG_FSU_HASH_CHUNK_SIZE);
 			bytes_read = fs_read(&f, pBuffer, length);
 			if (bytes_read == length) {
-				rc = mbedtls_sha256_update_ret(pCtx, pBuffer,
-							       length);
+				rc = mbedtls_sha256_update(pCtx, pBuffer,
+							   length);
 				rem -= length;
 			} else {
 				rc = -EIO;
@@ -263,7 +263,7 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 		}
 
 		if (rc == 0 && rem == 0) {
-			rc = mbedtls_sha256_finish_ret(pCtx, hash);
+			rc = mbedtls_sha256_finish(pCtx, hash);
 		}
 	} else {
 		rc = -ENOMEM;
@@ -297,8 +297,7 @@ int fsu_crc32(uint32_t *checksum, const char *path, const char *name,
 	return fsu_crc32_abs(checksum, abs_path, size);
 }
 
-int fsu_crc32_abs(uint32_t *checksum, const char *abs_path,
-		  size_t size)
+int fsu_crc32_abs(uint32_t *checksum, const char *abs_path, size_t size)
 {
 	int rc = -EPERM;
 
@@ -323,9 +322,8 @@ int fsu_crc32_abs(uint32_t *checksum, const char *abs_path,
 			length = MIN(rem, CONFIG_FSU_CHECKSUM_CHUNK_SIZE);
 			bytes_read = fs_read(&f, pBuffer, length);
 			if (bytes_read == length) {
-				*checksum = crc32_ieee_update(*checksum,
-							      pBuffer,
-							      bytes_read);
+				*checksum = crc32_ieee_update(
+					*checksum, pBuffer, bytes_read);
 				rem -= length;
 			} else {
 				rc = -EIO;
