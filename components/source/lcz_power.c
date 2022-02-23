@@ -26,8 +26,10 @@ LOG_MODULE_REGISTER(lcz_power, CONFIG_LCZ_POWER_LOG_LEVEL);
 #include <framework_msgcodes.h>
 #include <framework_types.h>
 #include <BufferPool.h>
+#ifdef CONFIG_LOCKING
 #include <locking_defs.h>
 #include <locking.h>
+#endif
 
 #ifdef CONFIG_REBOOT
 #include <sys/reboot.h>
@@ -211,8 +213,10 @@ static void power_run(void)
 		.resolution = ADC_RESOLUTION,
 	};
 
+#ifdef CONFIG_LOCKING
 	/* Prevent other ADC uses */
 	locking_take(LOCKING_ID_adc, K_FOREVER);
+#endif
 
 	/* Enable power supply voltage to be monitored */
 	ret = gpio_pin_set(device_get_binding(MEASURE_ENABLE_PORT),
@@ -261,7 +265,9 @@ static void power_run(void)
 		LOG_ERR("Error setting power GPIO");
 	}
 
+#ifdef CONFIG_LOCKING
 	locking_give(LOCKING_ID_adc);
+#endif
 
 	power_measure_msg_t *fmsg = (power_measure_msg_t *)BufferPool_Take(
 						sizeof(power_measure_msg_t));
