@@ -28,13 +28,13 @@
 #include "lcz_os_mgmt/os_mgmt_config.h"
 
 #if OS_MGMT_ECHO
-static mgmt_handler_fn os_mgmt_echo;
+static int os_mgmt_echo(struct mgmt_ctxt *ctxt);
 #endif
 
-static mgmt_handler_fn os_mgmt_reset;
+static int os_mgmt_reset(struct mgmt_ctxt *ctxt);
 
 #if OS_MGMT_TASKSTAT
-static mgmt_handler_fn os_mgmt_taskstat_read;
+static int os_mgmt_taskstat_read(struct mgmt_ctxt *ctxt);
 #endif
 
 static const struct mgmt_handler os_mgmt_group_handlers[] = {

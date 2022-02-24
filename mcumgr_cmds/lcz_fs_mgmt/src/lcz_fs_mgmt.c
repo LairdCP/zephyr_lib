@@ -26,11 +26,11 @@
 #include "lcz_fs_mgmt/fs_mgmt_impl.h"
 #include "lcz_fs_mgmt/fs_mgmt_config.h"
 
-static mgmt_handler_fn fs_mgmt_file_download;
-static mgmt_handler_fn fs_mgmt_file_upload;
-static mgmt_handler_fn fs_mgmt_file_size;
-static mgmt_handler_fn fs_mgmt_file_crc32;
-static mgmt_handler_fn fs_mgmt_file_sha256;
+static int fs_mgmt_file_download(struct mgmt_ctxt *ctxt);
+static int fs_mgmt_file_upload(struct mgmt_ctxt *ctxt);
+static int fs_mgmt_file_size(struct mgmt_ctxt *ctxt);
+static int fs_mgmt_file_crc32(struct mgmt_ctxt *ctxt);
+static int fs_mgmt_file_sha256(struct mgmt_ctxt *ctxt);
 static struct fs_mgmt_ctxt fs_mgmt_ctxt;
 
 static const struct mgmt_handler fs_mgmt_handlers[] = {

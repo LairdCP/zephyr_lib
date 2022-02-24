@@ -41,9 +41,9 @@
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static mgmt_handler_fn prepare_log;
-static mgmt_handler_fn ack_log;
-static mgmt_handler_fn generate_test_log;
+static int prepare_log(struct mgmt_ctxt *ctxt);
+static int ack_log(struct mgmt_ctxt *ctxt);
+static int generate_test_log(struct mgmt_ctxt *ctxt);
 
 static int event_log_mgmt_init(const struct device *device);
 
