@@ -36,8 +36,8 @@
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static mgmt_handler_fn set_rtc;
-static mgmt_handler_fn get_rtc;
+static int set_rtc(struct mgmt_ctxt *ctxt);
+static int get_rtc(struct mgmt_ctxt *ctxt);
 
 static int qrtc_mgmt_init(const struct device *device);
 

@@ -30,7 +30,7 @@
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static mgmt_handler_fn generate_memfault_file;
+static int generate_memfault_file(struct mgmt_ctxt *ctxt);
 
 static int memfault_mgmt_init(const struct device *device);
 

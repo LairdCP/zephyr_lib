@@ -38,7 +38,7 @@
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static mgmt_handler_fn uart_log_halt;
+static int uart_log_halt(struct mgmt_ctxt *ctxt);
 
 static int shell_log_mgmt_init(const struct device *device);
 
