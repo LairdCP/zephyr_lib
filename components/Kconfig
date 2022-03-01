@@ -62,7 +62,6 @@ config LCZ_SOFTWARE_RESET_LOG_LEVEL
     range 0 4
     default 3
 
-rsource "Kconfig.lcz_power"
 rsource "Kconfig.lcz_nfc"
 rsource "Kconfig.lcz_qrtc"
 rsource "Kconfig.lcz_param_file"
