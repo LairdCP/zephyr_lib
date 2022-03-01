@@ -17,7 +17,6 @@ if LCZ_MCUMGR_CMD_IMG_MGMT
 config LCZ_IMG_MGMT_UL_CHUNK_SIZE
 	int "Maximum chunk size for image uploads"
 	default 512
-	depends on MCUMGR_CMD_IMG_MGMT
 	help
 	  Limits the maximum chunk size for image uploads, in bytes.  A buffer of
 	  this size gets allocated on the stack during handling of a image upload
