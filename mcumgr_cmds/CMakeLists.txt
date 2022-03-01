@@ -33,3 +33,15 @@ zephyr_sources(
     lcz_os_mgmt/src/stubs.c
 )
 endif()
+
+if(CONFIG_LCZ_MCUMGR_CMD_IMG_MGMT)
+zephyr_include_directories(lcz_img_mgmt/include)
+
+zephyr_sources(
+    lcz_img_mgmt/src/zephyr_img_mgmt.c
+    lcz_img_mgmt/src/zephyr_img_mgmt_log.c
+    lcz_img_mgmt/src/img_mgmt.c
+    lcz_img_mgmt/src/img_mgmt_state.c
+    lcz_img_mgmt/src/img_mgmt_util.c
+)
+endif()
