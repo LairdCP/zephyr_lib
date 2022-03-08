@@ -180,6 +180,7 @@ static int lcz_wdt_initialise(const struct device *device)
 			break;
 		}
 
+		k_work_queue_init(&lcz_wdt.work_q);
 		k_work_queue_start(&lcz_wdt.work_q, wdt_workq_stack,
 				   K_THREAD_STACK_SIZEOF(wdt_workq_stack),
 				   K_LOWEST_APPLICATION_THREAD_PRIO, NULL);
