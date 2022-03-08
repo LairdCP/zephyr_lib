@@ -39,8 +39,8 @@ config LCZ_WDT_MEMFAULT_PRE_FIRE_MS
         to boot.
 
 config LCZ_WDT_WORK_QUEUE_STACK_SIZE
-    int
-    default 320
+    int "Work queue stack size"
+    default 512
 
 config LCZ_WDT_TEST
     bool "Force the watchdog to timeout (set during initialisation)"
