@@ -13,7 +13,7 @@
 #include <init.h>
 #include <zephyr.h>
 #include <stdlib.h>
-#include <power/reboot.h>
+#include <sys/reboot.h>
 
 #include "lcz_approtect.h"
 
@@ -30,7 +30,7 @@
 
 #if defined(CONFIG_LCZ_APPROTECT_STARTUP)
 #if !defined(CONFIG_LCZ_APPROTECT_STARTUP_READBACK_PROTECTION) &&              \
-    !defined(CONFIG_LCZ_APPROTECT_STARTUP_CPU_DEBUG_PROTECTION)
+	!defined(CONFIG_LCZ_APPROTECT_STARTUP_CPU_DEBUG_PROTECTION)
 #error LCZ_APPROTECT_STARTUP is defined but is missing required                \
        LCZ_APPROTECT_STARTUP_READBACK_PROTECTION and/or                        \
        LCZ_APPROTECT_STARTUP_CPU_DEBUG_PROTECTION
@@ -73,15 +73,18 @@ bool lcz_enable_readback_protection(bool restart)
 		 * module. Enable flash to be written
 		 */
 		NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen;
-		while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+		while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
+			;
 
 		/* Write new value to flash (UICR) */
-		((uint32_t*)(&NRF_UICR->APPROTECT))[0] = readback_protection;
-		while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+		((uint32_t *)(&NRF_UICR->APPROTECT))[0] = readback_protection;
+		while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
+			;
 
 		/* Disable writing */
 		NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren;
-		while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+		while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
+			;
 
 		/* Reboot device for changes to take effect, if requested */
 		if (restart == true) {
@@ -102,15 +105,18 @@ bool lcz_enable_cpu_debug_protection(bool restart)
 		 * module. Enable flash to be written
 		 */
 		NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen;
-		while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+		while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
+			;
 
 		/* Write new value to flash (UICR) */
-		((uint32_t*)(&NRF_UICR->DEBUGCTRL))[0] = cpu_debug_protection;
-		while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+		((uint32_t *)(&NRF_UICR->DEBUGCTRL))[0] = cpu_debug_protection;
+		while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
+			;
 
 		/* Disable writing */
 		NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren;
-		while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+		while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
+			;
 
 		/* Reboot device for changes to take effect, if requested */
 		if (restart == true) {
