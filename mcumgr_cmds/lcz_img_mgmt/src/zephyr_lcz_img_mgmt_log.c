@@ -5,7 +5,7 @@
  */
 
 #include <zephyr.h>
-#include <img_mgmt/img_mgmt.h>
+#include <lcz_img_mgmt/img_mgmt.h>
 /**
  * Log event types (all events are CBOR-encoded):
  *

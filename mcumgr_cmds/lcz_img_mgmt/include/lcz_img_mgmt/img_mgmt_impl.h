@@ -15,7 +15,7 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
-#include "img_mgmt/img_mgmt.h"
+#include "lcz_img_mgmt/img_mgmt.h"
 
 #ifdef __cplusplus
 extern "C" {

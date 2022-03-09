@@ -12,11 +12,11 @@
 #include "cborattr/cborattr.h"
 #include "mgmt/mgmt.h"
 
-#include "img_mgmt/image.h"
-#include "img_mgmt/img_mgmt.h"
-#include "img_mgmt/img_mgmt_impl.h"
-#include "img_mgmt_priv.h"
-#include "img_mgmt/img_mgmt_config.h"
+#include "lcz_img_mgmt/image.h"
+#include "lcz_img_mgmt/img_mgmt.h"
+#include "lcz_img_mgmt/img_mgmt_impl.h"
+#include "lcz_img_mgmt_priv.h"
+#include "lcz_img_mgmt/img_mgmt_config.h"
 
 static void *img_mgmt_upload_arg;
 static img_mgmt_upload_fn img_mgmt_upload_cb;
@@ -603,13 +603,13 @@ static struct mgmt_group img_mgmt_group = {
 
 
 void
-img_mgmt_register_group(void)
+lcz_img_mgmt_register_group(void)
 {
 	mgmt_register_group(&img_mgmt_group);
 }
 
 void
-img_mgmt_unregister_group(void)
+lcz_img_mgmt_unregister_group(void)
 {
 	mgmt_unregister_group(&img_mgmt_group);
 }

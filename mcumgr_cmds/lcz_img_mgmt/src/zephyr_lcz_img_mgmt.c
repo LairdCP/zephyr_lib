@@ -18,10 +18,10 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <dfu/mcuboot.h>
 #include <dfu/flash_img.h>
 #include <mgmt/mgmt.h>
-#include <img_mgmt/img_mgmt_impl.h>
-#include <img_mgmt/img_mgmt.h>
-#include <img_mgmt/image.h>
-#include "img_mgmt_priv.h"
+#include <lcz_img_mgmt/img_mgmt_impl.h>
+#include <lcz_img_mgmt/img_mgmt.h>
+#include <lcz_img_mgmt/image.h>
+#include "lcz_img_mgmt_priv.h"
 
 BUILD_ASSERT(IMG_MGMT_UPDATABLE_IMAGE_NUMBER == 1 ||
 		 (IMG_MGMT_UPDATABLE_IMAGE_NUMBER == 2 &&

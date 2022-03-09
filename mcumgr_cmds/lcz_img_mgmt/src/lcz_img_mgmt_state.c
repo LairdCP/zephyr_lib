@@ -9,10 +9,10 @@
 #include "tinycbor/cbor.h"
 #include "cborattr/cborattr.h"
 #include "mgmt/mgmt.h"
-#include "img_mgmt/img_mgmt.h"
-#include "img_mgmt/image.h"
-#include "img_mgmt_priv.h"
-#include "img_mgmt/img_mgmt_impl.h"
+#include "lcz_img_mgmt/img_mgmt.h"
+#include "lcz_img_mgmt/image.h"
+#include "lcz_img_mgmt_priv.h"
+#include "lcz_img_mgmt/img_mgmt_impl.h"
 
 /**
  * Collects information about the specified image slot.

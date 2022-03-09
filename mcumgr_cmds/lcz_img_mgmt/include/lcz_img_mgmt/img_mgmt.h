@@ -104,14 +104,14 @@ struct img_mgmt_upload_action {
 };
 
 /**
- * @brief Registers the image management command handler group.
+ * @brief Registers the LCZ image management command handler group.
  */
-void img_mgmt_register_group(void);
+void lcz_img_mgmt_register_group(void);
 
 /**
- * @brief Unregisters the image management command handler group.
+ * @brief Unregisters the LCZ image management command handler group.
  */
-void img_mgmt_unregister_group(void);
+void lcz_img_mgmt_unregister_group(void);
 
 /*
  * @brief Read info of an image give the slot number
