@@ -106,7 +106,7 @@ user:
   region: external_flash
   size: 0x14000
   device: MX25R64
-lfs_storage:
+littlefs_storage:
   address: 0x100000
   region: external_flash
   size: 0x700000
