@@ -52,7 +52,9 @@ struct led {
 	bool pattern_busy;
 	struct lcz_led_blink_pattern pattern;
 	struct k_timer timer;
+#ifndef CONFIG_MCUBOOT
 	struct k_work work;
+#endif
 #ifdef CONFIG_LCZ_LED_DRIVER_ATOMIC
 	atomic_t locked;
 #endif
@@ -72,12 +74,17 @@ static struct led led[CONFIG_LCZ_NUMBER_OF_LEDS];
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
 static void led_timer_callback(struct k_timer *timer_id);
-static void system_workq_led_timer_handler(struct k_work *item);
 static void turn_on(struct led *pLed);
 static void turn_off(struct led *pLed);
 static void set_pattern(struct led *pLed,
 			struct lcz_led_blink_pattern const *pPattern);
 static void change_state(struct led *pLed, bool state, bool blink);
+
+#ifdef CONFIG_MCUBOOT
+static void led_timer_handler(struct led *pLed);
+#else
+static void system_workq_led_timer_handler(struct k_work *item);
+#endif
 
 #ifndef CONFIG_LCZ_LED_CUSTOM_ON_OFF
 static void led_bind_and_configure(struct lcz_led_configuration *pConfig);
@@ -105,7 +112,11 @@ void lcz_led_init(struct lcz_led_configuration *pConfig, size_t size)
 	for (i = 0; i < MIN(size, CONFIG_LCZ_NUMBER_OF_LEDS); i++) {
 		k_timer_init(&led[i].timer, led_timer_callback, NULL);
 		k_timer_user_data_set(&led[i].timer, &led[i]);
+
+#ifndef CONFIG_MCUBOOT
 		k_work_init(&led[i].work, system_workq_led_timer_handler);
+#endif
+
 #ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
 		led[i].on = pc->on;
 		led[i].off = pc->off;
@@ -229,6 +240,36 @@ static void led_configure_pin(led_index_t index, uint32_t pin)
 }
 #endif
 
+#ifdef CONFIG_MCUBOOT
+static void led_timer_handler(struct led *pLed)
+{
+	int r = led_lock(pLed->index);
+	if (r == 0) {
+		if (pLed->pattern.repeat_count == 0) {
+			change_state(pLed, OFF, DONT_BLINK);
+			if (pLed->pattern_complete_function != NULL) {
+				pLed->pattern_busy = false;
+				pLed->pattern_complete_function();
+			}
+		} else {
+			/* Blink patterns start with the LED on, so check the repeat count
+			 * after the first on->off cycle has completed (when the repeat
+			 * count is non-zero).
+			 */
+			if (pLed->state == ON) {
+				change_state(pLed, OFF, BLINK);
+			} else {
+				if (pLed->pattern.repeat_count !=
+				    REPEAT_INDEFINITELY) {
+					pLed->pattern.repeat_count -= 1;
+				}
+				change_state(pLed, ON, BLINK);
+			}
+		}
+		led_unlock(pLed->index);
+	}
+}
+#else
 static void system_workq_led_timer_handler(struct k_work *item)
 {
 	struct led *pLed = CONTAINER_OF(item, struct led, work);
@@ -259,6 +300,7 @@ static void system_workq_led_timer_handler(struct k_work *item)
 		led_unlock(pLed->index);
 	}
 }
+#endif
 
 static void change_state(struct led *pLed, bool state, bool blink)
 {
@@ -371,5 +413,10 @@ static void led_timer_callback(struct k_timer *timer_id)
 	 * flow is kept.
 	 */
 	struct led *pLed = (struct led *)k_timer_user_data_get(timer_id);
+
+#ifdef CONFIG_MCUBOOT
+	led_timer_handler(pLed);
+#else
 	k_work_submit(&pLed->work);
+#endif
 }
