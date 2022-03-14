@@ -45,10 +45,6 @@ config FSU_CHECKSUM_CHUNK_SIZE
 	help
 	  Chunk buffer use heap.
 
-config FSU_MOUNT_POINT
-	string "Default mount point"
-	default "/lfs"
-
 config FSU_LFS_MOUNT
 	bool "Configure lfs partition mount"
 	select FILE_SYSTEM_LITTLEFS
@@ -56,6 +52,14 @@ config FSU_LFS_MOUNT
 	  If disabled, then the partition will need to be manually mounted prior
 	  to function use by an application or module (or nRF Connect SDK
 	  partition manager) instead of calling fsu_lfs_mount().
+
+if FSU_LFS_MOUNT
+
+config FSU_MOUNT_POINT
+	string "Default mount point"
+	default "/lfs"
+
+endif # FSU_LFS_MOUNT
 
 config FSU_MAX_PATH_SIZE
 	int "The maximum size of the file system mount + path"

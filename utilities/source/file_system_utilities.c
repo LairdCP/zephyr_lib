@@ -38,22 +38,21 @@ LOG_MODULE_REGISTER(fsu, CONFIG_FSU_LOG_LEVEL);
 	}
 
 /******************************************************************************/
-/* Global Data Definitions                                                    */
-/******************************************************************************/
-#ifdef CONFIG_FILE_SYSTEM_LITTLEFS
-K_MUTEX_DEFINE(lfs_init_mutex);
-#endif
-
-/******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
+
 #ifdef CONFIG_FSU_LFS_MOUNT
+static K_MUTEX_DEFINE(lfs_init_mutex);
+
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
-static struct fs_mount_t littlefs_mnt = { .type = FS_LITTLEFS,
-					  .fs_data = &cstorage,
-					  .storage_dev = (void *)FLASH_AREA_ID(
-						  lfs_storage),
-					  .mnt_point = CONFIG_FSU_MOUNT_POINT };
+static struct fs_mount_t littlefs_mnt = {
+	.type = FS_LITTLEFS,
+	.fs_data = &cstorage,
+	.storage_dev = (void *)COND_CODE_1(FLASH_AREA_LABEL_EXISTS(lfs_storage),
+					   (FLASH_AREA_ID(lfs_storage)),
+					   (FLASH_AREA_ID(littlefs_storage))),
+	.mnt_point = CONFIG_FSU_MOUNT_POINT
+};
 
 static bool lfs_mounted;
 #endif
