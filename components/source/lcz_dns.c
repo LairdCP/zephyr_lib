@@ -2,7 +2,7 @@
  * @file lcz_dns.c
  * @brief
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -23,8 +23,8 @@ LOG_MODULE_REGISTER(dns);
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-int dns_resolve_server_addr(char *endpoint, char *port, struct addrinfo *hints,
-			    struct addrinfo **result)
+int dns_resolve_server_addr(const char *endpoint, const char *port,
+			    struct addrinfo *hints, struct addrinfo **result)
 {
 	int rc = -EPERM;
 	int dns_retries = CONFIG_DNS_RETRIES;

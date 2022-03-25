@@ -2,7 +2,7 @@
  * @file lcz_dns.h
  * @brief Wrapper for DNS functions.
  *
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,8 +24,8 @@ extern "C" {
 /**
  * @brief Wraps getaddrinfo with DNS_RETRIES counter and print statements.
  */
-int dns_resolve_server_addr(char *endpoint, char *port, struct addrinfo *hints,
-			    struct addrinfo **result);
+int dns_resolve_server_addr(const char *endpoint, const char *port,
+			    struct addrinfo *hints, struct addrinfo **result);
 
 /**
  * @brief Convert getaddrinfo result into address string using snprintk.
