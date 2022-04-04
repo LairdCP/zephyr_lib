@@ -20,20 +20,18 @@ LOG_MODULE_REGISTER(ramdisk, CONFIG_LCZ_RAMDISK_LOG_LEVEL);
 #include <fs/littlefs.h>
 
 /******************************************************************************/
-/* Global Data Definitions                                                    */
-/******************************************************************************/
-static K_MUTEX_DEFINE(ramfs_init_mutex);
-
-/******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(ramfs);
+
 static struct fs_mount_t ramfs_mnt = { .type = FS_LITTLEFS,
 				       .fs_data = &ramfs,
-				       .storage_dev = (void *)FLASH_AREA_ID(
-					    ramfs),
+				       .storage_dev =
+					       (void *)FLASH_AREA_ID(ramfs),
 				       .mnt_point =
-					    CONFIG_LCZ_RAMDISK_MOUNT_POINT };
+					       CONFIG_LCZ_RAMDISK_MOUNT_POINT };
+
+static K_MUTEX_DEFINE(ramfs_init_mutex);
 
 static bool ramfs_mounted;
 
@@ -58,7 +56,7 @@ int ramfs_mount(void)
 			struct fs_statvfs stats;
 			int status = fs_statvfs(ramfs_mnt.mnt_point, &stats);
 			LOG_INF("RAMDISK mounted to %s",
-					CONFIG_LCZ_RAMDISK_MOUNT_POINT);
+				CONFIG_LCZ_RAMDISK_MOUNT_POINT);
 
 			if (status == 0) {
 				LOG_INF("Optimal transfer block size %lu",
@@ -83,7 +81,7 @@ int ramfs_mount(void)
 #ifdef CONFIG_LCZ_RAMDISK_LFS_MOUNT
 static int lcz_ramdisk_initialise(const struct device *device)
 {
-        ARG_UNUSED(device);
+	ARG_UNUSED(device);
 	return ramfs_mount();
 }
 
