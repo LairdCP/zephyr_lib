@@ -14,24 +14,15 @@
 #include <init.h>
 #include <limits.h>
 #include <string.h>
-#include <tinycbor/cbor.h>
-#include <tinycbor/cbor_buf_writer.h>
-#include "cborattr/cborattr.h"
-#include "mgmt/mgmt.h"
+#include <zcbor_common.h>
+#include <zcbor_decode.h>
+#include <zcbor_encode.h>
+#include <zcbor_bulk/zcbor_bulk_priv.h>
+#include <mgmt/mgmt.h>
 
 #include "attr.h"
 #include "lcz_qrtc.h"
 #include "qrtc_mgmt.h"
-
-/******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define END_OF_CBOR_ATTR_ARRAY                                                 \
-	{                                                                      \
-		.attribute = NULL                                              \
-	}
-
-#define MGMT_STATUS_CHECK(x) ((x != 0) ? MGMT_ERR_ENOMEM : 0)
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -80,53 +71,61 @@ static int qrtc_mgmt_init(const struct device *device)
 
 static int set_rtc(struct mgmt_ctxt *ctxt)
 {
-	CborError err = 0;
 	int r = 0;
 	int t = 0;
-	long long unsigned int epoch = ULLONG_MAX;
-
-	struct cbor_attr_t params_attr[] = {
-		{ .attribute = "p1",
-		  .type = CborAttrUnsignedIntegerType,
-		  .addr.uinteger = &epoch,
-		  .nodefault = true },
-		END_OF_CBOR_ATTR_ARRAY
-	};
-
-	if (cbor_read_object(&ctxt->it, params_attr) != 0) {
-		return MGMT_ERR_EINVAL;
-	}
+	uint32_t epoch = ULONG_MAX;
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	zcbor_state_t *zsd = ctxt->cnbd->zs;
+	size_t decoded;
+	bool ok;
 
 #ifdef CONFIG_ATTR_SETTINGS_LOCK
 	if (attr_is_locked() == true) {
 		r = -EACCES;
 		t = lcz_qrtc_get_epoch();
+	} else {
+#endif
+
+		struct zcbor_map_decode_key_val rtc_set_rtc_decode[] = {
+			ZCBOR_MAP_DECODE_KEY_VAL(p1, zcbor_uint32_decode,
+						 &epoch),
+		};
+
+
+		ok = zcbor_map_decode_bulk(zsd, rtc_set_rtc_decode,
+					   ARRAY_SIZE(rtc_set_rtc_decode),
+					   &decoded) == 0;
+
+		if (!ok || decoded == 0) {
+			return MGMT_ERR_EINVAL;
+		}
+
+		r = attr_set_uint32(ATTR_ID_qrtc_last_set, epoch);
+		t = lcz_qrtc_set_epoch(epoch);
+
+#ifdef CONFIG_ATTR_SETTINGS_LOCK
 	}
 #endif
 
-	if (r == 0 && epoch < UINT32_MAX) {
-		r = attr_set_uint32(ATTR_ID_qrtc_last_set, epoch);
-		t = lcz_qrtc_set_epoch(epoch);
-	} else if (r == 0 && epoch >= UINT32_MAX) {
-		r = -EINVAL;
-		t = lcz_qrtc_get_epoch();
-	}
+	/* Cbor encode result */
+	ok = zcbor_tstr_put_lit(zse, "r")	&&
+	     zcbor_int32_put(zse, r)		&&
+	     zcbor_tstr_put_lit(zse, "t")	&&
+	     zcbor_uint32_put(zse, t);
 
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
-	err |= cbor_encode_int(&ctxt->encoder, r);
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "t");
-	err |= cbor_encode_int(&ctxt->encoder, t);
-
-	return MGMT_STATUS_CHECK(err);
+	/* Exit with result */
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 }
 
 static int get_rtc(struct mgmt_ctxt *ctxt)
 {
-	int t = lcz_qrtc_get_epoch();
-	CborError err = 0;
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	bool ok;
 
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "t");
-	err |= cbor_encode_int(&ctxt->encoder, t);
+	/* Cbor encode result */
+	ok = zcbor_tstr_put_lit(zse, "t")	&&
+	     zcbor_uint32_put(zse, lcz_qrtc_get_epoch());
 
-	return MGMT_STATUS_CHECK(err);
+	/* Exit with result */
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 }
