@@ -1,8 +1,8 @@
-#/**
+/**
  * @file memfault_mgmt.c
  * @brief
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,18 +14,14 @@
 #include <init.h>
 #include <limits.h>
 #include <string.h>
-#include <tinycbor/cbor.h>
-#include <tinycbor/cbor_buf_writer.h>
-#include "cborattr/cborattr.h"
-#include "mgmt/mgmt.h"
+#include <zcbor_common.h>
+#include <zcbor_decode.h>
+#include <zcbor_encode.h>
+#include <zcbor_bulk/zcbor_bulk_priv.h>
+#include <mgmt/mgmt.h>
 
 #include "lcz_memfault.h"
 #include "memfault_mgmt.h"
-
-/******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define MGMT_STATUS_CHECK(x) ((x != 0) ? MGMT_ERR_ENOMEM : 0)
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -42,7 +38,6 @@ static const struct mgmt_handler MEMFAULT_MGMT_HANDLERS[] = {
 		.mh_write = generate_memfault_file,
 		.mh_read = NULL
 	}
-
 };
 
 static struct mgmt_group memfault_mgmt_group = {
@@ -71,29 +66,28 @@ static int memfault_mgmt_init(const struct device *device)
 #ifdef CONFIG_LCZ_MEMFAULT_FILE
 static int generate_memfault_file(struct mgmt_ctxt *ctxt)
 {
-	CborError err = 0;
 	size_t file_size = 0;
 	bool has_core_dump = false;
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	bool ok;
 	int r = lcz_memfault_save_data_to_file(
 		CONFIG_MEMFAULT_MGMT_MEMFAULT_FILE_NAME, &file_size,
 		&has_core_dump);
 
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
-	err |= cbor_encode_int(&ctxt->encoder, r);
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "s");
-	err |= cbor_encode_int(&ctxt->encoder, file_size);
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "c");
-	err |= cbor_encode_boolean(&ctxt->encoder, has_core_dump);
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "f");
-	err |= cbor_encode_text_string(
-		&ctxt->encoder, CONFIG_MEMFAULT_MGMT_MEMFAULT_FILE_NAME,
-		strlen(CONFIG_MEMFAULT_MGMT_MEMFAULT_FILE_NAME));
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "k");
-	err |= cbor_encode_text_string(&ctxt->encoder,
-				       CONFIG_MEMFAULT_NCS_PROJECT_KEY,
-				       strlen(CONFIG_MEMFAULT_NCS_PROJECT_KEY));
+	/* Cbor encode result */
+	ok = zcbor_tstr_put_lit(zse, "r")					&&
+	     zcbor_int32_put(zse, r)						&&
+	     zcbor_tstr_put_lit(zse, "s")					&&
+	     zcbor_int32_put(zse, file_size)					&&
+	     zcbor_tstr_put_lit(zse, "c")					&&
+	     zcbor_bool_put(zse, has_core_dump)					&&
+	     zcbor_tstr_put_lit(zse, "f")					&&
+	     zcbor_tstr_put_term(zse, CONFIG_MEMFAULT_MGMT_MEMFAULT_FILE_NAME)	&&
+	     zcbor_tstr_put_lit(zse, "k")					&&
+	     zcbor_tstr_put_term(zse, CONFIG_MEMFAULT_NCS_PROJECT_KEY);
 
-	return MGMT_STATUS_CHECK(err);
+	/* Exit with result */
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 }
 #else
 static int generate_memfault_file(struct mgmt_ctxt *ctxt)
