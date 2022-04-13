@@ -2,7 +2,7 @@
  * @file event_log_mgmt.c
  * @brief
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,10 +14,11 @@
 #include <init.h>
 #include <limits.h>
 #include <string.h>
-#include <tinycbor/cbor.h>
-#include <tinycbor/cbor_buf_writer.h>
-#include "cborattr/cborattr.h"
-#include "mgmt/mgmt.h"
+#include <zcbor_common.h>
+#include <zcbor_decode.h>
+#include <zcbor_encode.h>
+#include <zcbor_bulk/zcbor_bulk_priv.h>
+#include <mgmt/mgmt.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
 #include <mgmt/mcumgr/smp_bt.h>
@@ -32,11 +33,6 @@
 #ifdef CONFIG_ATTR_SETTINGS_LOCK
 #include "attr.h"
 #endif
-
-/******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define MGMT_STATUS_CHECK(x) ((x != 0) ? MGMT_ERR_ENOMEM : 0)
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -93,6 +89,8 @@ static int prepare_log(struct mgmt_ctxt *ctxt)
 	uint8_t n[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	int r = 0;
 	uint32_t s = 0;
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	bool ok;
 
 #ifdef CONFIG_ATTR_SETTINGS_LOCK
 	if (attr_is_locked() == true) {
@@ -110,27 +108,22 @@ static int prepare_log(struct mgmt_ctxt *ctxt)
 	}
 
 	/* Cbor encode result */
-	CborError err = 0;
-
-	/* Add result of log prepare */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
-	err |= cbor_encode_int(&ctxt->encoder, r);
-
-	/* Add the file size */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "s");
-	err |= cbor_encode_int(&ctxt->encoder, s);
-
-	/* Add file path */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "n");
-	err |= cbor_encode_text_string(&ctxt->encoder, n, strlen(n));
+	ok = zcbor_tstr_put_lit(zse, "r")	&&
+	     zcbor_int32_put(zse, r)		&&
+	     zcbor_tstr_put_lit(zse, "s")	&&
+	     zcbor_int32_put(zse, s)		&&
+	     zcbor_tstr_put_lit(zse, "n")	&&
+	     zcbor_tstr_put_term(zse, n);
 
 	/* Exit with result */
-	return MGMT_STATUS_CHECK(err);
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 }
 
 static int ack_log(struct mgmt_ctxt *ctxt)
 {
 	int r = 0;
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	bool ok;
 
 #ifdef CONFIG_ATTR_SETTINGS_LOCK
 	if (attr_is_locked() == true) {
@@ -142,15 +135,12 @@ static int ack_log(struct mgmt_ctxt *ctxt)
 		r = lcz_event_manager_delete_log_file();
 	}
 
-	/* Cbor encode result */
-	CborError err = 0;
-
-	/* Add result of log delete */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
-	err |= cbor_encode_int(&ctxt->encoder, r);
+	/* Cbor encode result of log delete */
+	ok = zcbor_tstr_put_lit(zse, "r")	&&
+	     zcbor_int32_put(zse, r);
 
 	/* Exit with result */
-	return MGMT_STATUS_CHECK(err);
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 }
 
 static int generate_test_log(struct mgmt_ctxt *ctxt)
@@ -158,36 +148,13 @@ static int generate_test_log(struct mgmt_ctxt *ctxt)
 	uint8_t n[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	uint32_t s = 0;
 	int r = 0;
-	long long unsigned int start_time_stamp = 0;
-	long long unsigned int update_rate = 0;
-	long long unsigned int event_type = 0;
-	long long unsigned int event_count = 0;
-	long long unsigned int event_data_type = 0;
-	DummyLogFileProperties_t dummy_log_file_properties;
-
-	struct cbor_attr_t params_attr[] = {
-		{ .attribute = "p1",
-		  .type = CborAttrUnsignedIntegerType,
-		  .addr.uinteger = &start_time_stamp,
-		  .nodefault = true },
-		{ .attribute = "p2",
-		  .type = CborAttrUnsignedIntegerType,
-		  .addr.uinteger = &update_rate,
-		  .nodefault = true },
-		{ .attribute = "p3",
-		  .type = CborAttrUnsignedIntegerType,
-		  .addr.uinteger = &event_type,
-		  .nodefault = true },
-		{ .attribute = "p4",
-		  .type = CborAttrUnsignedIntegerType,
-		  .addr.uinteger = &event_count,
-		  .nodefault = true },
-		{ .attribute = "p5",
-		  .type = CborAttrUnsignedIntegerType,
-		  .addr.uinteger = &event_data_type,
-		  .nodefault = true },
-		{ .attribute = NULL }
-	};
+	uint32_t event_type = 0;
+	uint32_t event_data_type = 0;
+	DummyLogFileProperties_t dummy_log_file_properties = { 0 };
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	zcbor_state_t *zsd = ctxt->cnbd->zs;
+	size_t decoded;
+	bool ok;
 
 #ifdef CONFIG_ATTR_SETTINGS_LOCK
 	if (attr_is_locked() == true) {
@@ -195,47 +162,45 @@ static int generate_test_log(struct mgmt_ctxt *ctxt)
 	}
 #endif
 
-	if (r == 0) {
-		if (cbor_read_object(&ctxt->it, params_attr) != 0) {
-			return -EINVAL;
-		}
+	struct zcbor_map_decode_key_val evt_generate_test_log_decode[] = {
+		ZCBOR_MAP_DECODE_KEY_VAL(p1, zcbor_uint32_decode,
+					 &dummy_log_file_properties.start_time_stamp),
+		ZCBOR_MAP_DECODE_KEY_VAL(p2, zcbor_uint32_decode,
+					 &dummy_log_file_properties.update_rate),
+		ZCBOR_MAP_DECODE_KEY_VAL(p3, zcbor_uint32_decode, &event_type),
+		ZCBOR_MAP_DECODE_KEY_VAL(p4, zcbor_uint32_decode,
+					 &dummy_log_file_properties.event_count),
+		ZCBOR_MAP_DECODE_KEY_VAL(p5, zcbor_uint32_decode,
+					 &event_data_type),
+	};
 
-		dummy_log_file_properties.start_time_stamp =
-			((uint32_t)(start_time_stamp));
-		dummy_log_file_properties.update_rate =
-			((uint32_t)(update_rate));
-		dummy_log_file_properties.event_type =
-			((uint8_t)(event_type));
-		dummy_log_file_properties.event_count =
-			((uint32_t)(event_count));
-		dummy_log_file_properties.event_data_type =
-			((uint8_t)(event_data_type));
+	ok = zcbor_map_decode_bulk(zsd, evt_generate_test_log_decode,
+		ARRAY_SIZE(evt_generate_test_log_decode), &decoded) == 0;
 
-		/* Check if we can prepare the log file OK */
-		r = lcz_event_manager_prepare_test_log_file(
-				&dummy_log_file_properties, n, &s);
+	if (!ok) {
+		return MGMT_ERR_EINVAL;
+	}
 
-		if (r != 0) {
-			/* If not, blank the file path */
-			n[0] = 0;
-		}
+	dummy_log_file_properties.event_type = (uint8_t)event_type;
+	dummy_log_file_properties.event_data_type = (uint8_t)event_data_type;
+
+	/* Check if we can prepare the log file OK */
+	r = lcz_event_manager_prepare_test_log_file(
+			&dummy_log_file_properties, n, &s);
+
+	if (r != 0) {
+		/* If not, blank the file path */
+		n[0] = 0;
 	}
 
 	/* Cbor encode result */
-	CborError err = 0;
-
-	/* Add result of log prepare */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
-	err |= cbor_encode_int(&ctxt->encoder, r);
-
-	/* Add the file size */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "s");
-	err |= cbor_encode_int(&ctxt->encoder, s);
-
-	/* Add file path */
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "n");
-	err |= cbor_encode_text_string(&ctxt->encoder, n, strlen(n));
+	ok = zcbor_tstr_put_lit(zse, "r")	&&
+	     zcbor_int32_put(zse, r)		&&
+	     zcbor_tstr_put_lit(zse, "s")	&&
+	     zcbor_int32_put(zse, s)		&&
+	     zcbor_tstr_put_lit(zse, "n")	&&
+	     zcbor_tstr_put_term(zse, n);
 
 	/* Exit with result */
-	return MGMT_STATUS_CHECK(err);
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 }
