@@ -14,26 +14,15 @@
 #include <init.h>
 #include <limits.h>
 #include <string.h>
-#include <tinycbor/cbor.h>
-#include <tinycbor/cbor_buf_writer.h>
-#include "cborattr/cborattr.h"
-#include "mgmt/mgmt.h"
+#include <zcbor_common.h>
+#include <zcbor_decode.h>
+#include <zcbor_encode.h>
+#include <zcbor_bulk/zcbor_bulk_priv.h>
+#include <mgmt/mgmt.h>
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 
 #include "shell_log_mgmt.h"
-
-/******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define NOT_A_BOOL -1
-
-#define END_OF_CBOR_ATTR_ARRAY                                                 \
-	{                                                                      \
-		.attribute = NULL                                              \
-	}
-
-#define MGMT_STATUS_CHECK(x) ((x != 0) ? MGMT_ERR_ENOMEM : 0)
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -78,43 +67,32 @@ static int shell_log_mgmt_init(const struct device *device)
 static int uart_log_halt(struct mgmt_ctxt *ctxt)
 {
 #ifdef CONFIG_SHELL_BACKEND_SERIAL
-	CborError err = 0;
 	/* Use an integer to check if the boolean type was found. */
-	union {
-		long long int integer;
-		bool boolean;
-	} value;
-	value.integer = NOT_A_BOOL;
 	int r = -EPERM;
+	zcbor_state_t *zse = ctxt->cnbe->zs;
+	zcbor_state_t *zsd = ctxt->cnbd->zs;
+	size_t decoded;
+	bool ok;
+	bool halt_log;
 
-	struct cbor_attr_t params_attr[] = {
-		{
-			.attribute = "p1",
-			.type = CborAttrBooleanType,
-			.addr.boolean = &value.boolean,
-			.nodefault = true,
-		},
-		END_OF_CBOR_ATTR_ARRAY
+	struct zcbor_map_decode_key_val shell_uart_log_halt_decode[] = {
+		ZCBOR_MAP_DECODE_KEY_VAL(p1, zcbor_bool_decode, &halt_log),
 	};
 
-	if (cbor_read_object(&ctxt->it, params_attr) != 0) {
+	ok = zcbor_map_decode_bulk(zsd, shell_uart_log_halt_decode,
+		ARRAY_SIZE(shell_uart_log_halt_decode), &decoded) == 0;
+
+	if (!ok || decoded == 0) {
 		return MGMT_ERR_EINVAL;
 	}
 
-	if (value.integer == NOT_A_BOOL) {
-		return MGMT_ERR_EINVAL;
-	}
+	r = shell_execute_cmd(shell_backend_uart_get_ptr(),
+			      (halt_log == true ? "log halt" : "log go"));
 
-	if (value.boolean) {
-		r = shell_execute_cmd(shell_backend_uart_get_ptr(), "log halt");
-	} else {
-		r = shell_execute_cmd(shell_backend_uart_get_ptr(), "log go");
-	}
+	ok = zcbor_tstr_put_lit(zse, "r")	&&
+	     zcbor_int32_put(zse, r);
 
-	err |= cbor_encode_text_stringz(&ctxt->encoder, "r");
-	err |= cbor_encode_int(&ctxt->encoder, r);
-
-	return MGMT_STATUS_CHECK(err);
+	return ok ? MGMT_ERR_EOK : MGMT_ERR_ENOMEM;
 #else
 	ARG_UNUSED(ctxt);
 
