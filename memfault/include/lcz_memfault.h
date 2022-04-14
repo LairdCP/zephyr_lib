@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#ifdef CONFIG_LCZ_MEMFAULT
 /* Override the warning in the Nordic file (memfault_integration) with a link
  * to Laird Connectivity's instructions.
  */
@@ -38,6 +39,7 @@ BUILD_ASSERT(sizeof(CONFIG_MEMFAULT_NCS_PROJECT_KEY) > 1,
 	     "Memfault Project Key not configured. Please visit "
 	     "https://goto.memfault.com/create-key/pinnacle-100 or disable "
 	     "Memfault with CONFIG_LCZ_MEMFAULT=n");
+#endif
 
 /******************************************************************************/
 /* Global Constants, Macros and Type Definitions                              */
