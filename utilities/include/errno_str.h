@@ -2,7 +2,7 @@
  * @file errno_str.h
  * @brief
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,6 +12,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/******************************************************************************/
+/* Global Constants, Macros and type Definitions                              */
+/******************************************************************************/
+#define ERRNO_STR(_e) (((_e) == 0) ? "OK" : errno_str_get(_e))
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
