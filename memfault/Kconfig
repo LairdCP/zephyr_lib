@@ -74,4 +74,11 @@ config MGMT_GROUP_ID_MEMFAULT
         default 66
 	depends on MCUMGR_CMD_MEMFAULT_MGMT
 
+config LCZ_MEMFAULT_LOG
+	bool "Enable module that saves RAM Log to NV"
+	depends on MEMFAULT_LOGGING_ENABLE
+	depends on FILE_SYSTEM_UTILITIES
+	help
+	  File size is controlled by size of RAM buffer
+
 endif # LCZ_MEMFAULT

@@ -175,6 +175,15 @@ int lcz_memfault_build_topic(const char *format, ...);
 int lcz_memfault_save_data_to_file(const char *abs_path, size_t *file_size,
 				   bool *has_core_dump);
 
+
+/**
+ * @brief Save log to file
+ *
+ * @param file_name of file to write
+ * @return int 0 on success, else negative errno
+ */
+int lcz_memfault_log_save(const char *file_name);
+
 #ifdef __cplusplus
 }
 #endif
