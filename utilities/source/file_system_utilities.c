@@ -126,7 +126,7 @@ void fsu_list_directory(const char *path)
 		}
 		LOG_DBG("  %c %u %s\n",
 			(entry.type == FS_DIR_ENTRY_FILE) ? 'F' : 'D',
-			entry.size, entry.name);
+			entry.size, log_strdup(entry.name));
 	}
 
 	(void)fs_closedir(&dir);
