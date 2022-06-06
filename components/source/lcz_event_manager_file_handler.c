@@ -402,8 +402,8 @@ int lcz_event_manager_file_handler_delete_file(void)
 {
 	int result;
 
-	result = fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				  LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+	result = fsu_delete(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+			    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 	return (result);
 }
@@ -1051,8 +1051,8 @@ static int lcz_event_manager_file_handler_rebuild_structure(void)
 			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
 		if (file_size >= 0) {
 			/* File exists, so delete it */
-			fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-					 fileName);
+			fsu_delete(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+				   fileName);
 		}
 
 		/* Now create the file */
