@@ -1113,8 +1113,8 @@ static bool lcz_event_manager_file_handler_check_structure(void)
 	uint16_t fileIndex;
 	uint8_t fileName[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	bool result = true;
-	struct fs_dirent *pDirectoryEntry;
 	size_t fileCount;
+	ssize_t file_size;
 
 	/* Check if the next file exists */
 	for (fileIndex = 0;
@@ -1132,20 +1132,10 @@ static bool lcz_event_manager_file_handler_check_structure(void)
 			fileIndex);
 
 		/* First get the details of the file */
-		pDirectoryEntry = fsu_find(
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-			fileName, &fileCount, FS_DIR_ENTRY_FILE);
-
-		/* Is the file available? */
-		if (pDirectoryEntry != NULL) {
-			/* Is it the right size? */
-			if (pDirectoryEntry->size == FILE_SIZE_BYTES) {
-				/* This file is OK */
-				result = true;
-			}
-			/* Always free up the directory entry before */
-			/* checking the next */
-			fsu_free_found(pDirectoryEntry);
+		file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
+		if (file_size == FILE_SIZE_BYTES) {
+			/* This file is OK */
+			result = true;
 		}
 	}
 	return (result);
@@ -1162,8 +1152,8 @@ static int lcz_event_manager_file_handler_rebuild_structure(void)
 	uint16_t fileIndex;
 	uint8_t fileName[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	int result = 0;
-	struct fs_dirent *pDirectoryEntry;
 	size_t fileCount;
+	ssize_t file_size;
 
 	/* Check if the next file exists */
 	for (fileIndex = 0;
@@ -1179,18 +1169,12 @@ static int lcz_event_manager_file_handler_rebuild_structure(void)
 			fileIndex);
 
 		/* First get the details of the file */
-		pDirectoryEntry = fsu_find(
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-			fileName, &fileCount, FS_DIR_ENTRY_FILE);
-
-		/* Is the file available? */
-		if (pDirectoryEntry != NULL) {
-			/* Yes, so delete it */
+		file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
+		if (file_size >= 0) {
+			/* File exists, so delete it */
 			fsu_delete_files(
 				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
 				fileName);
-			/* And free up the directory entry */
-			fsu_free_found(pDirectoryEntry);
 		}
 
 		/* Now create the file */
@@ -1970,6 +1954,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	uint32_t outputFileSize;
 	DummyLogFileProperties_t dummy_log_properties;
 	uint16_t salt;
+	ssize_t file_size;
 
 #define TOTAL_FILE_SIZE_BYTES                                                  \
 	(CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES * FILE_SIZE_BYTES)
@@ -2904,25 +2889,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		if (result == 0) {
 			failResult++;
 			count = 0;
+
 			/* Get the file details */
-			directoryEntry = fsu_find(
-				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME,
-				&count, FS_DIR_ENTRY_FILE);
-			/* Was it found? */
-			if (directoryEntry == NULL) {
-				/* No so leave here */
+			file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY, LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+			if (file_size != sizeof(SensorEvent_t)) {
+				/* File size is not right, so exit here */
 				result = failResult;
-			} else {
-				/* Is the size right? */
-				if (directoryEntry->size !=
-				    sizeof(SensorEvent_t)) {
-					/* No so exit here */
-					result = failResult;
-				}
-				/* Free up the directory entry either way */
-				fsu_free_found(directoryEntry);
 			}
+
 			/* Check the output file content */
 			if (result == 0) {
 				/* This is what we expect to get back */
@@ -3022,26 +2996,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			failResult++;
 			/* Check the output file size */
 			count = 0;
+
 			/* Get the file details */
-			directoryEntry = fsu_find(
-				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME,
-				&count, FS_DIR_ENTRY_FILE);
-			/* Was it found? */
-			if (directoryEntry == NULL) {
-				/* No so leave here */
+			file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+			if (file_size != sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS) {
+				/* File size is not right, so exit here */
 				result = failResult;
-			} else {
-				/* Is the size right? */
-				if (directoryEntry->size !=
-				    sizeof(SensorEvent_t) *
-					    TOTAL_NUMBER_EVENTS) {
-					/* No so exit here */
-					result = failResult;
-				}
-				/* Free up the directory entry either way */
-				fsu_free_found(directoryEntry);
 			}
+
 			/* Check the output file content */
 			if (result == 0) {
 				for (eventIndex = 0, eventType = 1;
