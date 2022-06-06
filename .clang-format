@@ -8,6 +8,10 @@
 #   https://clang.llvm.org/docs/ClangFormat.html
 #   https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 #
+# Taken from mainline Zephyr repository on 05/05/2022
+# Zephyr commit: dfc4c3f8a6aa466548ac13f6bc0384936846b7a2
+# LCZ version: 1.0
+#
 ---
 AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
@@ -52,7 +56,7 @@ BreakConstructorInitializersBeforeComma: false
 #BreakConstructorInitializers: BeforeComma # Unknown to clang-format-4.0
 BreakAfterJavaFieldAnnotations: false
 BreakStringLiterals: false
-ColumnLimit: 80
+ColumnLimit: 100
 CommentPragmas: '^ IWYU pragma:'
 #CompactNamespaces: false # Unknown to clang-format-4.0
 ConstructorInitializerAllOnOneLineOrOnePerLine: false

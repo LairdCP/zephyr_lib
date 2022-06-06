@@ -7,9 +7,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/*****************************************************************************/
-/* Includes                                                                  */
-/*****************************************************************************/
+/**************************************************************************************************/
+/* Includes                                                                                       */
+/**************************************************************************************************/
 #include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,12 +23,11 @@
 
 LOG_MODULE_REGISTER(event_manager, CONFIG_LCZ_EVENT_MANAGER_LOG_LEVEL);
 
-/*****************************************************************************/
-/* Local Constant, Macro and Type Definitions                                */
-/*****************************************************************************/
+/**************************************************************************************************/
+/* Local Constant, Macro and Type Definitions                                                     */
+/**************************************************************************************************/
 /*
- *  Data structure for internal use to keep track of file
- *  and timestamp indices
+ *  Data structure for internal use to keep track of file and timestamp indices
  */
 typedef struct __lczEventManagerData_t {
 	/* The index of the next event to be written. */
@@ -36,137 +35,129 @@ typedef struct __lczEventManagerData_t {
 	/* The index of the next event to be read */
 	uint32_t eventReadIndex;
 	/*
-	 * The sub-index last written - this gets incremented when a record
-	 * is added with the same timestamp as the previous and reset when
-	 * a new timestamp is used.
+	 * The sub-index last written - this gets incremented when a record is added with the same
+	 * timestamp as the previous and reset when a new timestamp is used.
 	 */
 	uint16_t eventSubIndex;
 	/*
-	 * The last timestamp used when a record was saved. Used to
-	 * determine if the sub index needs to be incremented or cleared.
+	 * The last timestamp used when a record was saved. Used to determine if the sub index
+	 * needs to be incremented or cleared.
 	 */
 	uint32_t lastEventTimestamp;
 	/* The count of events in the event log */
 	uint32_t eventCount;
 	/* Indicates whether events should be stored in flash */
 	bool saving_enabled;
-	/* The absolute index to write to the next event. This indicates the
-	 * the point at which the event was added to to the event buffer and
-	 * is used to avoid using timestamps to index events. Should the RTC
-	 * be cleared or set before the time used in previous events, a
-	 * discontinuity is introduced into the event log making it impossible
-	 * to correctly index events without performing some kind of recovery
-	 * operation to remove events that that have occurred after the new
-	 * RTC value.
+	/* The absolute index to write to the next event. This indicates the the point at which the
+	 * event was added to to the event buffer and is used to avoid using timestamps to index
+	 * events. Should the RTC be cleared or set before the time used in previous events, a
+	 * discontinuity is introduced into the event log making it impossible to correctly index
+	 * events without performing some kind of recovery operation to remove events that that
+	 * have occurred after the new RTC value.
 	 */
 	uint16_t absoluteIndex;
 } lczEventManagerData_t;
 
 /* This is the size of each file used to store private event data */
-#define FILE_SIZE_BYTES                                                        \
-	(CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE * sizeof(SensorEvent_t))
+#define FILE_SIZE_BYTES (CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE * sizeof(SensorEvent_t))
 
 /* This is the total number of events available */
-#define TOTAL_NUMBER_EVENTS                                                    \
-	(CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES *                            \
-	 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE)
+#define TOTAL_NUMBER_EVENTS                                                                        \
+	(CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES * CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE)
 
-/* Internal file data structure used to store details of events and the      */
-/* status of the files where the event data is stored.                       */
+/* Internal file data structure used to store details of events and the status of the files where
+ * the event data is stored.
+ */
 typedef struct {
 	bool *pIsDirty;
 	SensorEvent_t (*pFileData)[CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE];
 } lczEventManagerFileData_t;
 
-/* The filename prefix for private event manager files. These get suffixed   */
-/* with a zero based index for the file.                                     */
+/* The filename prefix for private event manager files. These get suffixed with a zero based index
+ * for the file.
+ */
 #define LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME "event_file_"
 
-/* The filename prefix for output files read over user interfaces. The same  */
-/* file name is always used so it can be deleted once the user acknowledges  */
-/* it has been read out.                                                     */
+/* The filename prefix for output files read over user interfaces. The same file name is always
+ * used so it can be deleted once the user acknowledges it has been read out.
+ */
 #define LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME "event_file_out"
 
-/* Timeout in ms to allow for getting the mutex before giving up when the
- * build file function is called
+/* Timeout in ms to allow for getting the mutex before giving up when the build file function is
+ * called
  */
 #define LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS 100
 
-/* Number of full loops over all events before exiting with an error that there
- * seems to be an issue with the data, prevents a possible lockup if more
- * events are requested than exist
+/* Number of full loops over all events before exiting with an error that there seems to be an
+ * issue with the data, prevents a possible lockup if more events are requested than exist
  */
 #define LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS 3
 
 /* The array type used to store event data */
 typedef SensorEvent_t eventBuffer_t[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES]
-				 [CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE];
+				   [CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE];
 
 /* Constructor for data used for live and back up event storage */
-#define CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA(x)\
-	static bool dirtyFlags##x[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES];\
-	static eventBuffer_t eventData##x;\
-	static lczEventManagerFileData_t eventManagerFileData##x = {\
-		dirtyFlags##x, eventData##x\
-	};\
+#define CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA(x)                                                      \
+	static bool dirtyFlags##x[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES];                       \
+	static eventBuffer_t eventData##x;                                                         \
+	static lczEventManagerFileData_t eventManagerFileData##x = { dirtyFlags##x,                \
+								     eventData##x };               \
 	static lczEventManagerData_t lczEventManagerData##x;
 
-/*****************************************************************************/
-/* Local Data Definitions                                                    */
-/*****************************************************************************/
-/* The instance of event file data that acts as a shadow of the content of
- * the event files stored to the file system. It also has flags used to
- * indicate when the shadow data needs to be written back to the files.
+/**************************************************************************************************/
+/* Local Data Definitions                                                                         */
+/**************************************************************************************************/
+/* The instance of event file data that acts as a shadow of the content of the event files stored
+ * to the file system. It also has flags used to indicate when the shadow data needs to be written
+ * back to the files.
  */
 CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA();
 
-/* The instance of event file data that acts as a backup of the main content
- * used during log file creation.
+/* The instance of event file data that acts as a backup of the main content used during log file
+ * creation.
  */
 CONSTRUCTOR_LCZ_EVENT_MANAGER_DATA(Backup);
 
-/* This is the mutex used to protect the shadow event log when it's          */
-/* being updated.                                                            */
+/* This is the mutex used to protect the shadow event log when it's being updated. */
 static struct k_mutex lczEventManagerFileHandlerMutex;
 
-/* This is the stack used by the background thread used to update event log  */
-/* data files.                                                               */
+/* This is the stack used by the background thread used to update event log data files. */
 K_THREAD_STACK_DEFINE(lcz_event_manager_file_handler_stack_area,
 		      CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_STACK_SIZE);
 
-/* This is the background thread used to update data files stored to the     */
-/* file system.                                                              */
+/* This is the background thread used to update data files stored to the file system */
 static struct k_thread lcz_event_manager_file_handler_thread_data;
 
-/* This is the message queue used to store events passed by callers.         */
+/* This is the message queue used to store events passed by callers. */
 static struct k_msgq lcz_event_manager_file_handler_msgq;
 
-/* And the message queue buffer used to store messages                       */
-static SensorEvent_t lcz_event_manager_file_handler_msgq_buffer
-	[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE];
+/* And the message queue buffer used to store messages */
+static SensorEvent_t
+	lcz_event_manager_file_handler_msgq_buffer[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE];
 
-/* This is the stack used by the work queue thread where event files are     */
-/* saved                                                                     */
+/* This is the stack used by the work queue thread where event files are saved */
 K_THREAD_STACK_DEFINE(lcz_event_manager_file_handler_workq_stack,
 		      CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_STACK_SIZE);
 
-/* This is the work queue used to store files. Separate from the system work */
-/* queue to avoid clogging it with potentially long storage operations.      */
+/* This is the work queue used to store files. Separate from the system work queue to avoid
+ * clogging it with potentially long storage operations.
+ */
 static struct k_work_q lcz_event_manager_file_handler_workq;
 
-/* And the work item to trigger background writes.                           */
+/* And the work item to trigger background writes. */
 static struct k_work lcz_event_manager_file_handler_work_item;
 
-/* This is the status of the last request to create a log file.              */
+/* This is the status of the last request to create a log file. */
 static LogFileStatus_t log_file_status = LOG_FILE_STATUS_WAITING;
 
-/* This is the work item used to prepare log files.                          */
+/* This is the work item used to prepare log files. */
 static struct log_file_create_work_item_t {
 	/* This is the work item used to manage the prepare operation */
 	struct k_work work;
 } log_file_create_work_item;
 
-/* This is the work item used to prepare dummy log files.	              */
+/* This is the work item used to prepare dummy log files. */
 static struct dummy_log_file_create_work_item_t {
 	/* This is the work item used to manage the prepare operation */
 	struct k_work work;
@@ -174,38 +165,32 @@ static struct dummy_log_file_create_work_item_t {
 	DummyLogFileProperties_t dummy_log_file_properties;
 } dummy_log_file_create_work_item;
 
-/******************************************************************************/
-/* Local Function Prototypes                                                  */
-/******************************************************************************/
+/***************************************************************************************************/
+/* Local Function Prototypes                                                                       */
+/***************************************************************************************************/
 /* Background thread for file updating */
-static void lcz_event_manager_file_handler_background_thread(void *unused1,
-							     void *unused2,
+static void lcz_event_manager_file_handler_background_thread(void *unused1, void *unused2,
 							     void *unused3);
 
 /* Work queue handler for background file update */
 static void lcz_event_manager_file_handler_workq_handler(struct k_work *item);
 
 /* Work queue handler for background log file creation */
-static void
-lcz_event_manager_file_handler_log_workq_handler(struct k_work *item);
+static void lcz_event_manager_file_handler_log_workq_handler(struct k_work *item);
 
 /* Work queue handler for dummy log background file creation */
-static void
-lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item);
+static void lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item);
 
 /* Gets the indexed event from the event structure */
-static SensorEvent_t *
-lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
-					 eventBuffer_t eventBuffer);
+static SensorEvent_t *lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
+							       eventBuffer_t eventBuffer);
 
 /* Finds the index of the first event in the event log. */
-static SensorEvent_t *
-lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
-						eventBuffer_t eventBuffer);
+static SensorEvent_t *lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
+								      eventBuffer_t eventBuffer);
 
 /* Finds the count of events in the event log */
-static uint16_t
-lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer);
+static uint16_t lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer);
 
 /* Flags a page as needing to be saved in the background */
 static void lcz_event_manager_file_handler_set_page_dirty(uint16_t eventIndex);
@@ -226,20 +211,18 @@ static bool lcz_event_manager_file_handler_check_structure(void);
 static int lcz_event_manager_file_handler_rebuild_structure(void);
 
 /* Finds an event at a sub-index */
-static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
-	uint16_t startIndex, uint16_t subIndex, uint16_t count);
+static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(uint16_t startIndex,
+									  uint16_t subIndex,
+									  uint16_t count);
 
 /* Adds a message read from the message queue to the event buffer */
-static bool
-lcz_event_manager_file_handler_add_event_private(SensorEvent_t *pSensorEvent);
+static bool lcz_event_manager_file_handler_add_event_private(SensorEvent_t *pSensorEvent);
 
 /* Finds the first instance of an event going forward through the event log */
-static int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
-	uint32_t timestamp);
+static int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(uint32_t timestamp);
 
 /* Finds the first instance of an event going backwards through the event log */
-int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
-	uint32_t timestamp);
+int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(uint32_t timestamp);
 
 /* Builds a log file in the background */
 int lcz_event_manager_file_handler_background_build_file(void);
@@ -258,24 +241,19 @@ int lcz_event_manager_file_handler_background_build_dummy_file(
 /* Builds a dummy event added to dummy event files. */
 void lcz_event_manager_file_handler_background_build_dummy_event(
 	SensorEvent_t *sensor_event, uint32_t time_stamp,
-	DummyLogFileProperties_t *dummy_log_file_properties,
-	uint32_t event_data);
+	DummyLogFileProperties_t *dummy_log_file_properties, uint32_t event_data);
 
-uint16_t
-lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
-					      bool findHighest);
+uint16_t lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer, bool findHighest);
 
-SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(
-	eventBuffer_t eventBuffer, uint16_t absIndex,
-	uint16_t *eventBufferIndex);
+SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(eventBuffer_t eventBuffer,
+								      uint16_t absIndex,
+								      uint16_t *eventBufferIndex);
 
 /* Resolves read index when a wrap around has occurred */
-int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh,
-						       uint16_t startIndex);
+int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh, uint16_t startIndex);
 
 /* Resolves write index when a wrap around has occurred */
-int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow,
-						       uint16_t startIndex);
+int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow, uint16_t startIndex);
 
 /* Module test code for the following */
 /* Uncomment the following to enable module test */
@@ -283,18 +261,18 @@ int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow,
 #ifdef LCZ_EVENT_MANAGER_FILE_HANDLER_UNIT_TEST
 static uint32_t lcz_event_manager_file_handler_unit_test(void);
 static void lcz_event_manager_file_handler_unit_test_delete_all_files(void);
-static int
-lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
-						     uint16_t fileSize);
+static int lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
+								uint16_t fileSize);
 #endif
 
-/*****************************************************************************/
-/* Global Function Definitions                                               */
-/*****************************************************************************/
+/**************************************************************************************************/
+/* Global Function Definitions                                                                    */
+/**************************************************************************************************/
 void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 {
-	/* Build the mutex we use to protect access to the event manager */
-	/* file handler data structure                                   */
+	/* Build the mutex we use to protect access to the event manager file handler data
+	 * structure
+	 */
 	k_mutex_init(&lczEventManagerFileHandlerMutex);
 
 	/* And immediately lock it in case any threads bump this one */
@@ -302,23 +280,17 @@ void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 
 	/* The message queue used to store incoming events */
 	k_msgq_init(&lcz_event_manager_file_handler_msgq,
-		    (char *)lcz_event_manager_file_handler_msgq_buffer,
-		    sizeof(SensorEvent_t),
+		    (char *)lcz_event_manager_file_handler_msgq_buffer, sizeof(SensorEvent_t),
 		    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_QUEUE_SIZE);
 
-	/* Create the worker thread used to update the event log shadow */
-	/* RAM via a work queue                                         */
-	(void)k_thread_create(
-		&lcz_event_manager_file_handler_thread_data,
-		lcz_event_manager_file_handler_stack_area,
-		K_THREAD_STACK_SIZEOF(
-			lcz_event_manager_file_handler_stack_area),
-		lcz_event_manager_file_handler_background_thread, NULL, NULL,
-		NULL, CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_PRIORITY, 0,
-		K_NO_WAIT);
+	/* Create the worker thread used to update the event log shadow RAM via a work queue */
+	(void)k_thread_create(&lcz_event_manager_file_handler_thread_data,
+			      lcz_event_manager_file_handler_stack_area,
+			      K_THREAD_STACK_SIZEOF(lcz_event_manager_file_handler_stack_area),
+			      lcz_event_manager_file_handler_background_thread, NULL, NULL, NULL,
+			      CONFIG_LCZ_EVENT_MANAGER_BACKGROUND_THREAD_PRIORITY, 0, K_NO_WAIT);
 
-	/* Set up the work item that will be used to trigger background */
-	/* file writes                                                  */
+	/* Set up the work item that will be used to trigger background file writes */
 	k_work_init(&lcz_event_manager_file_handler_work_item,
 		    lcz_event_manager_file_handler_workq_handler);
 
@@ -326,19 +298,15 @@ void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 	k_work_init(&log_file_create_work_item.work,
 		    lcz_event_manager_file_handler_log_workq_handler);
 
-	/* This is the work item used to prepare dummy log files as a
-	   background task
-	 */
+	/* This is the work item used to prepare dummy log files as a background task */
 	k_work_init(&dummy_log_file_create_work_item.work,
 		    lcz_event_manager_file_handler_dummy_log_workq_handler);
 
 	/* Start the work queue used to save event files */
-	k_work_queue_start(
-		&lcz_event_manager_file_handler_workq,
-		lcz_event_manager_file_handler_workq_stack,
-		K_THREAD_STACK_SIZEOF(
-			lcz_event_manager_file_handler_workq_stack),
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY, NULL);
+	k_work_queue_start(&lcz_event_manager_file_handler_workq,
+			   lcz_event_manager_file_handler_workq_stack,
+			   K_THREAD_STACK_SIZEOF(lcz_event_manager_file_handler_workq_stack),
+			   CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_THREAD_PRIORITY, NULL);
 
 	/* Check if all files are present and of the right size */
 	if (!lcz_event_manager_file_handler_check_structure()) {
@@ -356,9 +324,9 @@ void lcz_event_manager_file_handler_initialise(bool save_to_flash)
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 }
 
-void lcz_event_manager_file_handler_add_event(
-	SensorEventType_t sensorEventType, SensorEventData_t *pSensorEventData,
-	uint32_t timestamp)
+void lcz_event_manager_file_handler_add_event(SensorEventType_t sensorEventType,
+					      SensorEventData_t *pSensorEventData,
+					      uint32_t timestamp)
 {
 	SensorEvent_t sensorEvent = { 0 };
 
@@ -368,21 +336,17 @@ void lcz_event_manager_file_handler_add_event(
 	sensorEvent.timestamp = timestamp;
 
 	/* Then add to the event queue */
-	(void)k_msgq_put(&lcz_event_manager_file_handler_msgq, &sensorEvent,
-			 K_NO_WAIT);
+	(void)k_msgq_put(&lcz_event_manager_file_handler_msgq, &sensorEvent, K_NO_WAIT);
 }
 
-int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
-					      uint32_t *file_size,
+int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath, uint32_t *file_size,
 					      bool is_running)
 {
 	int result = -EBUSY;
 
 	/* Lock resources whilst we check the file and event status */
-	if (k_mutex_lock(
-		    &lczEventManagerFileHandlerMutex,
-		    K_MSEC(LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS)) !=
-	    0) {
+	if (k_mutex_lock(&lczEventManagerFileHandlerMutex,
+			 K_MSEC(LCZ_EVENT_MANAGER_BUILD_FILE_MUTEX_LOG_TIMEOUT_MS)) != 0) {
 		/* Could not lock mutex */
 		return -EDEADLK;
 	}
@@ -393,12 +357,10 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 		log_file_status = LOG_FILE_STATUS_PREPARING;
 
 		/* This will be the file path. */
-		sprintf(absFilePath, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(absFilePath, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 		/* The number of events that will be added */
-		*file_size =
-			sizeof(SensorEvent_t) * lczEventManagerData.eventCount;
+		*file_size = sizeof(SensorEvent_t) * lczEventManagerData.eventCount;
 		/* Copy the live event log to the backup copy */
 		memcpy(eventDataBackup, eventData, sizeof(eventDataBackup));
 		/* Copy the live event manager data to the backup copy */
@@ -407,17 +369,15 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 		/* Now blank the live data */
 		memset(eventData, 0x0, sizeof(eventData));
 		memset(&lczEventManagerData, 0x0, sizeof(lczEventManagerData));
-		/* Update all log NV files. We transfer the backup dirty flags
-		 * to the main copy so any NV files that contain event data will
-		 * be set back to empty.
+		/* Update all log NV files. We transfer the backup dirty flags to the main copy so
+		 * any NV files that contain event data will be set back to empty.
 		 */
 		memcpy(dirtyFlags, dirtyFlagsBackup, sizeof(dirtyFlags));
 		memset(dirtyFlagsBackup, 0x0, sizeof(dirtyFlagsBackup));
 		/* Then trigger the background operation if we're running */
 		if (is_running) {
-			k_work_submit_to_queue(
-				&lcz_event_manager_file_handler_workq,
-				&log_file_create_work_item.work);
+			k_work_submit_to_queue(&lcz_event_manager_file_handler_workq,
+					       &log_file_create_work_item.work);
 		}
 		/* Background process started OK */
 		result = 0;
@@ -426,13 +386,12 @@ int lcz_event_manager_file_handler_build_file(uint8_t *absFilePath,
 	/* OK to release resources now */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 
-	/* If we're running (not unit testing), trigger a file update for
-	 * any events that have been read out.
+	/* If we're running (not unit testing), trigger a file update for any events that have been
+	 * read out.
 	 */
 	if (is_running) {
-		k_work_submit_to_queue(
-			&lcz_event_manager_file_handler_workq,
-			&lcz_event_manager_file_handler_work_item);
+		k_work_submit_to_queue(&lcz_event_manager_file_handler_workq,
+				       &lcz_event_manager_file_handler_work_item);
 	}
 
 	/* Then exit with our result */
@@ -443,15 +402,15 @@ int lcz_event_manager_file_handler_delete_file(void)
 {
 	int result;
 
-	result = fsu_delete_files(
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+	result = fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+				  LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 	return (result);
 }
 
-SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
-	uint32_t timestamp, uint16_t index, uint16_t *count)
+SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(uint32_t timestamp,
+									     uint16_t index,
+									     uint16_t *count)
 {
 	uint16_t eventIndex;
 	SensorEvent_t *pSensorEvent = NULL;
@@ -464,18 +423,15 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 	/* Lock resources whilst we look for the event */
 	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
 	/* Get the first index */
-	startIndex =
-		lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
-			timestamp);
+	startIndex = lcz_event_manager_file_handler_get_first_event_index_at_timestamp(timestamp);
 	/* Start index OK? */
 	if (startIndex >= 0) {
-		/* Is it zero? If so, we may have a wrap around condition */
-		/* where events were added at the end of the log. If so,  */
-		/* we need to check for this here.                        */
+		/* Is it zero? If so, we may have a wrap around condition where events were added
+		 * at the end of the log. If so, we need to check for this here.
+		 */
 		if (startIndex == 0) {
-			endIndex =
-				lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
-					timestamp);
+			endIndex = lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
+				timestamp);
 		}
 	}
 	/* Check start index again before proceeding */
@@ -502,14 +458,13 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 			eventStartIndex = startIndex;
 		}
 	}
-	/* Only proceed here if we have a startIndex and the event hasn't    */
-	/* been found.                                                       */
+	/* Only proceed here if we have a startIndex and the event hasn't been found. */
 	if ((startIndex >= 0) && (allEventsFound == false)) {
 		eventIndex = eventStartIndex;
 		/* OK to count events now */
 		while (allEventsFound == false) {
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex, eventData);
+			pSensorEvent =
+				lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 			/* Check for NULL before proceeding */
 			if (pSensorEvent != NULL) {
 				if (pSensorEvent->timestamp == timestamp) {
@@ -522,8 +477,8 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 					allEventsFound = true;
 				}
 			} else {
-				/* If we have a NULL event, break out here
-				 * and exit with a NULL event.
+				/* If we have a NULL event, break out here and exit with a NULL
+				 * event.
 				 */
 				allEventsFound = true;
 				eventCount = 0;
@@ -533,9 +488,8 @@ SensorEvent_t *lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 	/* Do we need to return an event here? */
 	if ((eventCount > 0) && (index < eventCount)) {
 		/* Yes, now find the event by its index */
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_subindexed_event(
-				eventStartIndex, index, eventCount);
+		pSensorEvent = lcz_event_manager_file_handler_get_subindexed_event(
+			eventStartIndex, index, eventCount);
 		/* Store the count of events for later */
 		*count = eventCount;
 	}
@@ -564,26 +518,20 @@ int lcz_event_manager_file_handler_build_test_file(
 		/* No so we can go ahead and create the file */
 		log_file_status = LOG_FILE_STATUS_PREPARING;
 		/* This will be the file path. */
-		sprintf(log_path, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(log_path, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 		/* The number of events that will be added */
-		*log_file_size = sizeof(SensorEvent_t) *
-				 dummy_log_file_properties->event_count;
+		*log_file_size = sizeof(SensorEvent_t) * dummy_log_file_properties->event_count;
 		/* Copy across the dummy file properties for use later */
-		memcpy(&dummy_log_file_create_work_item
-				.dummy_log_file_properties,
-		       dummy_log_file_properties,
-		       sizeof(DummyLogFileProperties_t));
-		/* Then trigger the background operation if we're running.
-		   If is_running is false, this in a unit test, so we don't 
-		   want to trigger the background write as that function is
-		   tested separately.
+		memcpy(&dummy_log_file_create_work_item.dummy_log_file_properties,
+		       dummy_log_file_properties, sizeof(DummyLogFileProperties_t));
+		/* Then trigger the background operation if we're running. If is_running is false,
+		 * this in a unit test, so we don't want to trigger the background write as that
+		 * function is tested separately.
 		 */
 		if (is_running) {
-			k_work_submit_to_queue(
-				&lcz_event_manager_file_handler_workq,
-				&dummy_log_file_create_work_item.work);
+			k_work_submit_to_queue(&lcz_event_manager_file_handler_workq,
+					       &dummy_log_file_create_work_item.work);
 		}
 		/* Background process started OK */
 		result = 0;
@@ -602,13 +550,12 @@ void lcz_event_manager_file_handler_set_logging_state(bool save_to_flash)
 	k_mutex_lock(&lczEventManagerFileHandlerMutex, K_FOREVER);
 	/* Set the save enabled flag state */
 	lczEventManagerData.saving_enabled = save_to_flash;
-	/* If saving has been enabled, we need to kick off a
-	 * save here to add any new events to flash.
+	/* If saving has been enabled, we need to kick off a save here to add any new events to
+	 * flash.
 	 */
 	if (save_to_flash) {
-		k_work_submit_to_queue(
-			&lcz_event_manager_file_handler_workq,
-			&lcz_event_manager_file_handler_work_item);
+		k_work_submit_to_queue(&lcz_event_manager_file_handler_workq,
+				       &lcz_event_manager_file_handler_work_item);
 	}
 	/* OK to release resources now */
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
@@ -634,19 +581,17 @@ void lcz_event_manager_file_handler_factory_reset(void)
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 }
 
-/******************************************************************************/
-/* Local Function Definitions                                                 */
-/******************************************************************************/
-/** @brief The Event Manager File Handler background thread. Commits incoming
- *         events to the shadow of the event log then triggers a background
- *         write operation.
+/***************************************************************************************************/
+/* Local Function Definitions                                                                      */
+/***************************************************************************************************/
+/** @brief The Event Manager File Handler background thread. Commits incoming events to the shadow
+ *         of the event log then triggers a background write operation.
  *
  *  @param [in]unused1 - Unused parameter.
  *  @param [in]unused2 - Unused parameter.
  *  @param [in]unused3 - Unused parameter.
  */
-static void lcz_event_manager_file_handler_background_thread(void *unused1,
-							     void *unused2,
+static void lcz_event_manager_file_handler_background_thread(void *unused1, void *unused2,
 							     void *unused3)
 {
 	/* Kernel operation results */
@@ -661,13 +606,12 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 	/* Start the main event manager file handler loop */
 	while (1) {
 		/* Wait for the next event to arrive */
-		result = k_msgq_get(&lcz_event_manager_file_handler_msgq,
-				    &sensorEvent, K_FOREVER);
+		result = k_msgq_get(&lcz_event_manager_file_handler_msgq, &sensorEvent, K_FOREVER);
 
-		/* We know we have at least one event here, but check   */
-		/* if any more have arrived in between                  */
-		eventCount = k_msgq_num_used_get(
-			&lcz_event_manager_file_handler_msgq);
+		/* We know we have at least one event here, but check if any more have arrived in-
+		 * between
+		 */
+		eventCount = k_msgq_num_used_get(&lcz_event_manager_file_handler_msgq);
 		/* We always have one event to have reached here */
 		eventCount++;
 
@@ -677,18 +621,15 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		/* Add new events to the event buffer */
 		do {
 			/* Add the current event */
-			addResult =
-				lcz_event_manager_file_handler_add_event_private(
-					&sensorEvent);
+			addResult = lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 			/* Only update stats if added OK */
 			if (addResult) {
 				/* Another event added */
 				eventCount--;
 				/* Check if there are any more */
 				if (eventCount) {
-					result = k_msgq_get(
-						&lcz_event_manager_file_handler_msgq,
-						&sensorEvent, K_FOREVER);
+					result = k_msgq_get(&lcz_event_manager_file_handler_msgq,
+							    &sensorEvent, K_FOREVER);
 				}
 			}
 		} while ((eventCount) && (result == 0) && (addResult));
@@ -696,13 +637,10 @@ static void lcz_event_manager_file_handler_background_thread(void *unused1,
 		/* Release resources after all changes are made */
 		k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 
-		/* Then trigger a background write operation if
-		 * saving to flash is enabled.
-		 */
+		/* Then trigger a background write operation if saving to flash is enabled. */
 		if (lczEventManagerData.saving_enabled) {
-			k_work_submit_to_queue(
-				&lcz_event_manager_file_handler_workq,
-				&lcz_event_manager_file_handler_work_item);
+			k_work_submit_to_queue(&lcz_event_manager_file_handler_workq,
+					       &lcz_event_manager_file_handler_work_item);
 		}
 	}
 }
@@ -723,14 +661,11 @@ static void lcz_event_manager_file_handler_workq_handler(struct k_work *item)
 	k_mutex_unlock(&lczEventManagerFileHandlerMutex);
 }
 
-/** @brief Event Manager File Handler work queue processing for log file
- *         creation.
+/** @brief Event Manager File Handler work queue processing for log file creation.
  *
- *  @param [in]item - Work item containing details of the number of events to
- *                    add to the file.
+ *  @param [in]item - Work item containing details of the number of events to add to the file.
  */
-static void
-lcz_event_manager_file_handler_log_workq_handler(struct k_work *item)
+static void lcz_event_manager_file_handler_log_workq_handler(struct k_work *item)
 {
 	int result;
 
@@ -747,20 +682,16 @@ lcz_event_manager_file_handler_log_workq_handler(struct k_work *item)
 	}
 }
 
-/** @brief Event Manager File Handler work queue processing for dummy log file
- *         creation.
+/** @brief Event Manager File Handler work queue processing for dummy log file creation.
  *
- *  @param [in]item - Work item containing details of the number of events to
- *                    add to the file.
+ *  @param [in]item - Work item containing details of the number of events to add to the file.
  */
-static void
-lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item)
+static void lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item)
 {
 	int result;
 
-	struct dummy_log_file_create_work_item_t
-		*p_dummy_log_file_create_work_item = CONTAINER_OF(
-			item, struct dummy_log_file_create_work_item_t, work);
+	struct dummy_log_file_create_work_item_t *p_dummy_log_file_create_work_item =
+		CONTAINER_OF(item, struct dummy_log_file_create_work_item_t, work);
 
 	/* Build the log file */
 	result = lcz_event_manager_file_handler_background_build_dummy_file(
@@ -781,9 +712,8 @@ lcz_event_manager_file_handler_dummy_log_workq_handler(struct k_work *item)
  *
  *  @returns SensorEvent_t * - Pointer to the sensor event, NULL if not found.
  */
-static SensorEvent_t *
-lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
-					 eventBuffer_t eventBuffer)
+static SensorEvent_t *lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
+							       eventBuffer_t eventBuffer)
 {
 	SensorEvent_t *sensorEvent = (SensorEvent_t *)NULL;
 	uint16_t fileIndex;
@@ -791,12 +721,10 @@ lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
 
 	if (eventIndex < TOTAL_NUMBER_EVENTS) {
 		/* First get the index of the file where the event resides */
-		fileIndex =
-			eventIndex / CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+		fileIndex = eventIndex / CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 		/* Then the index within the file */
 		fileEventIndex =
-			eventIndex -
-			(CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE * fileIndex);
+			eventIndex - (CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE * fileIndex);
 		/* Then get the event location */
 		sensorEvent = eventBuffer[fileIndex] + fileEventIndex;
 	}
@@ -808,8 +736,7 @@ lcz_event_manager_file_handler_get_event(uint16_t eventIndex,
  *  @param [in]eventBuffer - Event data to search through.
  *  @return The count of events in the buffer.
  */
-static uint16_t
-lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer)
+static uint16_t lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer)
 {
 	/* Assume the log is empty */
 	uint16_t result = 0;
@@ -818,8 +745,7 @@ lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer)
 
 	/* Now check subsequent events */
 	for (eventIndex = 0; eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
-		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			eventIndex, eventBuffer);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex, eventBuffer);
 		/* NULL check the event before proceeding */
 		if (pSensorEvent != NULL) {
 			/* Any type other than RESERVED indicates an event */
@@ -841,9 +767,8 @@ lcz_event_manager_file_handler_get_event_count(eventBuffer_t eventBuffer)
  *  @param [in]eventBuffer - Buffer to search through.
  *  @returns Pointer to the first event, NULL if none found.
  */
-static SensorEvent_t *
-lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
-						eventBuffer_t eventBuffer)
+static SensorEvent_t *lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
+								      eventBuffer_t eventBuffer)
 {
 	uint32_t eventIndex = 0;
 	bool eventFound = false;
@@ -851,12 +776,10 @@ lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
 	uint32_t eventsChecked = lczEventManagerData.eventCount;
 
 	/* First find the first event in the log */
-	for (eventIndex = 0; (eventIndex < TOTAL_NUMBER_EVENTS) &&
-			     (!eventFound) && (eventsChecked);
+	for (eventIndex = 0; (eventIndex < TOTAL_NUMBER_EVENTS) && (!eventFound) && (eventsChecked);
 	     eventIndex++) {
 		/* Get the next event */
-		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			eventIndex, eventData);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* Validate it */
 		if (pSensorEvent != NULL) {
 			/* Any content ? */
@@ -871,11 +794,10 @@ lcz_event_manager_file_handler_find_first_event(uint16_t *outEventIndex,
 	return (pSensorEvent);
 }
 
-/** @brief Sets a page of event logger shadow memory as dirty when a new event
- *         is added to it.
+/** @brief Sets a page of event logger shadow memory as dirty when a new event is added to it.
  *
- *  @param [in]eventIndex - The absolute index of the event to flag the page
- *                          where it resides as needing to be saved.
+ *  @param [in]eventIndex - The absolute index of the event to flag the page where it resides as
+ *                          needing to be saved.
  */
 static void lcz_event_manager_file_handler_set_page_dirty(uint16_t eventIndex)
 {
@@ -883,13 +805,11 @@ static void lcz_event_manager_file_handler_set_page_dirty(uint16_t eventIndex)
 
 	if (eventIndex < TOTAL_NUMBER_EVENTS) {
 		/* Get the index of the file where the event resides */
-		fileIndex =
-			eventIndex / CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+		fileIndex = eventIndex / CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 		/* And set its dirty flag */
 		dirtyFlags[fileIndex] = true;
-		/* Also set the back up dirty flag for use during
-		 * log file creation. We use these to determine what files
-		 * need to be saved following creation of a log file.
+		/* Also set the back up dirty flag for use during log file creation. We use these
+		 * to determine what files need to be saved following creation of a log file.
 		 */
 		dirtyFlagsBackup[fileIndex] = true;
 	}
@@ -902,18 +822,12 @@ static void lcz_event_manager_file_handler_load_files(void)
 	uint16_t fileIndex;
 	uint8_t fileName[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 
-	for (fileIndex = 0;
-	     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
-	     fileIndex++) {
+	for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES; fileIndex++) {
 		/* Get the next file name */
-		sprintf(fileName, "%s%s%d",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
-			fileIndex);
+		sprintf(fileName, "%s%s%d", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME, fileIndex);
 
-		fsu_read_abs(fileName,
-			     &eventManagerFileData.pFileData[fileIndex],
-			     FILE_SIZE_BYTES);
+		fsu_read_abs(fileName, &eventManagerFileData.pFileData[fileIndex], FILE_SIZE_BYTES);
 
 		/* No files are dirty at startup */
 		eventManagerFileData.pIsDirty[fileIndex] = false;
@@ -929,34 +843,28 @@ static void lcz_event_manager_file_handler_save_files(void)
 	ssize_t writeSize;
 
 	/* Have any files changed? */
-	for (fileIndex = 0;
-	     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
-	     fileIndex++) {
+	for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES; fileIndex++) {
 		/* Check the next file's dirty flag */
 		if (eventManagerFileData.pIsDirty[fileIndex]) {
 			/* If it's dirty, save it */
 			sprintf(fileName, "%s%s%d",
 				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-				LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
-				fileIndex);
+				LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME, fileIndex);
 
-			writeSize = fsu_write_abs(
-				fileName,
-				&eventManagerFileData.pFileData[fileIndex],
-				FILE_SIZE_BYTES);
+			writeSize =
+				fsu_write_abs(fileName, &eventManagerFileData.pFileData[fileIndex],
+					      FILE_SIZE_BYTES);
 
 			/* Was any data written ? */
 			if (writeSize) {
 				/* OK to clear the dirty flag now */
-				eventManagerFileData.pIsDirty[fileIndex] =
-					false;
+				eventManagerFileData.pIsDirty[fileIndex] = false;
 			}
 		}
 	}
 }
 
-/** @brief Called during initialisation to determine what event should be
- *         written to next.
+/** @brief Called during initialisation to determine what event should be written to next.
  */
 static void lcz_event_manager_file_handler_get_indices(void)
 {
@@ -972,11 +880,10 @@ static void lcz_event_manager_file_handler_get_indices(void)
 	uint16_t absHighBufferIndex;
 
 	/*
-	 * Get the count of events in the log. The count gets used later
-	 * during calls to find event.
+	 * Get the count of events in the log. The count gets used later during calls to find
+	 * event.
 	 */
-	lczEventManagerData.eventCount =
-		lcz_event_manager_file_handler_get_event_count(eventData);
+	lczEventManagerData.eventCount = lcz_event_manager_file_handler_get_event_count(eventData);
 	/* If there are no events, we can start at the beginning of the log */
 	if (!lczEventManagerData.eventCount) {
 		lczEventManagerData.eventWriteIndex = 0;
@@ -985,67 +892,52 @@ static void lcz_event_manager_file_handler_get_indices(void)
 		lczEventManagerData.eventSubIndex = 0;
 		lczEventManagerData.lastEventTimestamp = 0;
 	} else {
-		/* Read back the highest and lowest absolute indexes. We
-		 * use these to determine what our read and write indexes
-		 * should be.
+		/* Read back the highest and lowest absolute indexes. We use these to determine
+		 * what our read and write indexes should be.
 		 */
-		absIndexLow = lcz_event_manager_file_handler_find_abs_index(
-			eventData, false);
-		absIndexHigh = lcz_event_manager_file_handler_find_abs_index(
-			eventData, true);
+		absIndexLow = lcz_event_manager_file_handler_find_abs_index(eventData, false);
+		absIndexHigh = lcz_event_manager_file_handler_find_abs_index(eventData, true);
 
 		/* Also determine where the abs low and high reside */
-		absLowSensorEvent =
-			lcz_event_manager_file_handler_find_event_at_abs_index(
-				eventData, absIndexLow, &absLowBufferIndex);
-		absHighSensorEvent =
-			lcz_event_manager_file_handler_find_event_at_abs_index(
-				eventData, absIndexHigh, &absHighBufferIndex);
+		absLowSensorEvent = lcz_event_manager_file_handler_find_event_at_abs_index(
+			eventData, absIndexLow, &absLowBufferIndex);
+		absHighSensorEvent = lcz_event_manager_file_handler_find_event_at_abs_index(
+			eventData, absIndexHigh, &absHighBufferIndex);
 
-		/* Is the buffer full and is the highest abs index before
-		 * the lowest abs index in the buffer?
+		/* Is the buffer full and is the highest abs index before the lowest abs index in
+		 * the buffer?
 		 */
 		if ((lczEventManagerData.eventCount == TOTAL_NUMBER_EVENTS) &&
-			(absHighBufferIndex < absLowBufferIndex)) {
-				/* If so, we need to work out where
-				 * our read and write indices are.
-				 */
-				lczEventManagerData.eventReadIndex =
-					lcz_event_manager_file_handler_find_read_index(
-						absIndexHigh, absHighBufferIndex);
-				lczEventManagerData.eventWriteIndex =
-					lcz_event_manager_file_handler_find_write_index(
-						absIndexLow, absLowBufferIndex);
+		    (absHighBufferIndex < absLowBufferIndex)) {
+			/* If so, we need to work out where our read and write indices are. */
+			lczEventManagerData.eventReadIndex =
+				lcz_event_manager_file_handler_find_read_index(absIndexHigh,
+									       absHighBufferIndex);
+			lczEventManagerData.eventWriteIndex =
+				lcz_event_manager_file_handler_find_write_index(absIndexLow,
+										absLowBufferIndex);
 		} else {
-			/* If not, we can set the
-			 * read and write indexes directly.
-			 */
+			/* If not, we can set the read and write indexes directly. */
 			lczEventManagerData.eventReadIndex = absLowBufferIndex;
 			lczEventManagerData.eventWriteIndex = absHighBufferIndex;
 		}
 
-		/* The next absolute index to use
-		 * lives in the write event.
-		 */
+		/* The next absolute index to use lives in the write event. */
 		lastWrittenSensorEvent = lcz_event_manager_file_handler_get_event(
 			lczEventManagerData.eventWriteIndex, eventData);
 		lczEventManagerData.absoluteIndex = lastWrittenSensorEvent->index;
 
-
 		/* Now update up the write index */
 		lczEventManagerData.eventWriteIndex++;
-		if (lczEventManagerData.eventWriteIndex >=
-		    TOTAL_NUMBER_EVENTS) {
+		if (lczEventManagerData.eventWriteIndex >= TOTAL_NUMBER_EVENTS) {
 			lczEventManagerData.eventWriteIndex = 0;
 		}
 		/* Check if the read and write indexes now match */
-		if (lczEventManagerData.eventWriteIndex ==
-			lczEventManagerData.eventReadIndex) {
+		if (lczEventManagerData.eventWriteIndex == lczEventManagerData.eventReadIndex) {
 			/* If so, also bump the read index along */
 			lczEventManagerData.eventReadIndex++;
 			/* And check for wrap around */
-			if (lczEventManagerData.eventReadIndex >=
-				TOTAL_NUMBER_EVENTS) {
+			if (lczEventManagerData.eventReadIndex >= TOTAL_NUMBER_EVENTS) {
 				lczEventManagerData.eventReadIndex = 0;
 			}
 		}
@@ -1053,34 +945,28 @@ static void lcz_event_manager_file_handler_get_indices(void)
 		/* And the absolute index */
 		lczEventManagerData.absoluteIndex++;
 
-		/* Now work out the initial backup dirty flags.
-		 * These are pages that need to be blanked once the
-		 * content has been transferred during a log file build.
+		/* Now work out the initial backup dirty flags. These are pages that need to be
+		 * blanked once the content has been transferred during a log file build.
 		 */
-		if (lczEventManagerData.eventReadIndex >
-		    lczEventManagerData.eventWriteIndex) {
-			/* If the read index is after the write index
-			 * we need to set the dirty flags for all pages
-			 * starting at the read index and wrapping around
-			 * to the write index.
+		if (lczEventManagerData.eventReadIndex > lczEventManagerData.eventWriteIndex) {
+			/* If the read index is after the write index we need to set the dirty
+			 * flags for all pages starting at the read index and wrapping around to
+			 * the write index.
 			 */
 			firstPage = lczEventManagerData.eventWriteIndex /
 				    CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			lastPage = lczEventManagerData.eventReadIndex /
 				   CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
-			for (pageIndex = 0;
-			     pageIndex <
-			     CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
+			for (pageIndex = 0; pageIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
 			     pageIndex++) {
-				if ((pageIndex <= firstPage) ||
-				    (pageIndex >= lastPage)) {
+				if ((pageIndex <= firstPage) || (pageIndex >= lastPage)) {
 					dirtyFlagsBackup[pageIndex] = true;
 				}
 			}
 		} else if (lczEventManagerData.eventWriteIndex >
 			   lczEventManagerData.eventReadIndex) {
-			/* If the write index is after the read index we just
-			 * need to flag all pages in between as dirty.
+			/* If the write index is after the read index we just need to flag all
+			 * pages in between as dirty.
 			 */
 			firstPage = lczEventManagerData.eventReadIndex /
 				    CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
@@ -1091,20 +977,17 @@ static void lcz_event_manager_file_handler_get_indices(void)
 			}
 		}
 	}
-	/* On the very outside chance we're rebooting with the same timestamp
-	 * as the last event written, set up the last timestamp and sub-index
-	 * accordingly.
+	/* On the very outside chance we're rebooting with the same timestamp as the last event
+	 * written, set up the last timestamp and sub-index accordingly.
 	 */
 	if (lastWrittenSensorEvent != NULL) {
-		lczEventManagerData.eventSubIndex =
-			++lastWrittenSensorEvent->salt;
-		lczEventManagerData.lastEventTimestamp =
-			lastWrittenSensorEvent->timestamp;
+		lczEventManagerData.eventSubIndex = ++lastWrittenSensorEvent->salt;
+		lczEventManagerData.lastEventTimestamp = lastWrittenSensorEvent->timestamp;
 	}
 }
 
-/** @brief Checks if all Event Manager files are present and of the right size.
- *         If not, Rebuild should be called to rebuild the file structure.
+/** @brief Checks if all Event Manager files are present and of the right size. If not, rebuild
+ *         should be called to rebuild the file structure.
  *
  *  @return True if the structure is OK, False otherwise.
  */
@@ -1117,8 +1000,7 @@ static bool lcz_event_manager_file_handler_check_structure(void)
 	ssize_t file_size;
 
 	/* Check if the next file exists */
-	for (fileIndex = 0;
-	     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result);
+	for (fileIndex = 0; (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result);
 	     fileIndex++) {
 		/* Assume each pass will fail */
 		result = false;
@@ -1127,12 +1009,12 @@ static bool lcz_event_manager_file_handler_check_structure(void)
 		fileCount = 0;
 
 		/* Build the next file name */
-		sprintf(fileName, "%s%d",
-			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
+		sprintf(fileName, "%s%d", LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
 			fileIndex);
 
 		/* First get the details of the file */
-		file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
+		file_size = fsu_get_file_size(
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
 		if (file_size == FILE_SIZE_BYTES) {
 			/* This file is OK */
 			result = true;
@@ -1141,9 +1023,8 @@ static bool lcz_event_manager_file_handler_check_structure(void)
 	return (result);
 }
 
-/** @brief Builds/Rebuilds the Event Manager file structure. Will be called
- *         for new product but also when the file size changes. When called,
- *         existing files are deleted then recreated.
+/** @brief Builds/Rebuilds the Event Manager file structure. Will be called for new product but
+ *         also when the file size changes. When called, existing files are deleted then recreated
  *
  *  @return Non-zero failure code, 0 on success.
  */
@@ -1156,40 +1037,33 @@ static int lcz_event_manager_file_handler_rebuild_structure(void)
 	ssize_t file_size;
 
 	/* Check if the next file exists */
-	for (fileIndex = 0;
-	     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-	     (result == 0);
+	for (fileIndex = 0; (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 	     fileIndex++) {
 		/* Reset the filecount each time we process a file */
 		fileCount = 0;
 
 		/* Build the next file name */
-		sprintf(fileName, "%s%d",
-			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
+		sprintf(fileName, "%s%d", LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
 			fileIndex);
 
 		/* First get the details of the file */
-		file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
+		file_size = fsu_get_file_size(
+			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
 		if (file_size >= 0) {
 			/* File exists, so delete it */
-			fsu_delete_files(
-				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-				fileName);
+			fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+					 fileName);
 		}
 
 		/* Now create the file */
-		sprintf(fileName, "%s%s%d",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
-			fileIndex);
+		sprintf(fileName, "%s%s%d", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME, fileIndex);
 
-		memset(eventManagerFileData.pFileData[fileIndex], 0x0,
-		       FILE_SIZE_BYTES);
+		memset(eventManagerFileData.pFileData[fileIndex], 0x0, FILE_SIZE_BYTES);
 
 		eventManagerFileData.pIsDirty[fileIndex] = false;
 
-		if (fsu_write_abs(fileName,
-				  eventManagerFileData.pFileData[fileIndex],
+		if (fsu_write_abs(fileName, eventManagerFileData.pFileData[fileIndex],
 				  FILE_SIZE_BYTES) != FILE_SIZE_BYTES) {
 			/* Failed to create file */
 			result = -EINVAL;
@@ -1198,8 +1072,8 @@ static int lcz_event_manager_file_handler_rebuild_structure(void)
 	return (result);
 }
 
-/** @brief Finds an event from its sub-index given the point where to start
- *         looking in the event list.
+/** @brief Finds an event from its sub-index given the point where to start looking in the event
+ *         list.
  *
  *  @param [in]startIndex - The index in the event list where to start looking.
  *  @param [in]subIndex - The sub index of the event to find.
@@ -1207,18 +1081,17 @@ static int lcz_event_manager_file_handler_rebuild_structure(void)
  *
  *  @return The event if found, NULL otherwise.
  */
-static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
-	uint16_t startIndex, uint16_t subIndex, uint16_t count)
+static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(uint16_t startIndex,
+									  uint16_t subIndex,
+									  uint16_t count)
 {
 	uint16_t eventIndex = startIndex;
 	uint16_t eventCount;
 	SensorEvent_t *pSensorEvent = NULL;
 	bool eventFound = false;
 
-	for (eventCount = 0; (eventCount < count) && (eventFound == false);
-	     eventCount++) {
-		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			eventIndex, eventData);
+	for (eventCount = 0; (eventCount < count) && (eventFound == false); eventCount++) {
+		pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* Check if the event is valid before proceeding */
 		if (pSensorEvent != NULL) {
 			/* Is this the sub-indexed event ? */
@@ -1234,9 +1107,7 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
 				eventFound = true;
 			}
 		} else {
-			/* If the event index requested is invalid,
-			 * break out here.
-			 */
+			/* If the event index requested is invalid, break out here. */
 			eventFound = true;
 		}
 	}
@@ -1248,8 +1119,7 @@ static SensorEvent_t *lcz_event_manager_file_handler_get_subindexed_event(
  *  @param [in]pSensorEvent - The event to add.
  *  @return True if added, false otherwise.
  */
-bool lcz_event_manager_file_handler_add_event_private(
-	SensorEvent_t *pSensorEvent)
+bool lcz_event_manager_file_handler_add_event_private(SensorEvent_t *pSensorEvent)
 {
 	bool result = false;
 	SensorEvent_t *pAddedSensorEvent = (SensorEvent_t *)NULL;
@@ -1259,11 +1129,9 @@ bool lcz_event_manager_file_handler_add_event_private(
 		/* It's a new timestamp, so reset our sub index */
 		lczEventManagerData.eventSubIndex = 0;
 		/* And store the new timestamp for use later */
-		lczEventManagerData.lastEventTimestamp =
-			pSensorEvent->timestamp;
+		lczEventManagerData.lastEventTimestamp = pSensorEvent->timestamp;
 	}
-	/* Now add the event */
-	/* First get a reference to it */
+	/* Now add the event, first get a reference to it */
 	pAddedSensorEvent = lcz_event_manager_file_handler_get_event(
 		lczEventManagerData.eventWriteIndex, eventData);
 	/* If either are NULL, exit here */
@@ -1277,29 +1145,25 @@ bool lcz_event_manager_file_handler_add_event_private(
 		/* And assume the next event will be at the same timestamp */
 		pAddedSensorEvent->salt = lczEventManagerData.eventSubIndex++;
 
-		/* Set the page where the event resides as dirty for
-		 * saving later in the background
+		/* Set the page where the event resides as dirty for saving later in the
+		 * background
 		 */
-		lcz_event_manager_file_handler_set_page_dirty(
-			lczEventManagerData.eventWriteIndex);
+		lcz_event_manager_file_handler_set_page_dirty(lczEventManagerData.eventWriteIndex);
 
 		/* Index the next event for writing later */
 		lczEventManagerData.eventWriteIndex++;
 		/* Check for wrap around here */
-		if (lczEventManagerData.eventWriteIndex >=
-		    TOTAL_NUMBER_EVENTS) {
+		if (lczEventManagerData.eventWriteIndex >= TOTAL_NUMBER_EVENTS) {
 			/* Go back to the start of the list */
 			lczEventManagerData.eventWriteIndex = 0;
 		}
-		/* Check if the read index has been overwritten.
-		 * If so we need to push it forward.
+		/* Check if the read index has been overwritten. If so we need to push it
+		 * forward
 		 */
-		if (lczEventManagerData.eventWriteIndex ==
-		    lczEventManagerData.eventReadIndex) {
+		if (lczEventManagerData.eventWriteIndex == lczEventManagerData.eventReadIndex) {
 			lczEventManagerData.eventReadIndex++;
 			/* And check again for wrap around */
-			if (lczEventManagerData.eventReadIndex >=
-			    TOTAL_NUMBER_EVENTS) {
+			if (lczEventManagerData.eventReadIndex >= TOTAL_NUMBER_EVENTS) {
 				lczEventManagerData.eventReadIndex = 0;
 			}
 		}
@@ -1314,25 +1178,21 @@ bool lcz_event_manager_file_handler_add_event_private(
 	return (result);
 }
 
-/** @brief Finds the first event with the passed timestamp in the event log
- *         going forwards.
+/** @brief Finds the first event with the passed timestamp in the event log going forwards.
  *
  *  @param [in]timestamp - The timestamp to find the event for.
  *
  *  @returns The index of the event, -EINVAL if not found.
  */
-int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
-	uint32_t timestamp)
+int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(uint32_t timestamp)
 {
 	int32_t eventIndex;
 	bool eventFound = false;
 	SensorEvent_t *pSensorEvent = NULL;
 
 	/* Read through the events and find a match */
-	for (eventIndex = 0;
-	     (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
-		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			eventIndex, eventData);
+	for (eventIndex = 0; (eventIndex < TOTAL_NUMBER_EVENTS) && (eventFound == false);) {
+		pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 		/* NULL check the event and break out if invalid */
 		if (pSensorEvent != NULL) {
 			if (pSensorEvent->timestamp == timestamp) {
@@ -1352,25 +1212,21 @@ int lcz_event_manager_file_handler_get_first_event_index_at_timestamp(
 	return (eventIndex);
 }
 
-/** @brief Finds the first event with the passed timestamp in the event log
- *         going backwards.
+/** @brief Finds the first event with the passed timestamp in the event log going backwards.
  *
  *  @param [in]timestamp - The timestamp to find the event for.
  *
  *  @returns The index of the event, -EINVAL if not found.
  */
-int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(
-	uint32_t timestamp)
+int lcz_event_manager_file_handler_get_last_event_index_at_timestamp(uint32_t timestamp)
 {
 	int32_t eventIndex;
 	bool eventFound = false;
 	SensorEvent_t *pSensorEvent = NULL;
 
 	/* Read through the events and find a match */
-	for (eventIndex = (TOTAL_NUMBER_EVENTS - 1);
-	     (eventIndex > 0) && (eventFound == false);) {
-		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			eventIndex, eventData);
+	for (eventIndex = (TOTAL_NUMBER_EVENTS - 1); (eventIndex > 0) && (eventFound == false);) {
+		pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 
 		/* NULL check the sensor event before proceeding */
 		if (pSensorEvent != NULL) {
@@ -1419,19 +1275,16 @@ int lcz_event_manager_file_handler_background_build_multi(void)
 	int result = 0;
 	uint32_t event_index;
 	SensorEvent_t *pSensorEvent;
-	SensorEvent_t sensor_event_buffer
-		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
+	SensorEvent_t sensor_event_buffer[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
 	uint8_t buffer_index = 0;
-	uint32_t buffer_indexes
-		[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
+	uint32_t buffer_indexes[CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE];
 	/* This is the number of events added to the file */
 	uint32_t events_added;
 	uint8_t full_loops = 0;
 	uint32_t event_count = lczEventManagerDataBackup.eventCount;
 
 	/* Build the empty output file */
-	sprintf(file_name, "%s%s",
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+	sprintf(file_name, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 	/* Create as blank then append events to it */
@@ -1440,27 +1293,22 @@ int lcz_event_manager_file_handler_background_build_multi(void)
 	if (result == 0) {
 		/* Now find the oldest event */
 		event_index = lczEventManagerDataBackup.eventReadIndex;
-		/* Then continue adding to the file and deleting them */
-		/* from the live list as we go */
-		for (events_added = 0;
-		     (lczEventManagerDataBackup.eventCount) && (result == 0);
+		/* Then continue adding to the file and deleting them from the list as we go */
+		for (events_added = 0; (lczEventManagerDataBackup.eventCount) && (result == 0);
 		     events_added++) {
 			/* Get the next event */
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				event_index, eventDataBackup);
+			pSensorEvent = lcz_event_manager_file_handler_get_event(event_index,
+										eventDataBackup);
 			/* NULL check it - if NULL, break out here */
 			if (pSensorEvent == NULL) {
 				result = -EINVAL;
 			}
 			if (!result) {
 				/* Is it blank? */
-				if (pSensorEvent->type !=
-				    SENSOR_EVENT_RESERVED) {
-					memcpy(&sensor_event_buffer[buffer_index],
-					       pSensorEvent,
+				if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
+					memcpy(&sensor_event_buffer[buffer_index], pSensorEvent,
 					       sizeof(SensorEvent_t));
-					buffer_indexes[buffer_index] =
-						event_index;
+					buffer_indexes[buffer_index] = event_index;
 					++buffer_index;
 
 					/* Another event read out */
@@ -1469,16 +1317,12 @@ int lcz_event_manager_file_handler_background_build_multi(void)
 					if (buffer_index ==
 					    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_EVENT_BUFFER_SIZE) {
 						/* No, so add it to the file */
-						if (fsu_append_abs(
-							    file_name,
-							    sensor_event_buffer,
-							    sizeof(SensorEvent_t) *
-								    buffer_index) !=
-						    sizeof(SensorEvent_t) *
-							    buffer_index) {
-							/* Failed to update the file,
-							 * should see the number of
-							 * bytes written echoed back
+						if (fsu_append_abs(file_name, sensor_event_buffer,
+								   sizeof(SensorEvent_t) *
+									   buffer_index) !=
+						    sizeof(SensorEvent_t) * buffer_index) {
+							/* Failed to update the file, should see the
+							 * number of bytes written echoed back
 							 */
 							result = -EINVAL;
 						}
@@ -1496,24 +1340,18 @@ int lcz_event_manager_file_handler_background_build_multi(void)
 					event_index = 0;
 					++full_loops;
 
-					if (full_loops >=
-					    LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS) {
-						/* Something is wrong here, all
-						 * entries have been checked
-						 * multiple times and there are
-						 * insufficient entries, output
-						 * this error and exit checking
-						 * as there is nothing more
-						 * that can be done
+					if (full_loops >= LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS) {
+						/* Something is wrong here, all entries have been
+						 * checked multiple times and there are insufficient
+						 * entries, output this error and exit checking
+						 * as there is nothing more that can be done
 						 */
 						result = -EIO;
 						LOG_ERR("Expected %d events, "
 							"failed after %d events"
 							" with %d loops of all "
 							"event entries",
-							event_count,
-							events_added,
-							full_loops);
+							event_count, events_added, full_loops);
 					}
 				}
 			}
@@ -1551,8 +1389,7 @@ int lcz_event_manager_file_handler_background_build_single(void)
 	uint32_t event_count = lczEventManagerDataBackup.eventCount;
 
 	/* Build the empty output file */
-	sprintf(file_name, "%s%s",
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+	sprintf(file_name, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 	/* Create as blank then append events to it */
@@ -1561,14 +1398,12 @@ int lcz_event_manager_file_handler_background_build_single(void)
 	if (result == 0) {
 		/* Now find the oldest event */
 		event_index = lczEventManagerDataBackup.eventReadIndex;
-		/* Then continue adding to the file and deleting them */
-		/* from the live list as we go */
-		for (events_added = 0;
-		     (events_added < event_count) && (result == 0);
+		/* Then continue adding to the file and deleting them from the list as we go */
+		for (events_added = 0; (events_added < event_count) && (result == 0);
 		     events_added++) {
 			/* Get the next event */
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				event_index, eventDataBackup);
+			pSensorEvent = lcz_event_manager_file_handler_get_event(event_index,
+										eventDataBackup);
 			/* NULL check the event */
 			if (pSensorEvent == NULL) {
 				/* Stop here if a bad event was found */
@@ -1576,31 +1411,24 @@ int lcz_event_manager_file_handler_background_build_single(void)
 			}
 			if (!result) {
 				/* Is it blank? */
-				if (pSensorEvent->type !=
-				    SENSOR_EVENT_RESERVED) {
+				if (pSensorEvent->type != SENSOR_EVENT_RESERVED) {
 					/* No, so add it to the file */
-					if (fsu_append_abs(
-						    file_name, pSensorEvent,
-						    sizeof(SensorEvent_t)) !=
+					if (fsu_append_abs(file_name, pSensorEvent,
+							   sizeof(SensorEvent_t)) !=
 					    sizeof(SensorEvent_t)) {
-						/* Failed to update the file, should
-						 * see the number of bytes written
-						 * echoed back
+						/* Failed to update the file, should see the number
+						 * of bytes written echoed back
 						 */
 						result = -EINVAL;
 					}
 
 					/* Update event indices only when added OK */
 					if (result == 0) {
-						/* Mark this event as free for use
-						 * later
-						 */
-						memset(pSensorEvent, 0x0,
-						       sizeof(SensorEvent_t));
+						/* Mark this event as free for use later */
+						memset(pSensorEvent, 0x0, sizeof(SensorEvent_t));
 
 						/* Another event read out */
-						lczEventManagerDataBackup
-							.eventCount--;
+						lczEventManagerDataBackup.eventCount--;
 					}
 				}
 			}
@@ -1614,24 +1442,18 @@ int lcz_event_manager_file_handler_background_build_single(void)
 					event_index = 0;
 					++full_loops;
 
-					if (full_loops >=
-					    LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS) {
-						/* Something is wrong here, all
-						 * entries have been checked
-						 * multiple times and there are
-						 * insufficient entries, output
-						 * this error and exit checking
-						 * as there is nothing more
-						 * that can be done
+					if (full_loops >= LCZ_EVENT_MANAGER_BUILD_FILE_FULL_LOOPS) {
+						/* Something is wrong here, all entries have been
+						 * checked multiple times and there are insufficient
+						 * entries, output this error and exit checking
+						 * as there is nothing more that can be done
 						 */
 						result = -EIO;
 						LOG_ERR("Expected %d events, "
 							"failed after %d events"
 							" with %d loops of all "
 							"event entries",
-							event_count,
-							events_added,
-							full_loops);
+							event_count, events_added, full_loops);
 					}
 				}
 			}
@@ -1661,8 +1483,7 @@ int lcz_event_manager_file_handler_background_build_dummy_file(
 	uint32_t event_data = 0;
 
 	/* Build the empty output file */
-	sprintf(file_name, "%s%s",
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+	sprintf(file_name, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 		LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 	/* Create as blank then append events to it */
@@ -1671,19 +1492,17 @@ int lcz_event_manager_file_handler_background_build_dummy_file(
 	if (result == 0) {
 		/* Now add our dummy events */
 		for (event_count = 0;
-		     (event_count < dummy_log_file_properties->event_count) &&
-		     (result == 0);
+		     (event_count < dummy_log_file_properties->event_count) && (result == 0);
 		     event_count++) {
 			/* Build the next event */
 			lcz_event_manager_file_handler_background_build_dummy_event(
-				&sensor_event, time_stamp,
-				dummy_log_file_properties, event_data);
+				&sensor_event, time_stamp, dummy_log_file_properties, event_data);
 			/* Add it to the file */
-			if (fsu_append_abs(file_name, &sensor_event,
-					   sizeof(SensorEvent_t)) !=
+			if (fsu_append_abs(file_name, &sensor_event, sizeof(SensorEvent_t)) !=
 			    sizeof(SensorEvent_t)) {
-				/* Failed to update the file, should see */
-				/* the number of bytes written echoed back */
+				/* Failed to update the file, should see the number of bytes
+				 * written echoed back
+				 */
 				result = -EINVAL;
 			}
 			/* Update event details only when added OK */
@@ -1697,13 +1516,11 @@ int lcz_event_manager_file_handler_background_build_dummy_file(
 					event_data++;
 				}
 				/* Does the salt need to be updated? */
-				if (dummy_log_file_properties->update_rate ==
-				    0) {
+				if (dummy_log_file_properties->update_rate == 0) {
 					sensor_event.salt++;
 				} else {
 					/* Update timestamp */
-					time_stamp += dummy_log_file_properties
-							      ->update_rate;
+					time_stamp += dummy_log_file_properties->update_rate;
 				}
 			}
 		}
@@ -1723,8 +1540,7 @@ int lcz_event_manager_file_handler_background_build_dummy_file(
  */
 void lcz_event_manager_file_handler_background_build_dummy_event(
 	SensorEvent_t *sensor_event, uint32_t time_stamp,
-	DummyLogFileProperties_t *dummy_log_file_properties,
-	uint32_t event_data)
+	DummyLogFileProperties_t *dummy_log_file_properties, uint32_t event_data)
 {
 	/* Set timestamp */
 	sensor_event->timestamp = time_stamp;
@@ -1743,16 +1559,13 @@ void lcz_event_manager_file_handler_background_build_dummy_event(
 	}
 }
 
-/** @brief Finds either the highest or lowest absolute index for a set of
- *         events.
+/** @brief Finds either the highest or lowest absolute index for a set of events.
  *
  *  @param [in]eventBuffer - The event buffer to search through.
  *  @param [in]findHighest - True to find the highest absolute index.
  *  @returns The requested absolute index value.
  */
-uint16_t
-lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
-					      bool findHighest)
+uint16_t lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer, bool findHighest)
 {
 	uint16_t absIndex = 0;
 	uint16_t index;
@@ -1760,15 +1573,13 @@ lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
 	uint16_t eventCount;
 
 	/* Get the starting point in the event buffer */
-	sensorEvent = lcz_event_manager_file_handler_find_first_event(
-		&index, eventBuffer);
+	sensorEvent = lcz_event_manager_file_handler_find_first_event(&index, eventBuffer);
 
 	if (sensorEvent != NULL) {
 		absIndex = sensorEvent->index;
 	}
 	/* And the count of events in the buffer to limit the search */
-	eventCount =
-		lcz_event_manager_file_handler_get_event_count(eventBuffer);
+	eventCount = lcz_event_manager_file_handler_get_event_count(eventBuffer);
 	/* Store the first found absolute index for use later */
 	if ((sensorEvent != NULL) && (eventCount)) {
 		absIndex = sensorEvent->index;
@@ -1778,8 +1589,7 @@ lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
 			/* Point at the next event in the buffer */
 			index++;
 			/* Get the next event */
-			sensorEvent = lcz_event_manager_file_handler_get_event(
-				index, eventBuffer);
+			sensorEvent = lcz_event_manager_file_handler_get_event(index, eventBuffer);
 			/* And check its absolute index */
 			if (findHighest) {
 				if (sensorEvent->index > absIndex) {
@@ -1802,9 +1612,9 @@ lcz_event_manager_file_handler_find_abs_index(eventBuffer_t eventBuffer,
  *  @param [out]eventBufferIndex - The buffer index where the event resides.
  *  @returns The event data.
  */
-SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(
-	eventBuffer_t eventBuffer, uint16_t absIndex,
-	uint16_t *eventBufferIndex)
+SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(eventBuffer_t eventBuffer,
+								      uint16_t absIndex,
+								      uint16_t *eventBufferIndex)
 {
 	uint16_t index;
 	SensorEvent_t *sensorEvent;
@@ -1812,16 +1622,13 @@ SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(
 	bool eventFound = false;
 
 	/* Get the starting point in the event buffer */
-	sensorEvent = lcz_event_manager_file_handler_find_first_event(
-		&index, eventBuffer);
+	sensorEvent = lcz_event_manager_file_handler_find_first_event(&index, eventBuffer);
 	/* And the count of events in the buffer to limit the search */
-	eventCount =
-		lcz_event_manager_file_handler_get_event_count(eventBuffer);
+	eventCount = lcz_event_manager_file_handler_get_event_count(eventBuffer);
 	/* Find the requested absolute index */
 	while ((eventCount) && (!eventFound)) {
 		/* Get the next event */
-		sensorEvent = lcz_event_manager_file_handler_get_event(
-			index, eventBuffer);
+		sensorEvent = lcz_event_manager_file_handler_get_event(index, eventBuffer);
 		/* And check its absolute index */
 		if (sensorEvent->index == absIndex) {
 			eventFound = true;
@@ -1834,20 +1641,17 @@ SensorEvent_t *lcz_event_manager_file_handler_find_event_at_abs_index(
 	return (sensorEvent);
 }
 
-/** @brief When an event buffer is full, used to determine the buffer
- *         index where the next event to read resides. Required because
- *         if a wrap around of absolute index occurs, the highest value
- *         after the wrap around is actually the write index and the
- *         lowest value before the wrap around is the read index. But these
- *         may not be the highest and lowest absolute index values so this
- *         additional handling is needed.
+/** @brief When an event buffer is full, used to determine the buffer index where the next event to
+ *         read resides. Required because if a wrap around of absolute index occurs, the highest
+ *         value after the wrap around is actually the write index and the lowest value before the
+ *         wrap around is the read index. But these may not be the highest and lowest absolute index
+ *         values so this additional handling is needed.
  *
  *  @param [in]startAbsHigh - The initial absolute index value to use.
  *  @param [in]startIndex - The index in the buffer where the event resides.
  *  @returns The index of the read event.
  */
-int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh,
-						       uint16_t startIndex)
+int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh, uint16_t startIndex)
 {
 	bool eventFound = false;
 	uint16_t eventsChecked;
@@ -1865,8 +1669,8 @@ int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh,
 		if (absHighBufferIndexTemp >= TOTAL_NUMBER_EVENTS) {
 			absHighBufferIndexTemp = TOTAL_NUMBER_EVENTS - 1;
 		}
-		sensorEvent = lcz_event_manager_file_handler_get_event(
-			absHighBufferIndexTemp, eventData);
+		sensorEvent =
+			lcz_event_manager_file_handler_get_event(absHighBufferIndexTemp, eventData);
 		if (sensorEvent->index != absHighTemp) {
 			/* Without a match, it's the event after this one */
 			absHighBufferIndexTemp++;
@@ -1883,15 +1687,13 @@ int32_t lcz_event_manager_file_handler_find_read_index(uint16_t startAbsHigh,
 	return (result);
 }
 
-/** @brief Similar handling as per above for finding the write index in a
- *         full event buffer.
+/** @brief Similar handling as per above for finding the write index in a full event buffer.
  *
  *  @param [in]startAbsLow - The initial absolute index value to use.
  *  @param [in]startIndex - The index in the buffer where the event resides.
  *  @returns The index of the read event.
  */
-int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow,
-						       uint16_t startIndex)
+int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow, uint16_t startIndex)
 {
 	bool eventFound = false;
 	uint16_t eventsChecked;
@@ -1909,8 +1711,8 @@ int32_t lcz_event_manager_file_handler_find_write_index(uint16_t startAbsLow,
 		if (absLowBufferIndexTemp >= TOTAL_NUMBER_EVENTS) {
 			absLowBufferIndexTemp = 0;
 		}
-		sensorEvent = lcz_event_manager_file_handler_get_event(
-			absLowBufferIndexTemp, eventData);
+		sensorEvent =
+			lcz_event_manager_file_handler_get_event(absLowBufferIndexTemp, eventData);
 		if (sensorEvent->index != absLowTemp) {
 			/* Without a match, it's the event preceeding this one */
 			absLowBufferIndexTemp--;
@@ -1956,8 +1758,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	uint16_t salt;
 	ssize_t file_size;
 
-#define TOTAL_FILE_SIZE_BYTES                                                  \
-	(CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES * FILE_SIZE_BYTES)
+#define TOTAL_FILE_SIZE_BYTES (CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES * FILE_SIZE_BYTES)
 
 #ifdef ENABLED
 
@@ -1978,8 +1779,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		failResult++;
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_TEMPERATURE,
 		       TOTAL_FILE_SIZE_BYTES);
-		if (lcz_event_manager_file_handler_get_event_count() !=
-		    TOTAL_NUMBER_EVENTS) {
+		if (lcz_event_manager_file_handler_get_event_count() != TOTAL_NUMBER_EVENTS) {
 			result = failResult;
 		}
 	}
@@ -1989,11 +1789,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
-		eventManagerFileData.pFileData[0]->type =
-			SENSOR_EVENT_TEMPERATURE;
-		(eventManagerFileData
-			 .pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES -
-				    1] +
+		eventManagerFileData.pFileData[0]->type = SENSOR_EVENT_TEMPERATURE;
+		(eventManagerFileData.pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES - 1] +
 		 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE - 1)
 			->type = SENSOR_EVENT_TEMPERATURE;
 		if (lcz_event_manager_file_handler_get_event_count() != 2) {
@@ -2002,33 +1799,27 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	}
 	/* lcz_event_manager_file_handler_get_event */
 
-	/* Each event should have an ascending timestamp and data value and */
-	/* an event type increasing to the max available then rolling over  */
-	/* when all event types are consumed.                               */
+	/* Each event should have an ascending timestamp and data value and an event type increasing
+	 * to the max available then rolling over when all event types are consumed.
+	 */
 	if (result == 0) {
 		failResult++;
 		eventType = 0;
 		timestamp = 0;
 		data = 0;
 
-		for (fileIndex = 0;
-		     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
+		for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
 		     fileIndex++) {
-			for (eventIndex = 0;
-			     eventIndex <
-			     CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			for (eventIndex = 0; eventIndex < CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			     eventIndex++) {
 				/* Set the event details directly */
-				eventData[fileIndex][eventIndex].timestamp =
-					timestamp;
-				eventData[fileIndex][eventIndex].data.u32 =
-					data;
+				eventData[fileIndex][eventIndex].timestamp = timestamp;
+				eventData[fileIndex][eventIndex].data.u32 = data;
 				eventData[fileIndex][eventIndex].type =
 					(SensorEventType_t)eventType;
 				/* Update the event type here */
 				eventType++;
-				if (eventType >=
-				    (uint8_t)NUMBER_OF_SENSOR_EVENTS) {
+				if (eventType >= (uint8_t)NUMBER_OF_SENSOR_EVENTS) {
 					eventType = 0;
 				}
 				/* And the other data being written */
@@ -2043,24 +1834,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		data = 0;
 
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
 			for (eventIndex = 0;
-			     (eventIndex <
-			      CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) &&
+			     (eventIndex < CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) &&
 			     (result == 0);
 			     eventIndex++) {
 				/* Read back the next event */
 				pSensorEvent = lcz_event_manager_file_handler_get_event(
-					(fileIndex *
-					 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) +
+					(fileIndex * CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) +
 					eventIndex);
 				/* Shouldn't be null */
 				if (pSensorEvent != NULL) {
 					/* Check members */
-					if ((pSensorEvent->timestamp !=
-					     timestamp) ||
+					if ((pSensorEvent->timestamp != timestamp) ||
 					    (pSensorEvent->data.u32 != data) ||
 					    (pSensorEvent->type != eventType)) {
 						/* Something not right */
@@ -2069,9 +1856,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 					if (result == 0) {
 						/* Update data for next event */
 						eventType++;
-						if (eventType >=
-						    (uint8_t)
-							    NUMBER_OF_SENSOR_EVENTS) {
+						if (eventType >= (uint8_t)NUMBER_OF_SENSOR_EVENTS) {
 							eventType = 0;
 						}
 						timestamp++;
@@ -2091,8 +1876,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		failResult++;
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
-		if (lcz_event_manager_file_handler_find_first_empty_event_by_type() !=
-		    0) {
+		if (lcz_event_manager_file_handler_find_first_empty_event_by_type() != 0) {
 			result = failResult;
 		}
 	}
@@ -2103,8 +1887,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		/* Prefill with a non-zero event type */
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_TEMPERATURE,
 		       TOTAL_FILE_SIZE_BYTES);
-		if (lcz_event_manager_file_handler_find_first_empty_event_by_type() !=
-		    -1) {
+		if (lcz_event_manager_file_handler_find_first_empty_event_by_type() != -1) {
 			result = failResult;
 		}
 	}
@@ -2112,9 +1895,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	/* Should get back Last Record when Last record is free */
 	if (result == 0) {
 		failResult++;
-		(eventManagerFileData
-			 .pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES -
-				    1] +
+		(eventManagerFileData.pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES - 1] +
 		 (CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE - 1))
 			->type = SENSOR_EVENT_RESERVED;
 		if (lcz_event_manager_file_handler_find_first_empty_event_by_type() !=
@@ -2129,20 +1910,15 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	if (result == 0) {
 		failResult++;
 		timestamp = 0;
-		for (fileIndex = 0;
-		     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
+		for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
 		     fileIndex++) {
-			for (eventIndex = 0;
-			     eventIndex <
-			     CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			for (eventIndex = 0; eventIndex < CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			     eventIndex++) {
-				(eventManagerFileData.pFileData[fileIndex] +
-				 eventIndex)
-					->timestamp = timestamp++;
+				(eventManagerFileData.pFileData[fileIndex] + eventIndex)->timestamp =
+					timestamp++;
 			}
 		}
-		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() !=
-		    0) {
+		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() != 0) {
 			result = failResult;
 		}
 	}
@@ -2150,24 +1926,19 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	/* Last event is the oldest */
 	if (result == 0) {
 		failResult++;
-		/* Start with a timestamp of 1 here so we can */
-		/* set the last to 0 making it the oldest     */
+		/* Start with a timestamp of 1 here so we can set the last to 0 making it the
+		 * oldest
+		 */
 		timestamp = 1;
-		for (fileIndex = 0;
-		     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
+		for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
 		     fileIndex++) {
-			for (eventIndex = 0;
-			     eventIndex <
-			     CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			for (eventIndex = 0; eventIndex < CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			     eventIndex++) {
-				(eventManagerFileData.pFileData[fileIndex] +
-				 eventIndex)
-					->timestamp = timestamp;
+				(eventManagerFileData.pFileData[fileIndex] + eventIndex)->timestamp =
+					timestamp;
 			}
 		}
-		(eventManagerFileData
-			 .pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES -
-				    1] +
+		(eventManagerFileData.pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES - 1] +
 		 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE - 1)
 			->timestamp = 0;
 		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() !=
@@ -2179,40 +1950,32 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	/* Middle record is the oldest */
 	if (result == 0) {
 		failResult++;
-		/* Again start with a timestamp of 1 so we can     */
-		/* set the middle one to zero making it the oldest */
+		/* Again start with a timestamp of 1 so we can set the middle one to zero making it
+		 * the oldest
+		 */
 		timestamp = 1;
-		for (fileIndex = 0;
-		     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
+		for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
 		     fileIndex++) {
-			for (eventIndex = 0;
-			     eventIndex <
-			     CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			for (eventIndex = 0; eventIndex < CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			     eventIndex++) {
-				(eventManagerFileData.pFileData[fileIndex] +
-				 eventIndex)
-					->timestamp = timestamp++;
+				(eventManagerFileData.pFileData[fileIndex] + eventIndex)->timestamp =
+					timestamp++;
 			}
 		}
-		(eventManagerFileData
-			 .pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES /
-				    2] +
+		(eventManagerFileData.pFileData[CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES / 2] +
 		 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE / 2)
 			->timestamp = 0;
 
 		if (CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES == 1) {
-			eventIndex =
-				(CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE / 2);
+			eventIndex = (CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE / 2);
 		} else {
-			eventIndex =
-				((CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES *
-				  CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) /
-				 2) +
-				(CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE / 2);
+			eventIndex = ((CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES *
+				       CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) /
+				      2) +
+				     (CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE / 2);
 		}
 
-		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() !=
-		    eventIndex) {
+		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() != eventIndex) {
 			result = failResult;
 		}
 	}
@@ -2222,32 +1985,25 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		failResult++;
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
-		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() !=
-		    0) {
+		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() != 0) {
 			result = failResult;
 		}
 	}
 
-	/* Fill with records with ascending timestamp values and make sure */
-	/* the oldest is found */
+	/* Fill with records with ascending timestamp values and make sure the oldest is found */
 	if (result == 0) {
 		failResult++;
 		/* Start with a timestamp of 1 here */
 		timestamp = 1;
-		for (fileIndex = 0;
-		     fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
+		for (fileIndex = 0; fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES;
 		     fileIndex++) {
-			for (eventIndex = 0;
-			     eventIndex <
-			     CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			for (eventIndex = 0; eventIndex < CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			     eventIndex++) {
-				(eventManagerFileData.pFileData[fileIndex] +
-				 eventIndex)
-					->timestamp = timestamp++;
+				(eventManagerFileData.pFileData[fileIndex] + eventIndex)->timestamp =
+					timestamp++;
 			}
 		}
-		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() !=
-		    0) {
+		if (lcz_event_manager_file_handler_find_first_empty_event_by_age() != 0) {
 			result = failResult;
 		}
 	}
@@ -2259,16 +2015,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		failResult++;
 
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
 			memset(eventManagerFileData.pIsDirty, 0x0,
 			       CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES);
 
-			eventIndex = fileIndex *
-				     CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
-			lcz_event_manager_file_handler_set_page_dirty(
-				eventIndex);
+			eventIndex = fileIndex * CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			lcz_event_manager_file_handler_set_page_dirty(eventIndex);
 			if (!eventManagerFileData.pIsDirty[fileIndex]) {
 				result = failResult;
 			}
@@ -2279,18 +2032,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		failResult++;
 
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
 			memset(eventManagerFileData.pIsDirty, 0x0,
 			       CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES);
 
-			eventIndex =
-				(fileIndex *
-				 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) +
-				(CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE - 1);
-			lcz_event_manager_file_handler_set_page_dirty(
-				eventIndex);
+			eventIndex = (fileIndex * CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE) +
+				     (CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE - 1);
+			lcz_event_manager_file_handler_set_page_dirty(eventIndex);
 			if (!eventManagerFileData.pIsDirty[fileIndex]) {
 				result = failResult;
 			}
@@ -2314,15 +2063,12 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	if (result == 0) {
 		failResult++;
 		for (badFileIndex = 0;
-		     (badFileIndex <
-		      CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (badFileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     badFileIndex++) {
 			lcz_event_manager_file_handler_unit_test_delete_all_files();
 
 			for (fileIndex = 0;
-			     (fileIndex <
-			      CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
+			     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
 			     (result == 0);
 			     fileIndex++) {
 				if (fileIndex != badFileIndex) {
@@ -2331,8 +2077,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				}
 			}
 			/* Now check the structure and make sure we get false */
-			if (lcz_event_manager_file_handler_check_structure() !=
-			    false) {
+			if (lcz_event_manager_file_handler_check_structure() != false) {
 				result = failResult;
 			}
 		}
@@ -2341,15 +2086,12 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	if (result == 0) {
 		failResult++;
 		for (badFileIndex = 0;
-		     (badFileIndex <
-		      CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (badFileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     badFileIndex++) {
 			lcz_event_manager_file_handler_unit_test_delete_all_files();
 
 			for (fileIndex = 0;
-			     (fileIndex <
-			      CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
+			     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
 			     (result == 0);
 			     fileIndex++) {
 				if (fileIndex != badFileIndex) {
@@ -2361,8 +2103,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				}
 			}
 			/* Now check the structure and make sure we get false */
-			if (lcz_event_manager_file_handler_check_structure() !=
-			    false) {
+			if (lcz_event_manager_file_handler_check_structure() != false) {
 				result = failResult;
 			}
 		}
@@ -2374,11 +2115,10 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_unit_test_delete_all_files();
 
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
-			lcz_event_manager_file_handler_unit_test_create_file(
-				fileIndex, FILE_SIZE_BYTES);
+			lcz_event_manager_file_handler_unit_test_create_file(fileIndex,
+									     FILE_SIZE_BYTES);
 		}
 		/* Now check the structure and make sure we get true */
 		if (lcz_event_manager_file_handler_check_structure() != true) {
@@ -2394,8 +2134,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_unit_test_delete_all_files();
 
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
 			/* Add an offset of 1 here for test cases for 1 file */
 			lcz_event_manager_file_handler_unit_test_create_file(
@@ -2410,8 +2149,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			lcz_event_manager_file_handler_rebuild_structure();
 
 			/* And this should give us a true */
-			if (lcz_event_manager_file_handler_check_structure() !=
-			    true) {
+			if (lcz_event_manager_file_handler_check_structure() != true) {
 				result = failResult;
 			}
 		}
@@ -2436,8 +2174,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		/* No data should be dirty after saving */
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
 			if (eventManagerFileData.pIsDirty[fileIndex]) {
 				result = failResult;
@@ -2448,19 +2185,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			lcz_event_manager_file_handler_load_files();
 
 			/* Now check each event */
-			for (eventIndex = 0;
-			     (eventIndex < TOTAL_NUMBER_EVENTS) &&
-			     (result == 0);
+			for (eventIndex = 0; (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 			     eventIndex++) {
-				pSensorEvent =
-					lcz_event_manager_file_handler_get_event(
-						eventIndex);
+				pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex);
 				if ((pSensorEvent->data.u32 != 0) ||
 				    (pSensorEvent->reserved1 != 0) ||
-				    (pSensorEvent->reserved2 != 0) ||
-				    (pSensorEvent->salt != 0) ||
-				    (pSensorEvent->timestamp != 0) ||
-				    (pSensorEvent->type != 0)) {
+				    (pSensorEvent->reserved2 != 0) || (pSensorEvent->salt != 0) ||
+				    (pSensorEvent->timestamp != 0) || (pSensorEvent->type != 0)) {
 					result = failResult;
 				}
 			}
@@ -2476,18 +2207,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_unit_test_delete_all_files();
 		lcz_event_manager_file_handler_rebuild_structure();
 
-		for (eventIndex = 0, eventType = 0;
-		     eventIndex < TOTAL_NUMBER_EVENTS;
+		for (eventIndex = 0, eventType = 0; eventIndex < TOTAL_NUMBER_EVENTS;
 		     eventIndex++, eventType++) {
-			fileIndex = eventIndex /
-				    CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
+			fileIndex = eventIndex / CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE;
 			localEventIndex =
-				eventIndex -
-				(fileIndex *
-				 CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE);
+				eventIndex - (fileIndex * CONFIG_LCZ_EVENT_MANAGER_EVENTS_PER_FILE);
 			pSensorEvent =
-				(eventManagerFileData.pFileData[fileIndex] +
-				 localEventIndex);
+				(eventManagerFileData.pFileData[fileIndex] + localEventIndex);
 			pSensorEvent->data.u32 = eventIndex;
 			pSensorEvent->reserved1 = eventType;
 			pSensorEvent->reserved2 = eventType + 1;
@@ -2505,8 +2231,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		/* No data should be dirty after saving */
 		for (fileIndex = 0;
-		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-		     (result == 0);
+		     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 		     fileIndex++) {
 			if (eventManagerFileData.pIsDirty[fileIndex]) {
 				result = failResult;
@@ -2517,26 +2242,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			lcz_event_manager_file_handler_load_files();
 
 			for (eventIndex = 0, eventType = 0;
-			     (eventIndex < TOTAL_NUMBER_EVENTS) &&
-			     (result == 0);
+			     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 			     eventIndex++, eventType++) {
 				if (eventIndex == 0xFC) {
 					__NOP();
 				}
 
-				pSensorEvent =
-					lcz_event_manager_file_handler_get_event(
-						eventIndex, eventData);
+				pSensorEvent = lcz_event_manager_file_handler_get_event(eventIndex,
+											eventData);
 				if ((pSensorEvent->data.u32 != eventIndex) ||
 				    (pSensorEvent->reserved1 != eventType) ||
-				    (pSensorEvent->reserved2 !=
-				     (uint8_t)(eventType + 1)) ||
-				    (pSensorEvent->salt !=
-				     (uint8_t)(eventType + 2)) ||
-				    (pSensorEvent->timestamp !=
-				     eventIndex + 3) ||
-				    (pSensorEvent->type !=
-				     (uint8_t)(eventType + 4))) {
+				    (pSensorEvent->reserved2 != (uint8_t)(eventType + 1)) ||
+				    (pSensorEvent->salt != (uint8_t)(eventType + 2)) ||
+				    (pSensorEvent->timestamp != eventIndex + 3) ||
+				    (pSensorEvent->type != (uint8_t)(eventType + 4))) {
 					result = failResult;
 					pSensorEvent = NULL;
 				}
@@ -2545,8 +2264,9 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 	}
 
 	/* lcz_event_manager_file_handler_add_event_private */
-	/* The following are for startup conditions */
-	/* Add a single event to a blank file set and readback file and check indices */
+	/* The following are for startup conditions, add a single event to a blank file set and
+	 * readback file and check indices
+	 */
 	if (result == 0) {
 		failResult++;
 
@@ -2568,30 +2288,25 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_load_files();
 		lcz_event_manager_file_handler_get_indices();
 
-		for (eventIndex = 0;
-		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
+		for (eventIndex = 0; (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 		     eventIndex++) {
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex, eventData);
+			pSensorEvent =
+				lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 
 			/* Only first event should be different */
 			if (eventIndex == 0) {
 				if ((pSensorEvent->data.u32 != 1) ||
 				    (pSensorEvent->reserved1 != 0) ||
-				    (pSensorEvent->reserved2 != 0) ||
-				    (pSensorEvent->salt != 0) ||
-				    (pSensorEvent->timestamp != 1) ||
-				    (pSensorEvent->type != 1)) {
+				    (pSensorEvent->reserved2 != 0) || (pSensorEvent->salt != 0) ||
+				    (pSensorEvent->timestamp != 1) || (pSensorEvent->type != 1)) {
 					result = failResult;
 				}
 			} else {
 				/* All other events should be blank */
 				if ((pSensorEvent->data.u32 != 0) ||
 				    (pSensorEvent->reserved1 != 0) ||
-				    (pSensorEvent->reserved2 != 0) ||
-				    (pSensorEvent->salt != 0) ||
-				    (pSensorEvent->timestamp != 0) ||
-				    (pSensorEvent->type != 0)) {
+				    (pSensorEvent->reserved2 != 0) || (pSensorEvent->salt != 0) ||
+				    (pSensorEvent->timestamp != 0) || (pSensorEvent->type != 0)) {
 					result = failResult;
 				}
 			}
@@ -2612,15 +2327,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_rebuild_structure();
 		lcz_event_manager_file_handler_get_indices();
 
-		for (eventIndex = 0, eventType = 1;
-		     eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
+		for (eventIndex = 0, eventType = 1; eventIndex < TOTAL_NUMBER_EVENTS;
+		     eventIndex++) {
 			/* Offset here for the timestamp to be unique */
 			sensorEvent.data.u32 = eventIndex + 1;
 			sensorEvent.type = eventType++;
 			sensorEvent.timestamp = eventIndex + 1;
 
-			lcz_event_manager_file_handler_add_event_private(
-				&sensorEvent);
+			lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 			/* Don't let event type go to 0 or it will appear blank*/
 			if (eventType == 0) {
 				eventType = 1;
@@ -2636,15 +2350,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_get_indices();
 
 		for (eventIndex = 0, eventType = 1;
-		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
-		     eventIndex++) {
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex, eventData);
+		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0); eventIndex++) {
+			pSensorEvent =
+				lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 
 			/* All events should have been updated */
 			if ((pSensorEvent->data.u32 != eventIndex + 1) ||
-			    (pSensorEvent->reserved1 != 0) ||
-			    (pSensorEvent->reserved2 != 0) ||
+			    (pSensorEvent->reserved1 != 0) || (pSensorEvent->reserved2 != 0) ||
 			    (pSensorEvent->salt != 0) ||
 			    (pSensorEvent->timestamp != eventIndex + 1) ||
 			    (pSensorEvent->type != eventType++)) {
@@ -2671,16 +2383,16 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_rebuild_structure();
 		lcz_event_manager_file_handler_get_indices();
 
-		for (eventIndex = 0, eventType = 1;
-		     eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
+		for (eventIndex = 0, eventType = 1; eventIndex < TOTAL_NUMBER_EVENTS;
+		     eventIndex++) {
 			/* Offset here for the timestamp to be unique */
 			sensorEvent.data.u32 = eventIndex + 1;
 			sensorEvent.type = eventType++;
 			sensorEvent.timestamp = eventIndex + 1;
-			lcz_event_manager_file_handler_add_event_private(
-				&sensorEvent);
-			/* Don't let the timestamp go to 0xFFFF */
-			/* This will cause issues for >UINT_MAX records */
+			lcz_event_manager_file_handler_add_event_private(&sensorEvent);
+			/* Don't let the timestamp go to 0xFFFF, this will cause issues for
+			 * >UINT_MAX records
+			 */
 			if (eventIndex == 0xFFFF) {
 				eventIndex = 0;
 			}
@@ -2713,16 +2425,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		/* And check the sub-index has been updated */
 		for (eventIndex = 0, eventType = 3;
-		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
-		     eventIndex++) {
-			pSensorEvent = lcz_event_manager_file_handler_get_event(
-				eventIndex, eventData);
+		     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0); eventIndex++) {
+			pSensorEvent =
+				lcz_event_manager_file_handler_get_event(eventIndex, eventData);
 
 			if (eventIndex == 0) {
 				if ((pSensorEvent->data.u32 != 0xFE) ||
 				    (pSensorEvent->reserved1 != 0) ||
-				    (pSensorEvent->reserved2 != 0) ||
-				    (pSensorEvent->salt != 0) ||
+				    (pSensorEvent->reserved2 != 0) || (pSensorEvent->salt != 0) ||
 				    (pSensorEvent->timestamp != 0xFFFF) ||
 				    (pSensorEvent->type != 0xFE)) {
 					result = failResult;
@@ -2730,21 +2440,17 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			} else if (eventIndex == 1) {
 				if ((pSensorEvent->data.u32 != 0xFF) ||
 				    (pSensorEvent->reserved1 != 0) ||
-				    (pSensorEvent->reserved2 != 0) ||
-				    (pSensorEvent->salt != 1) ||
+				    (pSensorEvent->reserved2 != 0) || (pSensorEvent->salt != 1) ||
 				    (pSensorEvent->timestamp != 0xFFFF) ||
 				    (pSensorEvent->type != 0xFF)) {
 					result = failResult;
 				}
 			} else {
 				/* All other events should be at the previous value */
-				if ((pSensorEvent->data.u32 !=
-				     eventIndex + 1) ||
+				if ((pSensorEvent->data.u32 != eventIndex + 1) ||
 				    (pSensorEvent->reserved1 != 0) ||
-				    (pSensorEvent->reserved2 != 0) ||
-				    (pSensorEvent->salt != 0) ||
-				    (pSensorEvent->timestamp !=
-				     eventIndex + 1) ||
+				    (pSensorEvent->reserved2 != 0) || (pSensorEvent->salt != 0) ||
+				    (pSensorEvent->timestamp != eventIndex + 1) ||
 				    (pSensorEvent->type != eventType++)) {
 					result = failResult;
 				}
@@ -2753,13 +2459,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				}
 			}
 		}
-		/* We added two events so should be indexing the 3rd but */
-		/* still expecting the next to arrive with the same timestamp */
+		/* We added two events so should be indexing the 3rd but still expecting the next
+		 * to arrive with the same timestamp
+		 */
 		if (result == 0) {
 			if ((lczEventManagerData.eventWriteIndex != 2) ||
 			    (lczEventManagerData.eventSubIndex != 2) ||
-			    (lczEventManagerData.lastEventTimestamp !=
-			     0xFFFF)) {
+			    (lczEventManagerData.lastEventTimestamp != 0xFFFF)) {
 				result = failResult;
 			}
 		}
@@ -2782,12 +2488,11 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 
 		/* This will create the output file stats only */
-		result = lcz_event_manager_file_handler_build_file(
-			outputFileName, &outputFileSize, false);
+		result = lcz_event_manager_file_handler_build_file(outputFileName, &outputFileSize,
+								   false);
 
 		/* This is where the file lives */
-		sprintf(fileName, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(fileName, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Make sure the file was created OK */
@@ -2816,14 +2521,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		lcz_event_manager_file_handler_get_indices();
 
-		for (eventIndex = 0, eventType = 1;
-		     eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
+		for (eventIndex = 0, eventType = 1; eventIndex < TOTAL_NUMBER_EVENTS;
+		     eventIndex++) {
 			sensorEvent.data.u32 = eventIndex;
 			sensorEvent.type = eventType;
 			sensorEvent.timestamp = eventIndex;
 
-			lcz_event_manager_file_handler_add_event_private(
-				&sensorEvent);
+			lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 
 			/* Don't allow event type to go to RESERVED */
 			eventType++;
@@ -2832,13 +2536,12 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 		}
 		/* This will create the output file stats only */
-		result = lcz_event_manager_file_handler_build_file(
-			outputFileName, &outputFileSize, false);
+		result = lcz_event_manager_file_handler_build_file(outputFileName, &outputFileSize,
+								   false);
 
 		/* This is where the file lives */
 		fileName[0] = 0x0;
-		sprintf(fileName, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(fileName, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Check the file was created OK */
@@ -2848,8 +2551,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		/* Check the returned file size */
 		if (result == 0) {
 			failResult++;
-			if (outputFileSize !=
-			    sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS) {
+			if (outputFileSize != sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS) {
 				result = failResult;
 			}
 		}
@@ -2878,8 +2580,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 
 		/* This will create the output file */
-		result =
-			lcz_event_manager_file_handler_background_build_file(1);
+		result = lcz_event_manager_file_handler_background_build_file(1);
 
 		/* Make sure the file was created OK */
 		if (result != 0) {
@@ -2891,7 +2592,9 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			count = 0;
 
 			/* Get the file details */
-			file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY, LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+			file_size = fsu_get_file_size(
+				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+				LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 			if (file_size != sizeof(SensorEvent_t)) {
 				/* File size is not right, so exit here */
 				result = failResult;
@@ -2900,8 +2603,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			/* Check the output file content */
 			if (result == 0) {
 				/* This is what we expect to get back */
-				memset(&sensorEvent, 0x0,
-				       sizeof(SensorEvent_t));
+				memset(&sensorEvent, 0x0, sizeof(SensorEvent_t));
 				sensorEvent.data.u32 = 0xFE;
 				sensorEvent.timestamp = 0xFFFF;
 				sensorEvent.type = 0xFE;
@@ -2911,13 +2613,11 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 					LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 				/* Read back the next event details */
 				if (fsu_read_abs(fileName, &sensorEventReadback,
-						 sizeof(SensorEvent_t)) !=
-				    sizeof(SensorEvent_t)) {
+						 sizeof(SensorEvent_t)) != sizeof(SensorEvent_t)) {
 					/* Wrong data size returned */
 					result = failResult;
 				} else {
-					if (memcmp(&sensorEvent,
-						   &sensorEventReadback,
+					if (memcmp(&sensorEvent, &sensorEventReadback,
 						   sizeof(SensorEvent_t))) {
 						/* Wrong data read back */
 						result = failResult;
@@ -2940,21 +2640,17 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			/* And check all other files are not */
 			if (result == 0) {
 				for (fileIndex = 1;
-				     (fileIndex <
-				      CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
+				     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
 				     (result == 0);
 				     fileIndex++) {
-					if (eventManagerFileData
-						    .pIsDirty[fileIndex] !=
-					    false) {
+					if (eventManagerFileData.pIsDirty[fileIndex] != false) {
 						result = failResult;
 					}
 				}
 			}
 			/* Tidy up here if needed */
-			fsu_delete_files(
-				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+			fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+					 LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 		}
 	}
 
@@ -2968,14 +2664,13 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 
 		lcz_event_manager_file_handler_get_indices();
 
-		for (eventIndex = 0, eventType = 1;
-		     eventIndex < TOTAL_NUMBER_EVENTS; eventIndex++) {
+		for (eventIndex = 0, eventType = 1; eventIndex < TOTAL_NUMBER_EVENTS;
+		     eventIndex++) {
 			sensorEvent.data.u32 = eventIndex;
 			sensorEvent.type = eventType;
 			sensorEvent.timestamp = eventIndex;
 
-			lcz_event_manager_file_handler_add_event_private(
-				&sensorEvent);
+			lcz_event_manager_file_handler_add_event_private(&sensorEvent);
 
 			/* Don't allow event type to go to RESERVED */
 			eventType++;
@@ -2984,8 +2679,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			}
 		}
 		/* This will create an output file */
-		result = lcz_event_manager_file_handler_background_build_file(
-			TOTAL_NUMBER_EVENTS);
+		result = lcz_event_manager_file_handler_background_build_file(TOTAL_NUMBER_EVENTS);
 
 		/* Check the file was created OK */
 		if (result != 0) {
@@ -2998,7 +2692,9 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			count = 0;
 
 			/* Get the file details */
-			file_size = fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+			file_size = fsu_get_file_size(
+				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+				LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 			if (file_size != sizeof(SensorEvent_t) * TOTAL_NUMBER_EVENTS) {
 				/* File size is not right, so exit here */
 				result = failResult;
@@ -3007,12 +2703,10 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			/* Check the output file content */
 			if (result == 0) {
 				for (eventIndex = 0, eventType = 1;
-				     (eventIndex < TOTAL_NUMBER_EVENTS) &&
-				     (result == 0);
+				     (eventIndex < TOTAL_NUMBER_EVENTS) && (result == 0);
 				     eventIndex++) {
 					/* This is what we expect to get back */
-					memset(&sensorEvent, 0x0,
-					       sizeof(SensorEvent_t));
+					memset(&sensorEvent, 0x0, sizeof(SensorEvent_t));
 					sensorEvent.data.u32 = eventIndex;
 					sensorEvent.timestamp = eventIndex;
 					sensorEvent.type = eventType++;
@@ -3027,21 +2721,15 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 					/* Read back the next event details */
 					struct fs_file_t f;
 					fs_file_t_init(&f);
-					result = fs_open(&f, fileName,
-							 FS_O_READ);
+					result = fs_open(&f, fileName, FS_O_READ);
 					if (!result) {
-						fs_seek(&f,
-							sizeof(SensorEvent_t) *
-								eventIndex,
-							0);
-						fs_read(&f,
-							&sensorEventReadback,
+						fs_seek(&f, sizeof(SensorEvent_t) * eventIndex, 0);
+						fs_read(&f, &sensorEventReadback,
 							sizeof(SensorEvent_t));
 					}
 					fs_close(&f);
 					if (result == 0) {
-						if (memcmp(&sensorEvent,
-							   &sensorEventReadback,
+						if (memcmp(&sensorEvent, &sensorEventReadback,
 							   sizeof(SensorEvent_t))) {
 							/* Wrong data read back */
 							result = failResult;
@@ -3059,21 +2747,17 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			/* Check that all files are dirty */
 			if (result == 0) {
 				for (fileIndex = 0;
-				     (fileIndex <
-				      CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
+				     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
 				     (result == 0);
 				     fileIndex++) {
-					if (eventManagerFileData
-						    .pIsDirty[fileIndex] !=
-					    true) {
+					if (eventManagerFileData.pIsDirty[fileIndex] != true) {
 						result = failResult;
 					}
 				}
 			}
 			/* Tidy up here if needed */
-			fsu_delete_files(
-				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
+			fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+					 LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 		}
 	}
 
@@ -3085,9 +2769,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_subindexed_event(
-				TOTAL_NUMBER_EVENTS, 0, 1);
+		pSensorEvent = lcz_event_manager_file_handler_get_subindexed_event(
+			TOTAL_NUMBER_EVENTS, 0, 1);
 
 		if (pSensorEvent != NULL) {
 			result = failResult;
@@ -3100,12 +2783,9 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_subindexed_event(
-				0, 0, 1);
+		pSensorEvent = lcz_event_manager_file_handler_get_subindexed_event(0, 0, 1);
 
-		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0, eventData)) {
+		if (pSensorEvent != lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3116,31 +2796,28 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_subindexed_event(
-				TOTAL_NUMBER_EVENTS - 1, 0, 1);
+		pSensorEvent = lcz_event_manager_file_handler_get_subindexed_event(
+			TOTAL_NUMBER_EVENTS - 1, 0, 1);
 
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(
-			    TOTAL_NUMBER_EVENTS - 1, eventData)) {
+		    lcz_event_manager_file_handler_get_event(TOTAL_NUMBER_EVENTS - 1, eventData)) {
 			result = failResult;
 		}
 	}
-	/* One event at the end of the log and another at the start */
-	/* Index event at end of log first                          */
+	/* One event at the end of the log and another at the start, index event at end of log
+	 * first
+	 */
 	if (result == 0) {
 		failResult++;
 
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_subindexed_event(
-				TOTAL_NUMBER_EVENTS - 1, 0, 2);
+		pSensorEvent = lcz_event_manager_file_handler_get_subindexed_event(
+			TOTAL_NUMBER_EVENTS - 1, 0, 2);
 
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(
-			    TOTAL_NUMBER_EVENTS - 1, eventData)) {
+		    lcz_event_manager_file_handler_get_event(TOTAL_NUMBER_EVENTS - 1, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3151,15 +2828,12 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		lcz_event_manager_file_handler_get_event(0, eventData)->salt =
-			1;
+		lcz_event_manager_file_handler_get_event(0, eventData)->salt = 1;
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_subindexed_event(
-				TOTAL_NUMBER_EVENTS - 1, 1, 2);
+		pSensorEvent = lcz_event_manager_file_handler_get_subindexed_event(
+			TOTAL_NUMBER_EVENTS - 1, 1, 2);
 
-		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0, eventData)) {
+		if (pSensorEvent != lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 	}
@@ -3172,17 +2846,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(0, eventData);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(0, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x1;
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
-				0xFFA, 0, &eventCount);
+		pSensorEvent = lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
+			0xFFA, 0, &eventCount);
 
-		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0, eventData)) {
+		if (pSensorEvent != lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 
@@ -3201,24 +2872,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		       TOTAL_FILE_SIZE_BYTES);
 
 		/* This is the event at index 0 */
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(0, eventData);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(0, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x1;
 		/* This is the event at index 1 */
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(1, eventData);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(1, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x2;
 		pSensorEvent->salt = 0x1;
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
-				0xFFA, 0, &eventCount);
+		pSensorEvent = lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
+			0xFFA, 0, &eventCount);
 
 		/* First event OK? */
-		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(0, eventData)) {
+		if (pSensorEvent != lcz_event_manager_file_handler_get_event(0, eventData)) {
 			result = failResult;
 		}
 		/* Count correct? */
@@ -3233,8 +2900,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 					0xFFA, 1, &eventCount);
 			if (pSensorEvent !=
-			    lcz_event_manager_file_handler_get_event(
-				    1, eventData)) {
+			    lcz_event_manager_file_handler_get_event(1, eventData)) {
 				result = failResult;
 			}
 		}
@@ -3246,24 +2912,21 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		memset(eventManagerFileData.pFileData, SENSOR_EVENT_RESERVED,
 		       TOTAL_FILE_SIZE_BYTES);
 
-		pSensorEvent = lcz_event_manager_file_handler_get_event(
-			TOTAL_NUMBER_EVENTS - 1, eventData);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(TOTAL_NUMBER_EVENTS - 1,
+									eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x1;
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_event(0, eventData);
+		pSensorEvent = lcz_event_manager_file_handler_get_event(0, eventData);
 		pSensorEvent->timestamp = 0xFFA;
 		pSensorEvent->type = 0x2;
 		pSensorEvent->salt = 0x1;
 
-		pSensorEvent =
-			lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
-				0xFFA, 0, &eventCount);
+		pSensorEvent = lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
+			0xFFA, 0, &eventCount);
 
 		/* First event OK? */
 		if (pSensorEvent !=
-		    lcz_event_manager_file_handler_get_event(
-			    TOTAL_NUMBER_EVENTS - 1, eventData)) {
+		    lcz_event_manager_file_handler_get_event(TOTAL_NUMBER_EVENTS - 1, eventData)) {
 			result = failResult;
 		}
 		/* Count correct? */
@@ -3278,8 +2941,7 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 				lcz_event_manager_file_handler_get_indexed_event_at_timestamp(
 					0xFFA, 1, &eventCount);
 			if (pSensorEvent !=
-			    lcz_event_manager_file_handler_get_event(
-				    0, eventData)) {
+			    lcz_event_manager_file_handler_get_event(0, eventData)) {
 				result = failResult;
 			}
 		}
@@ -3302,9 +2964,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			&sensorEvent, 0, &dummy_log_properties, 0);
 
 		/* Check it */
-		if ((sensorEvent.timestamp != 0) ||
-		    (sensorEvent.data.u16 != 0) || (sensorEvent.type != 0) ||
-		    (sensorEvent.salt != 0)) {
+		if ((sensorEvent.timestamp != 0) || (sensorEvent.data.u16 != 0) ||
+		    (sensorEvent.type != 0) || (sensorEvent.salt != 0)) {
 			result = failResult;
 		}
 	}
@@ -3324,9 +2985,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			&sensorEvent, 1000, &dummy_log_properties, 100);
 
 		/* Check it */
-		if ((sensorEvent.timestamp != 1000) ||
-		    (sensorEvent.data.u32 != 100) || (sensorEvent.type != 1) ||
-		    (sensorEvent.salt != 0)) {
+		if ((sensorEvent.timestamp != 1000) || (sensorEvent.data.u32 != 100) ||
+		    (sensorEvent.type != 1) || (sensorEvent.salt != 0)) {
 			result = failResult;
 		}
 	}
@@ -3339,16 +2999,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		dummy_log_properties.update_rate = 10;
 		dummy_log_properties.event_type = 10;
 		dummy_log_properties.event_count = 1;
-		dummy_log_properties.event_data_type =
-			DUMMY_LOG_DATA_TYPE_FLOAT;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_FLOAT;
 
 		/* Build it */
 		lcz_event_manager_file_handler_background_build_dummy_event(
 			&sensorEvent, 5000, &dummy_log_properties, 500);
 
 		/* Check it */
-		if ((sensorEvent.timestamp != 5000) ||
-		    (sensorEvent.data.f != 500.0f) ||
+		if ((sensorEvent.timestamp != 5000) || (sensorEvent.data.f != 500.0f) ||
 		    (sensorEvent.type != 10) || (sensorEvent.salt != 0)) {
 			result = failResult;
 		}
@@ -3366,13 +3024,11 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_BOOL;
 
 		/* Build it */
-		result =
-			lcz_event_manager_file_handler_background_build_dummy_file(
-				&dummy_log_properties);
+		result = lcz_event_manager_file_handler_background_build_dummy_file(
+			&dummy_log_properties);
 
 		/* This is where the file lives */
-		sprintf(fileName, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(fileName, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Check return code */
@@ -3381,9 +3037,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		}
 		/* Check file created OK */
 		if (result == 0) {
-			if (fsu_get_file_size(
-				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			if (fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+					      LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
 			    10 * sizeof(SensorEvent_t)) {
 				result = failResult;
 			}
@@ -3392,26 +3047,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		if (result == 0) {
 			timestamp = 0;
 			data = 0;
-			for (eventIndex = 0; (eventIndex < 10) && (result == 0);
-			     eventIndex++) {
+			for (eventIndex = 0; (eventIndex < 10) && (result == 0); eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
 				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
-					fs_seek(&f,
-						sizeof(SensorEvent_t) *
-							eventIndex,
-						0);
-					fs_read(&f, &sensorEventReadback,
-						sizeof(SensorEvent_t));
+					fs_seek(&f, sizeof(SensorEvent_t) * eventIndex, 0);
+					fs_read(&f, &sensorEventReadback, sizeof(SensorEvent_t));
 				}
 				fs_close(&f);
 				/* Check the values */
 				if ((sensorEventReadback.data.u16 != data) ||
 				    (sensorEventReadback.salt != 0) ||
-				    (sensorEventReadback.timestamp !=
-				     timestamp) ||
+				    (sensorEventReadback.timestamp != timestamp) ||
 				    (sensorEventReadback.type != 0)) {
 					result = failResult;
 				}
@@ -3432,17 +3081,14 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		dummy_log_properties.update_rate = 10;
 		dummy_log_properties.event_type = 1;
 		dummy_log_properties.event_count = 100;
-		dummy_log_properties.event_data_type =
-			DUMMY_LOG_DATA_TYPE_FLOAT;
+		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_FLOAT;
 
 		/* Build it */
-		result =
-			lcz_event_manager_file_handler_background_build_dummy_file(
-				&dummy_log_properties);
+		result = lcz_event_manager_file_handler_background_build_dummy_file(
+			&dummy_log_properties);
 
 		/* This is where the file lives */
-		sprintf(fileName, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(fileName, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Check return code */
@@ -3451,9 +3097,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		}
 		/* Check file created OK */
 		if (result == 0) {
-			if (fsu_get_file_size(
-				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			if (fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+					      LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
 			    100 * sizeof(SensorEvent_t)) {
 				result = failResult;
 			}
@@ -3462,28 +3107,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		if (result == 0) {
 			timestamp = 250;
 			data = 0;
-			for (eventIndex = 0;
-			     (eventIndex < 100) && (result == 0);
-			     eventIndex++) {
+			for (eventIndex = 0; (eventIndex < 100) && (result == 0); eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
 				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
-					fs_seek(&f,
-						sizeof(SensorEvent_t) *
-							eventIndex,
-						0);
-					fs_read(&f, &sensorEventReadback,
-						sizeof(SensorEvent_t));
+					fs_seek(&f, sizeof(SensorEvent_t) * eventIndex, 0);
+					fs_read(&f, &sensorEventReadback, sizeof(SensorEvent_t));
 				}
 				fs_close(&f);
 				/* Check the values */
-				if ((sensorEventReadback.data.f !=
-				     ((float)(data))) ||
+				if ((sensorEventReadback.data.f != ((float)(data))) ||
 				    (sensorEventReadback.salt != 0) ||
-				    (sensorEventReadback.timestamp !=
-				     timestamp) ||
+				    (sensorEventReadback.timestamp != timestamp) ||
 				    (sensorEventReadback.type != 1)) {
 					result = failResult;
 				}
@@ -3507,13 +3144,11 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_U32;
 
 		/* Build it */
-		result =
-			lcz_event_manager_file_handler_background_build_dummy_file(
-				&dummy_log_properties);
+		result = lcz_event_manager_file_handler_background_build_dummy_file(
+			&dummy_log_properties);
 
 		/* This is where the file lives */
-		sprintf(fileName, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(fileName, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Check return code */
@@ -3522,9 +3157,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		}
 		/* Check file created OK */
 		if (result == 0) {
-			if (fsu_get_file_size(
-				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			if (fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+					      LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
 			    1000 * sizeof(SensorEvent_t)) {
 				result = failResult;
 			}
@@ -3533,27 +3167,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		if (result == 0) {
 			timestamp = 500;
 			data = 0;
-			for (eventIndex = 0;
-			     (eventIndex < 1000) && (result == 0);
-			     eventIndex++) {
+			for (eventIndex = 0; (eventIndex < 1000) && (result == 0); eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
 				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
-					fs_seek(&f,
-						sizeof(SensorEvent_t) *
-							eventIndex,
-						0);
-					fs_read(&f, &sensorEventReadback,
-						sizeof(SensorEvent_t));
+					fs_seek(&f, sizeof(SensorEvent_t) * eventIndex, 0);
+					fs_read(&f, &sensorEventReadback, sizeof(SensorEvent_t));
 				}
 				fs_close(&f);
 				/* Check the values */
 				if ((sensorEventReadback.data.u32 != data) ||
 				    (sensorEventReadback.salt != 0) ||
-				    (sensorEventReadback.timestamp !=
-				     timestamp) ||
+				    (sensorEventReadback.timestamp != timestamp) ||
 				    (sensorEventReadback.type != 2)) {
 					result = failResult;
 				}
@@ -3577,13 +3204,11 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		dummy_log_properties.event_data_type = DUMMY_LOG_DATA_TYPE_U32;
 
 		/* Build it */
-		result =
-			lcz_event_manager_file_handler_background_build_dummy_file(
-				&dummy_log_properties);
+		result = lcz_event_manager_file_handler_background_build_dummy_file(
+			&dummy_log_properties);
 
 		/* This is where the file lives */
-		sprintf(fileName, "%s%s",
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+		sprintf(fileName, "%s%s", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
 			LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME);
 
 		/* Check return code */
@@ -3592,9 +3217,8 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 		}
 		/* Check file created OK */
 		if (result == 0) {
-			if (fsu_get_file_size(
-				    CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
-				    LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
+			if (fsu_get_file_size(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PUBLIC_DIRECTORY,
+					      LCZ_EVENT_MANAGER_FILE_HANDLER_OUTPUT_FILE_NAME) !=
 			    100 * sizeof(SensorEvent_t)) {
 				result = failResult;
 			}
@@ -3604,27 +3228,20 @@ static uint32_t lcz_event_manager_file_handler_unit_test(void)
 			timestamp = 1000;
 			data = 0;
 			salt = 0;
-			for (eventIndex = 0;
-			     (eventIndex < 100) && (result == 0);
-			     eventIndex++) {
+			for (eventIndex = 0; (eventIndex < 100) && (result == 0); eventIndex++) {
 				/* Read out the next event */
 				struct fs_file_t f;
 				fs_file_t_init(&f);
 				result = fs_open(&f, fileName, FS_O_READ);
 				if (!result) {
-					fs_seek(&f,
-						sizeof(SensorEvent_t) *
-							eventIndex,
-						0);
-					fs_read(&f, &sensorEventReadback,
-						sizeof(SensorEvent_t));
+					fs_seek(&f, sizeof(SensorEvent_t) * eventIndex, 0);
+					fs_read(&f, &sensorEventReadback, sizeof(SensorEvent_t));
 				}
 				fs_close(&f);
 				/* Check the values */
 				if ((sensorEventReadback.data.u32 != data) ||
 				    (sensorEventReadback.salt != salt) ||
-				    (sensorEventReadback.timestamp !=
-				     timestamp) ||
+				    (sensorEventReadback.timestamp != timestamp) ||
 				    (sensorEventReadback.type != 3)) {
 					result = failResult;
 				}
@@ -3647,38 +3264,32 @@ static void lcz_event_manager_file_handler_unit_test_delete_all_files(void)
 	struct fs_dirent *pDirectoryEntry;
 	size_t fileCount;
 
-	for (fileIndex = 0;
-	     (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) &&
-	     (result == 0);
+	for (fileIndex = 0; (fileIndex < CONFIG_LCZ_EVENT_MANAGER_NUMBER_OF_FILES) && (result == 0);
 	     fileIndex++) {
 		/* Reset the filecount each time we process a file */
 		fileCount = 0;
 
 		/* Build the next file name */
-		sprintf(fileName, "%s%d",
-			LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
+		sprintf(fileName, "%s%d", LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME,
 			fileIndex);
 
 		/* First get the details of the file */
-		pDirectoryEntry = fsu_find(
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-			fileName, &fileCount, FS_DIR_ENTRY_FILE);
+		pDirectoryEntry = fsu_find(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+					   fileName, &fileCount, FS_DIR_ENTRY_FILE);
 
 		/* Is the file available? */
 		if (pDirectoryEntry != NULL) {
 			/* Yes, so delete it */
-			fsu_delete_files(
-				CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-				fileName);
+			fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+					 fileName);
 			/* And free up the directory entry */
 			fsu_free_found(pDirectoryEntry);
 		}
 	}
 }
 
-static int
-lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
-						     uint16_t fileSize)
+static int lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
+								uint16_t fileSize)
 {
 	uint8_t fileName[LCZ_EVENT_MANAGER_FILENAME_SIZE];
 	struct fs_dirent *pDirectoryEntry;
@@ -3689,31 +3300,25 @@ lcz_event_manager_file_handler_unit_test_create_file(uint8_t fileIndex,
 	fileCount = 0;
 
 	/* Build the next file name */
-	sprintf(fileName, "%s%d",
-		LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME, fileIndex);
+	sprintf(fileName, "%s%d", LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME, fileIndex);
 
 	/* First get the details of the file */
-	pDirectoryEntry = fsu_find(
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-		fileName, &fileCount, FS_DIR_ENTRY_FILE);
+	pDirectoryEntry = fsu_find(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+				   fileName, &fileCount, FS_DIR_ENTRY_FILE);
 
 	/* Is the file available? */
 	if (pDirectoryEntry != NULL) {
 		/* Yes, so delete it */
-		fsu_delete_files(
-			CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
-			fileName);
+		fsu_delete_files(CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY, fileName);
 		/* And free up the directory entry */
 		fsu_free_found(pDirectoryEntry);
 	}
 
 	/* Now create the file */
-	sprintf(fileName, "%s%s%d",
-		CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
+	sprintf(fileName, "%s%s%d", CONFIG_LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_DIRECTORY,
 		LCZ_EVENT_MANAGER_FILE_HANDLER_PRIVATE_FILE_NAME, fileIndex);
 
-	fsu_write_abs(fileName, eventManagerFileData.pFileData[fileIndex],
-		      fileSize);
+	fsu_write_abs(fileName, eventManagerFileData.pFileData[fileIndex], fileSize);
 
 	return (result);
 }
