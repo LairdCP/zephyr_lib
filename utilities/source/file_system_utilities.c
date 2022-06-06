@@ -589,7 +589,7 @@ static ssize_t fsu_wa(const char *path, const char *name, void *data,
 static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 			  bool append)
 {
-	fs_mode_t flags = FS_O_CREATE | (append ? FS_O_APPEND : FS_O_WRITE);
+	fs_mode_t flags = FS_O_CREATE | FS_O_WRITE | (append ? FS_O_APPEND : 0);
 	const char *desc = append ? "append" : "write";
 	ssize_t rc = -EPERM;
 
