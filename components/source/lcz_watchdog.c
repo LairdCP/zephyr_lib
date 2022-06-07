@@ -35,7 +35,10 @@ LOG_MODULE_REGISTER(watchdog, CONFIG_LCZ_WDT_LOG_LEVEL);
  */
 #if DT_NODE_HAS_STATUS(DT_ALIAS(watchdog0), okay)
 #define WDT_NODE DT_ALIAS(watchdog0)
+#elif DT_HAS_COMPAT_STATUS_OKAY(nordic_nrf_wdt)
+#define WDT_NODE DT_INST(0, nordic_nrf_wdt)
 #elif DT_HAS_COMPAT_STATUS_OKAY(nordic_nrf_watchdog)
+/* Legacy nRF Connect SDK 1.9 or older */
 #define WDT_NODE DT_INST(0, nordic_nrf_watchdog)
 #endif
 
