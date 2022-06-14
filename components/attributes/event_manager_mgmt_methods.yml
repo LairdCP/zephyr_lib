@@ -1,0 +1,201 @@
+info:
+  title: event_manager_mgmt_methods
+  group_id: 67
+methods:
+  - name: prepare_log
+    summary: Prepare logs for reading
+    description: Used in conjunction with file system commands to read logs
+    x-management-option: Write
+    x-id: 0
+    x-group_id: 67
+    params:
+      - name: p1
+        summary: Parameter 1
+        description: Dummy
+        required: false
+        x-ctype: uint8_t
+        x-default: 0
+        x-example: 1
+        x-sequencenumber: 1
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+    result:
+      name: prepare_result
+      schema:
+        type: array
+      x-result:
+        - name: r
+          summary: Result
+          description: Negative error code, 0 on success
+          required: true
+          x-example: 0
+          x-ctype: int32_t
+          x-sequencenumber: 1
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 0
+        - name: s
+          summary: The size of the log file to read
+          description: The size of the log file
+          required: true
+          x-example: 4096
+          x-ctype: int32_t
+          x-sequencenumber: 2
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 0
+        - name: n
+          summary: Name
+          description: The absolute path name of the log on the file system
+          required: true
+          x-example: /ext/event_file_out
+          x-ctype: string
+          x-sequencenumber: 3
+          schema:
+            type: string
+            minLength: 0
+            maxLength: 0
+  - name: ack_log
+    summary: Acknowledge reception of log
+    description: Allows log to be freed
+    x-management-option: Write
+    x-id: 1
+    x-group_id: 67
+    params:
+      - name: p1
+        summary: Parameter 1
+        description: Dummy Parameter
+        required: true
+        x-ctype: uint8_t
+        x-default: 0
+        x-example: 1
+        x-sequencenumber: 1
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+    result:
+      name: ack_result
+      schema:
+        type: array
+      x-result:
+        - name: r
+          summary: Result
+          description: Negative error code, 0 on success
+          required: true
+          x-example: 0
+          x-ctype: int32_t
+          x-sequencenumber: 1
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 0
+  - name: generate_test_log
+    summary: Generate test logs for reading
+    description: Used in conjunction with file system commands to read logs
+    x-management-option: Write
+    x-id: 2
+    x-group_id: 67
+    params:
+      - name: p1
+        summary: Start timestamp
+        description: The timestamp from which to start test log data.
+        required: true
+        x-ctype: uint32_t
+        x-default: 0
+        x-example: 0
+        x-sequencenumber: 1
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+      - name: p2
+        summary: Update rate
+        description: The interval between events.
+        required: true
+        x-ctype: uint32_t
+        x-default: 0
+        x-example: 0
+        x-sequencenumber: 2
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+      - name: p3
+        summary: Event type
+        description: The event type to set for test log data.
+        required: true
+        x-ctype: uint8_t
+        x-default: 0
+        x-example: 0
+        x-sequencenumber: 3
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+      - name: p4
+        summary: Event count
+        description: The number of events to add to the test log file.
+        required: true
+        x-ctype: uint32_t
+        x-default: 0
+        x-example: 0
+        x-sequencenumber: 4
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+      - name: p5
+        summary: Event data type
+        description: The data type to use for the event, 0 = bool, 1 = U32, 2 = Float.
+        required: true
+        x-ctype: uint8_t
+        x-default: 0
+        x-example: 0
+        x-sequencenumber: 5
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+    result:
+      name: generate_test_result
+      schema:
+        type: array
+      x-result:
+        - name: r
+          summary: Result
+          description: Negative error code, number of log files to read on success
+          required: true
+          x-example: 0
+          x-ctype: int32_t
+          x-sequencenumber: 1
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 0
+        - name: s
+          summary: Not used return value
+          description: Dummy return
+          required: true
+          x-example: 4096
+          x-ctype: int32_t
+          x-sequencenumber: 2
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 0
+        - name: n
+          summary: Name
+          description: The absolute path name of the log on the file system
+          required: true
+          x-example: /ext/event_file_out
+          x-ctype: string
+          x-sequencenumber: 3
+          schema:
+            type: string
+            minimum: 0
+            maximum: 0

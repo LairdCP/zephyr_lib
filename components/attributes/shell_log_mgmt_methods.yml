@@ -1,0 +1,38 @@
+info:
+  title: shell_log_mgmt_methods
+  group_id: 68
+methods:
+  - name: uart_log_halt
+    x-management-option: Write
+    x-id: 0
+    x-group_id: 68
+    params:
+      - name: p1
+        summary: Turn the log off/on
+        description: 0 = log halt, 1 = log go
+        required: true
+        x-default: 0
+        x-example: 1
+        x-sequencenumber: 1
+        x-ctype: bool
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 0
+    result:
+      name: uart_log_halt_result
+      schema:
+        type: array
+      x-result:
+        - name: r
+          summary: Result
+          description: Negative error code, 0 on success
+          required: true
+          x-example: 0
+          x-ctype: int32_t
+          x-sequencenumber: 1
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 0
+
