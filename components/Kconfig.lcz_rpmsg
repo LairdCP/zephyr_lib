@@ -8,7 +8,6 @@ menuconfig LCZ_RPMSG
 	bool "RPMSG send/receive component"
 	select RPMSG_SERVICE
 	depends on HAS_HW_NRF_IPC
-	default y
 	help
 	  Enable RPMSG (remote procedure message) for cross-core message
 	  sending/receiving.
