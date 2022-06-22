@@ -142,6 +142,15 @@ int lcz_memfault_http_init(void);
  * @return 0 on success
  */
 int lcz_memfault_post_data(void);
+
+/**
+ * @brief Accessor
+ *
+ * @return true if post is busy
+ * @return false if idle
+ */
+bool lcz_memfault_post_busy(void);
+
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
