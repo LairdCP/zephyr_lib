@@ -53,18 +53,6 @@ config LCZ_MEMFAULT_FILE
 	bool "Enable writing of memfault data to a file"
 	depends on FILE_SYSTEM_UTILITIES
 
-if LCZ_MEMFAULT_FILE
-
-config LCZ_MEMFAULT_FILE_CHUNK_SIZE
-	int "Size of chunks to read from packetizer and write into file"
-	default 1024
-	help
-		Chunk is statically allocated.
-		Larger chunks allow file to be written quicker.
-		10K file requires ~4 seconds with 1K chunks.
-
-endif # LCZ_MEMFAULT_FILE
-
 config MCUMGR_CMD_MEMFAULT_MGMT
         bool "Enable the memfault MCUMGR interface"
         depends on MCUMGR
