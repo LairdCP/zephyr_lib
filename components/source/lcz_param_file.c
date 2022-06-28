@@ -246,7 +246,7 @@ int lcz_param_file_validate_file(const char *str, size_t length)
 
 	if (delimiters != newlines) {
 		r = -EINVAL;
-		LOG_ERR("%d delimeters != %d newlines", delimiters, newlines);
+		LOG_ERR("%d delimiters != %d newlines", delimiters, newlines);
 	} else {
 		LOG_DBG("Found %d pairs", delimiters);
 	}
@@ -435,7 +435,7 @@ static int append_id(char *str, size_t *length, param_id_t id)
 }
 
 /*
- * The file is built as a string and must be null teminated until
+ * The file is built as a string and must be null terminated until
  * it is written to the filesystem (or sent over a transport).
  */
 static bool room_for_value(size_t current_length, size_t dsize)
