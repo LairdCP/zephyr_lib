@@ -9,7 +9,7 @@
  * Tested in conjunction with Zephyr v2.4.99. Previous versions
  * feature a different setup for JES216 and will not compile.
  * Intended to reside in the drivers folder of the Laird Connectivity Zephyr
- * Library, with the Zephyr folder at the same level as the Modules folder 
+ * Library, with the Zephyr folder at the same level as the Modules folder
  * where the Zephyr Lib folder resides.
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -167,7 +167,6 @@ struct qspi_nor_data {
 	volatile bool ready;
 #endif /* CONFIG_MULTITHREADING */
 #ifdef CONFIG_PM_DEVICE
-	uint32_t pm_state;
 	/* This is the delayed work item and associated data */
 	/* used to shut the QSPI interface off after a period */
 	/* of inactivity */
@@ -331,7 +330,7 @@ static inline void qspi_lock(const struct device *dev)
 
 	/* Did the interface get shut off? */
 	if (!dev_data->nrf_qspi_nor_cool_down.isInitialised) {
-		/* Set the initialised flag here to prevent 
+		/* Set the initialised flag here to prevent
 		 * entering the configure call again.
 		 */
 		dev_data->nrf_qspi_nor_cool_down.isInitialised = true;
@@ -1371,10 +1370,6 @@ static int qspi_nor_init(const struct device *dev)
 
 	IRQ_CONNECT(DT_IRQN(QSPI_NODE), DT_IRQ(QSPI_NODE, priority),
 		    nrfx_isr, nrfx_qspi_irq_handler, 0);
-
-#ifdef CONFIG_PM_DEVICE
-	get_dev_data(dev)->pm_state = PM_DEVICE_STATE_ACTIVE;
-#endif
 
 	/* Laird Connectivity specific implementation starts here */
 	struct qspi_nor_data *const driver_data = dev->data;
