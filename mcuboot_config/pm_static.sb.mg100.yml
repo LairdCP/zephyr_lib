@@ -96,13 +96,18 @@ mcuboot_secondary:
   region: external_flash
   size: 0xD7000
   device: MX25R64
-user:
+user1:
   address: 0xD7000
   region: external_flash
   size: 0x29000
   device: MX25R64
-littlefs_storage:
+user2:
   address: 0x100000
   region: external_flash
-  size: 0x700000
+  size: 0x100000
+  device: MX25R64
+littlefs_storage:
+  address: 0x200000
+  region: external_flash
+  size: 0x600000
   device: MX25R64
