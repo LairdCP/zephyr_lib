@@ -159,6 +159,18 @@ int lcz_led_turn_off(led_index_t index)
 	return r;
 }
 
+int lcz_led_toggle(led_index_t index)
+{
+	int r = led_lock(index);
+	if (r == 0) {
+		change_state(&led[index], led[index].state ? OFF : ON,
+			     DONT_BLINK);
+		led_unlock(index);
+	}
+
+	return r;
+}
+
 int lcz_led_blink(led_index_t index,
 		  struct lcz_led_blink_pattern const *pPattern)
 {

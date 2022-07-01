@@ -84,6 +84,12 @@ int lcz_led_turn_off(led_index_t index);
 
 /**
  * @param index is a Valid LED
+ * @return int negative error, 0 on success
+ */
+int lcz_led_toggle(led_index_t index);
+
+/**
+ * @param index is a Valid LED
  * @param lcz_led_blink_pattern @ref struct lcz_led_blink_pattern
  * @return int negative error, 0 on success
  *
