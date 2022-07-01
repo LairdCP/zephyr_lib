@@ -2,7 +2,7 @@
  * @file lcz_software_reset.c
  * @brief
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -17,7 +17,7 @@ LOG_MODULE_REGISTER(lcz_software_reset, CONFIG_LCZ_SOFTWARE_RESET_LOG_LEVEL);
 #include <logging/log_ctrl.h>
 #include <sys/reboot.h>
 
-#ifdef CONFIG_LCZ_MEMFAULT
+#ifdef CONFIG_LCZ_SOFTWARE_RESET_AFTER_ASSERT_USES_MEMFAULT
 #include "lcz_memfault.h"
 #include "memfault/panics/assert.h"
 #endif
@@ -37,7 +37,7 @@ void lcz_software_reset(uint32_t delay_ms)
 
 void lcz_software_reset_after_assert(uint32_t delay_ms)
 {
-#ifdef CONFIG_LCZ_MEMFAULT
+#ifdef CONFIG_LCZ_SOFTWARE_RESET_AFTER_ASSERT_USES_MEMFAULT
 	LOG_PANIC();
 	MEMFAULT_ASSERT(false);
 #else

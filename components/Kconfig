@@ -1,11 +1,10 @@
 #
-# Copyright (c) 2020-2021 Laird Connectivity
+# Copyright (c) 2020-2022 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
 menu "Laird Connectivity Zephyr Components"
-	 default y
 
 config LCZ_DNS
 	bool "Wrapper for DNS resolver that provides retries and debug printing"
@@ -61,6 +60,14 @@ config LCZ_SOFTWARE_RESET_LOG_LEVEL
 	depends on LCZ_SOFTWARE_RESET
     range 0 4
     default 3
+
+config LCZ_SOFTWARE_RESET_AFTER_ASSERT_USES_MEMFAULT
+    bool "Software reset after assert calls Memfault assert"
+	depends on LCZ_SOFTWARE_RESET
+	depends on LCZ_MEMFAULT
+	help
+	  If enabled and a debugger is connected, the system will halt.
+	  This may not be desired when logging using RTT.
 
 rsource "Kconfig.lcz_nfc"
 rsource "Kconfig.lcz_qrtc"
