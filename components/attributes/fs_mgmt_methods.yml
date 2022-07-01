@@ -9,7 +9,7 @@ methods:
     x-id: 0
     x-group_id: 8
     params:
-      - name: off
+      - name: "off"
         summary: File offset
         description: Offset where to start file access
         required: true
@@ -49,7 +49,7 @@ methods:
             type: integer
             minimum: 0
             maximum: 0
-        - name: off
+        - name: "off"
           summary: File offset
           description: The updated file offset following read
           required: true
@@ -88,7 +88,7 @@ methods:
     x-id: 0
     x-group_id: 8
     params:
-      - name: off
+      - name: "off"
         summary: File Offset
         description: Offset where to start file access
         required: true
@@ -151,7 +151,7 @@ methods:
             type: integer
             minimum: 0
             maximum: 0
-        - name: off
+        - name: "off"
           summary: Offset
           description: Updated file offset
           required: true
@@ -240,7 +240,7 @@ methods:
           type: string
           minLength: 1
           maxLength: 64
-      - name: off
+      - name: "off"
         summary: File Offset
         description: Offset where to start file access
         required: true
@@ -292,7 +292,7 @@ methods:
             type: string
             minLength: 1
             maxLength: 64
-        - name: off
+        - name: "off"
           summary: File Offset
           description: If there is no error offset where to start file access
           required: true
