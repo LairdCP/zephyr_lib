@@ -14,6 +14,7 @@
 #ifdef CONFIG_LCZ_MEMFAULT
 #include "memfault/core/build_info.h"
 #include "memfault/core/platform/device_info.h"
+#include "memfault/core/trace_event.h"
 #include "memfault/ports/watchdog.h"
 #include "memfault/components.h"
 #include "memfault/http/root_certs.h"
@@ -90,10 +91,12 @@ extern "C" {
 #define LCZ_MEMFAULT_WATCHDOG_ENABLE memfault_software_watchdog_enable
 #define LCZ_MEMFAULT_WATCHDOG_FEED memfault_software_watchdog_feed
 #define LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT memfault_software_watchdog_update_timeout
+#define LCZ_MEMFAULT_TRACE_EVENT(key) MEMFAULT_TRACE_EVENT(key)
 #else
 #define LCZ_MEMFAULT_WATCHDOG_ENABLE(...) 0
 #define LCZ_MEMFAULT_WATCHDOG_FEED(...) 0
 #define LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT(...) 0
+#define LCZ_MEMFAULT_TRACE_EVENT(key)
 #endif
 
 #ifdef CONFIG_MEMFAULT_LOGGING_ENABLE

@@ -84,6 +84,9 @@ int lcz_memfault_post_data_v2(void *buf, size_t buf_size)
 
 	k_mutex_lock(&post_data_mutex, K_FOREVER);
 
+	/* be sure to flush any ISR trace data */
+	(void)memfault_trace_event_try_flush_isr_event();
+
 	if (!memfault_packetizer_data_available()) {
 		goto exit;
 	}
