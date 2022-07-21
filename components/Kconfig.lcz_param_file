@@ -56,7 +56,11 @@ config LCZ_PARAM_FILE_4_DIGIT_ID
     bool "Generate all 4 digits of parameter ID for backward compatibility"
 
 config LCZ_PARAM_FILE_SHELL
-	bool "Enable parameters shell"
-	depends on SHELL
+    bool "Enable parameters shell"
+    depends on SHELL
+
+config LCZ_PARAM_FILE_ENCRYPTED
+    bool "Enable encrypted param files"
+    depends on FSU_ENCRYPTED_FILES
 
 endif # LCZ_PARAM_FILE

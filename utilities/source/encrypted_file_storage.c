@@ -62,6 +62,7 @@ struct efs_block_header {
 /**************************************************************************************************/
 /* Local Function Prototypes                                                                      */
 /**************************************************************************************************/
+static int simplify_path(const char *path_in, char *path_out);
 static int file_name_hash_gen(const char *abs_path, uint8_t *hash, uint8_t hash_len);
 static int file_name_hash_comp(const char *abs_path, uint8_t *hash, uint8_t hash_len);
 static int encrypt_block(struct efs_block_header *hdr, uint8_t *user_data, ssize_t user_data_len,
@@ -120,6 +121,7 @@ int efs_write(const char *abs_path, uint8_t *data, size_t size)
 
 int efs_append(const char *abs_path, uint8_t *data, size_t size)
 {
+	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
 	int ret = 0;
 	int ret2;
 	ssize_t file_size = 0;
@@ -140,12 +142,17 @@ int efs_append(const char *abs_path, uint8_t *data, size_t size)
 		ret = -EINVAL;
 	}
 
+	/* Remove any extra slashes in the path */
+	if (ret == 0) {
+		(void)simplify_path(abs_path, simple_path);
+	}
+
 	/* Check current file size */
 	if (ret == 0) {
-		file_size = fsu_get_file_size_abs(abs_path);
+		file_size = fsu_get_file_size_abs(simple_path);
 		if (file_size < 0) {
 			LOG_ERR("efs_append: could not read file size of %s: %d",
-				log_strdup(abs_path), file_size);
+				log_strdup(simple_path), file_size);
 			ret = -EINVAL;
 		}
 	}
@@ -180,7 +187,7 @@ int efs_append(const char *abs_path, uint8_t *data, size_t size)
 	/* Open the file for read and write */
 	fs_file_t_init(&f);
 	if (ret == 0) {
-		ret = fs_open(&f, abs_path, FS_O_RDWR | FS_O_CREATE);
+		ret = fs_open(&f, simple_path, FS_O_RDWR | FS_O_CREATE);
 		if (ret < 0) {
 			LOG_ERR("efs_append: fs_open failed %d", ret);
 		}
@@ -212,7 +219,7 @@ int efs_append(const char *abs_path, uint8_t *data, size_t size)
 
 		/* Decrypt the block */
 		if (ret == 0) {
-			ret = decrypt_block(abs_path, block_offset, hdr,
+			ret = decrypt_block(simple_path, block_offset, hdr,
 					    file_block + EFS_FILE_BLOCK_ENC_OFFSET,
 					    EFS_FILE_BLOCK_SIZE - EFS_FILE_BLOCK_ENC_OFFSET,
 					    user_block, EFS_USER_BLOCK_SIZE);
@@ -289,7 +296,7 @@ int efs_append(const char *abs_path, uint8_t *data, size_t size)
 
 	/* Start to fill in the block header */
 	if (ret == 0) {
-		ret = file_name_hash_gen(abs_path, hdr->auth_data.file_name_hash,
+		ret = file_name_hash_gen(simple_path, hdr->auth_data.file_name_hash,
 					 sizeof(hdr->auth_data.file_name_hash));
 		if (ret < 0) {
 			LOG_ERR("efs_append: Couldn't hash filename: %d", ret);
@@ -381,6 +388,7 @@ ssize_t efs_read(const char *abs_path, uint8_t *data, size_t size)
 
 ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t size)
 {
+	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
 	int block_num;
 	int block_offset;
 	int this_size;
@@ -398,13 +406,18 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 		ret = -EINVAL;
 	}
 
+	/* Remove any extra slashes in the path */
+	if (ret == 0) {
+		(void)simplify_path(abs_path, simple_path);
+	}
+
 	/* Compute which encrypted block the offset should be in */
 	block_num = offset / EFS_USER_BLOCK_SIZE;
 	block_offset = offset % EFS_USER_BLOCK_SIZE;
 
 	/* Read the file size */
 	if (ret == 0) {
-		file_size = fsu_get_file_size_abs(abs_path);
+		file_size = fsu_get_file_size_abs(simple_path);
 		if (file_size < 0) {
 			ret = file_size;
 		}
@@ -431,7 +444,7 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 	/* Open the file */
 	fs_file_t_init(&f);
 	if (ret == 0) {
-		ret = fs_open(&f, abs_path, FS_O_READ);
+		ret = fs_open(&f, simple_path, FS_O_READ);
 		if (ret < 0) {
 			LOG_ERR("efs_read_block: fs_open failed %d", ret);
 		}
@@ -451,7 +464,7 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 		ret = -ENOMEM;
 	}
 
-    /* Seek to the first block */
+	/* Seek to the first block */
 	ret = fs_seek(&f, block_num * EFS_FILE_BLOCK_SIZE, FS_SEEK_SET);
 	if (ret < 0) {
 		LOG_ERR("efs_read_block: seek failed to block %d", block_num);
@@ -479,13 +492,12 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 		/* Decrypt the block */
 		if (ret == 0) {
 			hdr = (struct efs_block_header *)file_block;
-			ret = decrypt_block(abs_path, block_num, hdr,
+			ret = decrypt_block(simple_path, block_num, hdr,
 					    file_block + EFS_FILE_BLOCK_ENC_OFFSET,
 					    EFS_FILE_BLOCK_SIZE - EFS_FILE_BLOCK_ENC_OFFSET,
 					    user_block, EFS_USER_BLOCK_SIZE);
 			if (ret < 0) {
-				LOG_ERR("efs_read_block: decrypt failed for block %d",
-					block_num);
+				LOG_ERR("efs_read_block: decrypt failed for block %d", block_num);
 			}
 		}
 
@@ -550,6 +562,7 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 
 ssize_t efs_get_file_size(const char *abs_path)
 {
+	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
 	ssize_t file_size = 0;
 	int num_blocks;
 	int block_offset;
@@ -565,9 +578,14 @@ ssize_t efs_get_file_size(const char *abs_path)
 		ret = -EINVAL;
 	}
 
+	/* Remove any extra slashes in the path */
+	if (ret == 0) {
+		(void)simplify_path(abs_path, simple_path);
+	}
+
 	/* Get the encrypted size */
 	if (ret == 0) {
-		file_size = fsu_get_file_size_abs(abs_path);
+		file_size = fsu_get_file_size_abs(simple_path);
 		if (file_size < 0) {
 			LOG_ERR("efs_get_file_size: Could not read flash file size: %d", file_size);
 			ret = file_size;
@@ -589,7 +607,7 @@ ssize_t efs_get_file_size(const char *abs_path)
 	/* Open the file */
 	fs_file_t_init(&f);
 	if (ret == 0) {
-		ret = fs_open(&f, abs_path, FS_O_READ);
+		ret = fs_open(&f, simple_path, FS_O_READ);
 		if (ret < 0) {
 			LOG_ERR("efs_get_file_size: fs_open failed %d", ret);
 		}
@@ -634,7 +652,7 @@ ssize_t efs_get_file_size(const char *abs_path)
 	/* Decrypt the block */
 	if (ret == 0) {
 		hdr = (struct efs_block_header *)file_block;
-		ret = decrypt_block(abs_path, block_offset, hdr,
+		ret = decrypt_block(simple_path, block_offset, hdr,
 				    file_block + EFS_FILE_BLOCK_ENC_OFFSET,
 				    EFS_FILE_BLOCK_SIZE - EFS_FILE_BLOCK_ENC_OFFSET, user_block,
 				    EFS_USER_BLOCK_SIZE);
@@ -672,6 +690,7 @@ ssize_t efs_get_file_size(const char *abs_path)
 
 int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 {
+	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
 	int block_offset = 0;
 	int this_size;
 	ssize_t file_size;
@@ -700,9 +719,14 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 		}
 	}
 
+	/* Remove any extra slashes in the path */
+	if (ret == 0) {
+		(void)simplify_path(abs_path, simple_path);
+	}
+
 	/* Get the size of the encrypted file */
 	if (ret == 0) {
-		file_size = fsu_get_file_size_abs(abs_path);
+		file_size = fsu_get_file_size_abs(simple_path);
 		if (file_size < 0) {
 			LOG_ERR("efs_sha256: Could not read flash file size: %d", file_size);
 			ret = file_size;
@@ -720,7 +744,7 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 	/* Open the file */
 	fs_file_t_init(&f);
 	if (ret == 0) {
-		ret = fs_open(&f, abs_path, FS_O_READ);
+		ret = fs_open(&f, simple_path, FS_O_READ);
 		if (ret < 0) {
 			LOG_ERR("efs_sha256: fs_open failed %d", ret);
 		}
@@ -757,7 +781,7 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 		/* Decrypt the block */
 		if (ret == 0) {
 			hdr = (struct efs_block_header *)file_block;
-			ret = decrypt_block(abs_path, block_offset, hdr,
+			ret = decrypt_block(simple_path, block_offset, hdr,
 					    file_block + EFS_FILE_BLOCK_ENC_OFFSET,
 					    EFS_FILE_BLOCK_SIZE - EFS_FILE_BLOCK_ENC_OFFSET,
 					    user_block, EFS_USER_BLOCK_SIZE);
@@ -840,6 +864,48 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 /**************************************************************************************************/
 /* Local Function Definitions                                                                     */
 /**************************************************************************************************/
+/** @brief Remove duplicate slashes from a pathname
+ *
+ * @param[in] path_in Pointer to input pathname
+ * @param[in] path_out Pointer to where simplified output should be written. Must point to memory
+ * at least as large as FSU_MAX_ABS_PATH_SIZE+1
+ *
+ * @returns the length of simplified string, or <0 on error
+ */
+static int simplify_path(const char *path_in, char *path_out)
+{
+	int i;
+	int j;
+	int len;
+
+	/* Validate the input parameters */
+	if (path_in == NULL || path_out == NULL) {
+		return -EINVAL;
+	}
+
+	memset(path_out, 0, FSU_MAX_ABS_PATH_SIZE+1);
+
+	/* Make sure that the input isn't too long for our output buffer */
+	len = strlen(path_in);
+	if (len > FSU_MAX_ABS_PATH_SIZE) {
+		return -ENOMEM;
+	}
+
+	/* Remove any duplicate slashes */
+	i = 0;
+	j = 0;
+	while (i < len) {
+		if (i == 0 || path_in[i] != '/' || path_in[i - 1] != '/') {
+			path_out[j] = path_in[i];
+			j++;
+		}
+		i++;
+	}
+	path_out[j] = '\0';
+
+	return j;
+}
+
 static int file_name_hash_gen(const char *abs_path, uint8_t *hash, uint8_t hash_len)
 {
 	int ret = 0;

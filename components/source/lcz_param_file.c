@@ -15,9 +15,9 @@ LOG_MODULE_REGISTER(lcz_param_file, CONFIG_LCZ_PARAM_FILE_LOG_LEVEL);
  */
 #define LOG_ZLP(...) LOG_DBG(__VA_ARGS__)
 
-/******************************************************************************/
-/* Includes                                                                   */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Includes                                                                                       */
+/**************************************************************************************************/
 #include <init.h>
 #include <zephyr.h>
 #include <fs/fs.h>
@@ -28,14 +28,17 @@ LOG_MODULE_REGISTER(lcz_param_file, CONFIG_LCZ_PARAM_FILE_LOG_LEVEL);
 #include <string.h>
 
 #include "file_system_utilities.h"
+#if defined(CONFIG_LCZ_PARAM_FILE_ENCRYPTED)
+#include "encrypted_file_storage.h"
+#endif
 #include "lcz_param_file.h"
 
-/******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define BREAK_ON_ERROR(x)                                                      \
-	if (x < 0) {                                                           \
-		break;                                                         \
+/**************************************************************************************************/
+/* Local Constant, Macro and Type Definitions                                                     */
+/**************************************************************************************************/
+#define BREAK_ON_ERROR(x)                                                                          \
+	if (x < 0) {                                                                               \
+		break;                                                                             \
 	}
 
 #define SIZE_OF_NUL 1
@@ -50,39 +53,37 @@ LOG_MODULE_REGISTER(lcz_param_file, CONFIG_LCZ_PARAM_FILE_LOG_LEVEL);
 #define PARAMS_MAX_ID_BYTES sizeof(param_id_t)
 #define PARAMS_MAX_ID_LENGTH (PARAMS_MAX_ID_BYTES * 2)
 
-#define PARAMS_PATH                                                            \
-	CONFIG_LCZ_PARAM_FILE_MOUNT_POINT "/" CONFIG_LCZ_PARAM_FILE_PATH
+#define PARAMS_PATH CONFIG_LCZ_PARAM_FILE_MOUNT_POINT "/" CONFIG_LCZ_PARAM_FILE_PATH
 
-/******************************************************************************/
-/* Local Data Definitions                                                     */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Local Data Definitions                                                                         */
+/**************************************************************************************************/
 static bool params_ready;
 
-BUILD_ASSERT(sizeof(PARAMS_PATH) <= CONFIG_FSU_MAX_PATH_SIZE,
-	     "Params path too long");
+BUILD_ASSERT(sizeof(PARAMS_PATH) <= CONFIG_FSU_MAX_PATH_SIZE, "Params path too long");
 
-/******************************************************************************/
-/* Local Function Prototypes                                                  */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Local Function Prototypes                                                                      */
+/**************************************************************************************************/
 static int lcz_param_file_init(const struct device *device);
 
 static int read_text(const char *fname, char **fstr, size_t fsize);
-static int read_and_remove_cr(char *str, struct fs_file_t *fptr, size_t fsize,
-			      size_t *length);
+#if defined(CONFIG_LCZ_PARAM_FILE_ENCRYPTED)
+static int read_text_enc(const char *fname, char **fstr, size_t fsize);
+#endif
+static int read_and_remove_cr(char *str, struct fs_file_t *fptr, size_t fsize, size_t *length);
 static int parse_file(const char *str, int pairs, param_kvp_t *kv);
 
-static int append_parameter(param_id_t id, param_t type, const void *data,
-			    size_t dsize, char *str);
+static int append_parameter(param_id_t id, param_t type, const void *data, size_t dsize, char *str);
 static int append_id(char *str, size_t *length, param_id_t id);
-static int append_value(char *str, size_t *length, param_t type,
-			const void *data, size_t dsize);
+static int append_value(char *str, size_t *length, param_t type, const void *data, size_t dsize);
 
 static bool room_for_id(size_t current_length);
 static bool room_for_value(size_t current_length, size_t dsize);
 
-/******************************************************************************/
-/* Global Function Definitions                                                */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Global Function Definitions                                                                    */
+/**************************************************************************************************/
 /* Initialize after fs but before application. */
 SYS_INIT(lcz_param_file_init, APPLICATION, CONFIG_LCZ_PARAM_FILE_INIT_PRIORITY);
 
@@ -95,6 +96,19 @@ ssize_t lcz_param_file_write(char *name, void *data, size_t size)
 	}
 }
 
+#if defined(CONFIG_LCZ_PARAM_FILE_ENCRYPTED)
+ssize_t lcz_param_file_enc_write(char *name, void *data, size_t size)
+{
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+	(void)fsu_build_full_name(abs_path, sizeof(abs_path), PARAMS_PATH, name);
+	if (params_ready) {
+		return efs_write(abs_path, data, size);
+	} else {
+		return -EPERM;
+	}
+}
+#endif
+
 ssize_t lcz_param_file_read(char *name, void *data, size_t size)
 {
 	if (params_ready) {
@@ -103,6 +117,19 @@ ssize_t lcz_param_file_read(char *name, void *data, size_t size)
 		return -EPERM;
 	}
 }
+
+#if defined(CONFIG_LCZ_PARAM_FILE_ENCRYPTED)
+ssize_t lcz_param_file_enc_read(char *name, void *data, size_t size)
+{
+	char abs_path[FSU_MAX_ABS_PATH_SIZE];
+	(void)fsu_build_full_name(abs_path, sizeof(abs_path), PARAMS_PATH, name);
+	if (params_ready) {
+		return efs_read(abs_path, data, size);
+	} else {
+		return -EPERM;
+	}
+}
+#endif
 
 int lcz_param_file_delete(char *name)
 {
@@ -113,8 +140,7 @@ int lcz_param_file_delete(char *name)
 	}
 }
 
-int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
-				   char **fstr, param_kvp_t **kv)
+int lcz_param_file_parse_from_file(const char *fname, size_t *fsize, char **fstr, param_kvp_t **kv)
 {
 	int r = -EPERM;
 	struct fs_dirent *entry = k_malloc(sizeof(struct fs_dirent));
@@ -134,8 +160,7 @@ int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
 			break;
 		}
 
-		LOG_DBG("'%s' parameter file size bytes: %u ",
-			log_strdup(fname), entry->size);
+		LOG_DBG("'%s' parameter file size bytes: %u ", log_strdup(fname), entry->size);
 		if (entry->size == 0) {
 			r = -EPERM;
 			LOG_ERR("Unexpected file size");
@@ -176,8 +201,72 @@ int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
 	return r;
 }
 
-int lcz_param_file_generate_file(param_id_t id, param_t type, const void *data,
-				 size_t dsize, char **fstr)
+#if defined(CONFIG_LCZ_PARAM_FILE_ENCRYPTED)
+int lcz_param_file_enc_parse_from_file(const char *fname, size_t *fsize, char **fstr,
+				       param_kvp_t **kv)
+{
+	int r = -EPERM;
+	ssize_t file_size;
+
+	*fsize = 0;
+	*fstr = NULL;
+	*kv = NULL;
+
+	do {
+		file_size = efs_get_file_size(fname);
+		if (file_size < 0) {
+			LOG_ERR("Could not get size of encrypted param file %s: %d",
+				log_strdup(fname), file_size);
+			r = *fsize;
+			break;
+		}
+
+		LOG_DBG("'%s' enc parameter file size bytes: %u ", log_strdup(fname), file_size);
+		if (file_size == 0) {
+			r = -ENOENT;
+			LOG_ERR("Encrypted param file %s is empty", log_strdup(fname));
+			break;
+		}
+
+		r = read_text_enc(fname, fstr, file_size);
+		BREAK_ON_ERROR(r);
+		file_size = r;
+
+		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
+			LOG_DBG("stripped size: %u ", file_size);
+		}
+		r = lcz_param_file_validate_file(*fstr, file_size);
+		BREAK_ON_ERROR(r);
+
+		/* allocate key-pointer-to-value pairs */
+		*kv = k_calloc(r, sizeof(param_kvp_t));
+		if (*kv == NULL) {
+			r = -ENOMEM;
+			break;
+		}
+
+		r = parse_file(*fstr, r, *kv);
+		BREAK_ON_ERROR(r);
+
+	} while (0);
+
+	*fsize = file_size;
+	if (r < 0) {
+		if (*fstr != NULL) {
+			memset(*fstr, 0, *fsize);
+			k_free(*fstr);
+		}
+		k_free(*kv);
+		*fstr = NULL;
+		*kv = NULL;
+	}
+
+	return r;
+}
+#endif
+
+int lcz_param_file_generate_file(param_id_t id, param_t type, const void *data, size_t dsize,
+				 char **fstr)
 {
 	int r = 0;
 	do {
@@ -217,8 +306,7 @@ int lcz_param_file_validate_file(const char *str, size_t length)
 				LOG_ERR("Unexpected id size at %u", i);
 				break;
 			} else {
-				if (IS_ENABLED(
-					    CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
+				if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
 					LOG_DBG("%u %d", i, distance);
 				}
 				distance = 0;
@@ -227,8 +315,7 @@ int lcz_param_file_validate_file(const char *str, size_t length)
 			newlines += 1;
 			if (distance > CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH) {
 				r = -EINVAL;
-				LOG_ERR("Invalid Size of %d at %u", distance,
-					i);
+				LOG_ERR("Invalid Size of %d at %u", distance, i);
 				break;
 			}
 			if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
@@ -253,22 +340,20 @@ int lcz_param_file_validate_file(const char *str, size_t length)
 	return (r < 0) ? r : delimiters;
 }
 
-int lcz_param_file_append_feedback(param_id_t id, uint8_t error_code,
-				   uint8_t *write_data)
+int lcz_param_file_append_feedback(param_id_t id, uint8_t error_code, uint8_t *write_data)
 {
 	int result;
 
 	/* Parameter feedback error codes are always binary */
-	result = append_parameter(id, PARAM_BIN, (const void *)&error_code,
-				  sizeof(uint8_t), write_data);
+	result = append_parameter(id, PARAM_BIN, (const void *)&error_code, sizeof(uint8_t),
+				  write_data);
 
 	return result;
 }
 
-/******************************************************************************/
-/* Local Function Definitions                                                 */
-/******************************************************************************/
-
+/**************************************************************************************************/
+/* Local Function Definitions                                                                     */
+/**************************************************************************************************/
 /**
  * @retval negative on error, otherwise number of key-value pairs.
  */
@@ -329,8 +414,7 @@ static int read_text(const char *fname, char **fstr, size_t fsize)
 		r = read_and_remove_cr(str, &file, fsize, &length);
 
 		/* The validator checks that the file ends with a '\n' (0x0A). */
-		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE) &&
-		    length > 1) {
+		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE) && length > 1) {
 			LOG_DBG("0x%x 0x%x", str[length - 2], str[length - 1]);
 		}
 
@@ -343,8 +427,7 @@ static int read_text(const char *fname, char **fstr, size_t fsize)
 }
 
 /* Removing carriage returns makes parsing easier */
-static int read_and_remove_cr(char *str, struct fs_file_t *fptr, size_t fsize,
-			      size_t *length)
+static int read_and_remove_cr(char *str, struct fs_file_t *fptr, size_t fsize, size_t *length)
 {
 	int r = 0;
 	size_t i;
@@ -365,8 +448,77 @@ static int read_and_remove_cr(char *str, struct fs_file_t *fptr, size_t fsize,
 	return r;
 }
 
-static int append_parameter(param_id_t id, param_t type, const void *data,
-			    size_t dsize, char *str)
+#if defined(CONFIG_LCZ_PARAM_FILE_ENCRYPTED)
+/**
+ * @brief Read the text file from the filesystem into a buffer in RAM.
+ *
+ * @param[in] fname Absolute file name of the file to read
+ * @param[in] fstr Pointer to where the pointer to the data should be stored
+ * @param[in] fsize Size of the file on disk
+ *
+ * @retval negative on error, otherwise size of string with carriage returns
+ * removed.
+ */
+static int read_text_enc(const char *fname, char **fstr, size_t fsize)
+{
+	int r = 0;
+	int i;
+	int j;
+
+	/* Validate the input parameters */
+	if (fname == NULL || fstr == NULL) {
+		LOG_ERR("read_text_enc: Invalid parameters");
+		r = -EINVAL;
+	}
+
+	/* Allocate memory for the file contents */
+	if (r == 0) {
+		*fstr = k_malloc(fsize + 1);
+		if (*fstr == NULL) {
+			LOG_ERR("read_text_enc: Could not allocate %d bytes for %s", fsize + 1,
+				log_strdup(fname));
+			r = -ENOMEM;
+		}
+	}
+
+	/* Read the entire file into memory */
+	if (r == 0) {
+		r = efs_read(fname, *fstr, fsize);
+		if (r != fsize) {
+			LOG_ERR("read_text_enc: Could not read file %s: %d", log_strdup(fname), r);
+			if (r >= 0) {
+				r = -EPERM;
+			}
+		} else {
+			r = 0;
+		}
+	}
+
+	/* Strip the CRs from the file */
+	if (r == 0) {
+		i = 0;
+		j = 0;
+		while (i < fsize) {
+			if ((*fstr)[i] != CR_CHAR) {
+				(*fstr)[j] = (*fstr)[i];
+				j++;
+			}
+			i++;
+		}
+		/* Clear the remainder of the input string */
+		memset((*fstr) + j, 0, i - j);
+	}
+
+	/* Return the stripped length or the error code */
+	if (r == 0) {
+		return j;
+	} else {
+		return r;
+	}
+}
+#endif
+
+static int append_parameter(param_id_t id, param_t type, const void *data, size_t dsize, char *str)
 {
 	int r = -EPERM;
 	size_t length = strlen(str);
@@ -382,8 +534,7 @@ static int append_parameter(param_id_t id, param_t type, const void *data,
 		r = length - starting_length;
 
 		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_LOG_VERBOSE)) {
-			LOG_HEXDUMP_DBG(&str[starting_length], r,
-					"append parameter");
+			LOG_HEXDUMP_DBG(&str[starting_length], r, "append parameter");
 		}
 
 	} while (0);
@@ -391,8 +542,7 @@ static int append_parameter(param_id_t id, param_t type, const void *data,
 	if (r < 0) {
 		LOG_ERR("Unable to append id: %d "
 			"string size: %d data size: %d max string: %d max data: %d",
-			id, length, dsize,
-			CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH,
+			id, length, dsize, CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH,
 			CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH);
 	}
 
@@ -415,11 +565,9 @@ static int append_id(char *str, size_t *length, param_id_t id)
 	/* id is big endian hex */
 	if (room_for_id(*length)) {
 		if (IS_ENABLED(CONFIG_LCZ_PARAM_FILE_4_DIGIT_ID)) {
-			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH,
-					  "%04x", id);
+			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH, "%04x", id);
 		} else {
-			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH,
-					  "%x", id);
+			id_len = snprintf(&str[*length], PARAMS_MAX_ID_LENGTH, "%x", id);
 		}
 		if (id_len <= 0) {
 			r = -EINVAL;
@@ -445,18 +593,15 @@ static bool room_for_value(size_t current_length, size_t dsize)
 		 CONFIG_LCZ_PARAM_FILE_MAX_FILE_LENGTH));
 }
 
-static int append_value(char *str, size_t *length, param_t type,
-			const void *data, size_t dsize)
+static int append_value(char *str, size_t *length, param_t type, const void *data, size_t dsize)
 {
 	int r = -EPERM;
 	size_t val_len = 0;
 	if (room_for_value(*length, dsize)) {
 		switch (type) {
 		case PARAM_BIN:
-			val_len =
-				bin2hex(data, dsize, &str[*length],
-					CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH +
-						SIZE_OF_NUL);
+			val_len = bin2hex(data, dsize, &str[*length],
+					  CONFIG_LCZ_PARAM_FILE_MAX_VALUE_LENGTH + SIZE_OF_NUL);
 			if (val_len == 0) {
 				r = -EINVAL;
 				LOG_ERR("Value conversion error");
@@ -511,13 +656,12 @@ static int lcz_param_file_init(const struct device *device)
 	return r;
 }
 
-/******************************************************************************/
-/* If desired, override in application                                        */
-/******************************************************************************/
+/**************************************************************************************************/
+/* If desired, override in application                                                            */
+/**************************************************************************************************/
 __weak int lcz_param_file_mount_fs(void)
 {
-	if (strcmp(CONFIG_LCZ_PARAM_FILE_MOUNT_POINT, CONFIG_FSU_MOUNT_POINT) ==
-	    0) {
+	if (strcmp(CONFIG_LCZ_PARAM_FILE_MOUNT_POINT, CONFIG_FSU_MOUNT_POINT) == 0) {
 		return fsu_lfs_mount();
 	} else {
 		return -EPERM;
