@@ -17,10 +17,10 @@ config LCZ_WDT_INIT_PRIORITY
     int "System init priority (Application)"
     default 0
 
-config LCZ_WDT_LOG_LEVEL
-    int "Log level for watchdog module"
-    range 0 4
-    default 3
+module=LCZ_WDT
+module-dep=LOG
+module-str=LCZ_WDT
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
 config LCZ_WDT_TIMEOUT_MILLISECONDS
     int "Rate in milliseconds for watchdog"
@@ -28,6 +28,11 @@ config LCZ_WDT_TIMEOUT_MILLISECONDS
     range 18000 1200000
     default 600000
 
+config LCZ_WDT_MEMFAULT
+    bool "Use memfault software timer to track watchdog resets"
+    depends on LCZ_MEMFAULT
+
+if LCZ_WDT_MEMFAULT
 config LCZ_WDT_MEMFAULT_PRE_FIRE_MS
     int "The software timer fires before the HW WDT"
     default 8000
@@ -38,11 +43,13 @@ config LCZ_WDT_MEMFAULT_PRE_FIRE_MS
         reset assertion. Kernel with HL7800 modem requires 3 seconds
         to boot.
 
+endif #LCZ_WDT_MEMFAULT
+
 config LCZ_WDT_WORK_QUEUE_STACK_SIZE
     int "Work queue stack size"
     default 512
 
 config LCZ_WDT_TEST
-    bool "Force the watchdog to timeout (set during initialisation)"
+    bool "Force the watchdog to timeout (set during initialization)"
 
 endif # WDT

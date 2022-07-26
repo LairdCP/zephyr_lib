@@ -56,6 +56,14 @@ int lcz_wdt_pause(int id);
  */
 int lcz_wdt_force(void);
 
+/**
+ * @brief Accessor
+ *
+ * @return true if watchdog has initialized successfully
+ * @return false otherwise
+ */
+bool lcz_wdt_initialized(void);
+
 #ifdef __cplusplus
 }
 #endif

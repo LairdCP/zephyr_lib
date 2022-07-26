@@ -21,7 +21,7 @@ LOG_MODULE_REGISTER(watchdog, CONFIG_LCZ_WDT_LOG_LEVEL);
 #include <drivers/watchdog.h>
 #include <logging/log_ctrl.h>
 
-#if defined(CONFIG_LCZ_MEMFAULT)
+#if defined(LCZ_WDT_MEMFAULT)
 #include "lcz_memfault.h"
 #endif
 
@@ -42,7 +42,7 @@ LOG_MODULE_REGISTER(watchdog, CONFIG_LCZ_WDT_LOG_LEVEL);
 #define WDT_NODE DT_INST(0, nordic_nrf_watchdog)
 #endif
 
-#ifdef WDT_NODE
+#if defined(WDT_NODE)
 #define WDT_DEV_NAME DT_LABEL(WDT_NODE)
 #else
 #error "Unsupported SoC and no watchdog0 alias in zephyr.dts"
@@ -77,14 +77,17 @@ static struct lcz_wdt_obj lcz_wdt;
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static int lcz_wdt_initialise(const struct device *device);
+static int lcz_wdt_initialize(const struct device *device);
 static void lcz_wdt_feeder(struct k_work *work);
 static bool lcz_wdt_valid_user_id(int id);
+
+static int memfault_wdt_config(void);
+static void memfault_wdt_feed(void);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-SYS_INIT(lcz_wdt_initialise, APPLICATION, CONFIG_LCZ_WDT_INIT_PRIORITY);
+SYS_INIT(lcz_wdt_initialize, APPLICATION, CONFIG_LCZ_WDT_INIT_PRIORITY);
 
 int lcz_wdt_get_user_id(void)
 {
@@ -141,17 +144,21 @@ int lcz_wdt_force(void)
 		return -EPERM;
 	}
 
-	LOG_PANIC();
 	LOG_INF("waiting for reset...");
 	atomic_set_bit(&lcz_wdt.check_mask, lcz_wdt.force_id);
 
 	return 0;
 }
 
+bool lcz_wdt_initialized(void)
+{
+	return lcz_wdt.initialized;
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static int lcz_wdt_initialise(const struct device *device)
+static int lcz_wdt_initialize(const struct device *device)
 {
 	ARG_UNUSED(device);
 	struct wdt_timeout_cfg wdt_config;
@@ -160,7 +167,7 @@ static int lcz_wdt_initialise(const struct device *device)
 		.name = "lcz_wdog",
 	};
 
-	LOG_DBG("Initialising watchdog");
+	LOG_DBG("Initializing watchdog");
 	lcz_wdt.dev = device_get_binding(WDT_DEV_NAME);
 
 	lcz_wdt.force_id = atomic_inc(&lcz_wdt.users);
@@ -191,6 +198,17 @@ static int lcz_wdt_initialise(const struct device *device)
 				   K_THREAD_STACK_SIZEOF(wdt_workq_stack),
 				   K_LOWEST_APPLICATION_THREAD_PRIO, &cfg);
 
+		r = wdt_setup(lcz_wdt.dev, WDT_OPT_PAUSE_HALTED_BY_DBG);
+		if (r < 0) {
+			LOG_ERR("Watchdog setup error");
+			break;
+		}
+
+		r = memfault_wdt_config();
+		if (r < 0) {
+			break;
+		}
+
 		k_work_init_delayable(&lcz_wdt.feed, lcz_wdt_feeder);
 		r = k_work_schedule_for_queue(&lcz_wdt.work_q, &lcz_wdt.feed,
 					      K_NO_WAIT);
@@ -199,13 +217,62 @@ static int lcz_wdt_initialise(const struct device *device)
 			break;
 		}
 
-		r = wdt_setup(lcz_wdt.dev, WDT_OPT_PAUSE_HALTED_BY_DBG);
-		if (r < 0) {
-			LOG_ERR("Watchdog setup error");
-			break;
-		}
+		lcz_wdt.initialized = true;
 
-#if defined(CONFIG_LCZ_MEMFAULT)
+		LOG_WRN("Watchdog timer started with timeout of %u ms",
+			CONFIG_LCZ_WDT_TIMEOUT_MILLISECONDS);
+	} while (0);
+
+#if defined(CONFIG_LCZ_WDT_TEST)
+	lcz_wdt_force();
+#endif
+
+	return r;
+}
+
+static void lcz_wdt_feeder(struct k_work *work)
+{
+	struct k_work_delayable *wd = k_work_delayable_from_work(work);
+	struct lcz_wdt_obj *w = CONTAINER_OF(wd, struct lcz_wdt_obj, feed);
+	atomic_val_t check_ins = atomic_get(&w->check_ins);
+	atomic_val_t check_mask = atomic_get(&w->check_mask);
+	int r;
+	int r2;
+
+	if (check_ins == check_mask) {
+		atomic_clear(&w->check_ins);
+		memfault_wdt_feed();
+		r = wdt_feed(w->dev, w->channel_id);
+	} else {
+		r = -EAGAIN;
+	}
+
+	if (r < 0) {
+		LOG_ERR("Unable to feed watchdog");
+	}
+
+	r2 = k_work_reschedule_for_queue(&w->work_q, &w->feed,
+					 K_MSEC(WDT_FEED_RATE_MS));
+	LOG_DBG("Watchdog feed status: %d reschedule: %d check_ins: %lx mask: %lx",
+		r, r2, check_ins, check_mask);
+}
+
+static bool lcz_wdt_valid_user_id(int id)
+{
+	if (id >= 0 && id < WDT_MAX_USERS) {
+		return true;
+	} else {
+		LOG_ERR("Invalid WDT user id");
+		return false;
+	}
+}
+
+static int memfault_wdt_config(void)
+{
+	int r = 0;
+
+#if defined(LCZ_WDT_MEMFAULT)
+	do {
 		r = LCZ_MEMFAULT_WATCHDOG_UPDATE_TIMEOUT(
 			CONFIG_LCZ_WDT_TIMEOUT_MILLISECONDS -
 			CONFIG_LCZ_WDT_MEMFAULT_PRE_FIRE_MS);
@@ -219,47 +286,15 @@ static int lcz_wdt_initialise(const struct device *device)
 			LOG_ERR("Unable to enable memfault software watchdog");
 			break;
 		}
-#endif
-
-		lcz_wdt.initialized = true;
-
-		LOG_WRN("Watchdog timer started with timeout of %u ms",
-			CONFIG_LCZ_WDT_TIMEOUT_MILLISECONDS);
-	} while (0);
-
-#ifdef CONFIG_LCZ_WDT_TEST
-	lcz_wdt_force();
+	} while(0);
 #endif
 
 	return r;
 }
 
-static void lcz_wdt_feeder(struct k_work *work)
+static void memfault_wdt_feed(void)
 {
-	struct lcz_wdt_obj *w = CONTAINER_OF(work, struct lcz_wdt_obj, feed);
-	int r = 0;
-
-	if (atomic_cas(&w->check_ins, w->check_mask, 0)) {
-#if defined(CONFIG_LCZ_MEMFAULT)
-		(void)LCZ_MEMFAULT_WATCHDOG_FEED();
+#if defined(LCZ_WDT_MEMFAULT)
+	(void)LCZ_MEMFAULT_WATCHDOG_FEED();
 #endif
-		r = wdt_feed(w->dev, w->channel_id);
-	}
-
-	if (r < 0) {
-		LOG_ERR("Unable to feed watchdog");
-	}
-
-	k_work_schedule_for_queue(&w->work_q, &w->feed,
-				  K_MSEC(WDT_FEED_RATE_MS));
-}
-
-static bool lcz_wdt_valid_user_id(int id)
-{
-	if (id >= 0 && id < WDT_MAX_USERS) {
-		return true;
-	} else {
-		LOG_ERR("Invalid WDT user id");
-		return false;
-	}
 }
