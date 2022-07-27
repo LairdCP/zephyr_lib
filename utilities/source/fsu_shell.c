@@ -254,40 +254,27 @@ static int fsu_del_cmd(const struct shell *shell, size_t argc, char **argv)
 
 static int fsu_dump_cmd(const struct shell *shell, size_t argc, char **argv)
 {
-	char *name = fsu_name_handler(argc, argv);
+	char *abs_path = fsu_name_handler(argc, argv);
 	uint8_t *contents;
 	ssize_t status = 0;
-	size_t count = 0;
-	struct fs_dirent *pEntries = fsu_find(mount_point, name, &count, FS_DIR_ENTRY_FILE);
-	if (count == 0) {
-		status = -ENOENT;
-		shell_print(shell, "No files found");
-	} else {
-		shell_print(shell, "Found %u matching files", count);
-		size_t i = 0;
-		while (i < count) {
-			contents = (uint8_t *)k_malloc(pEntries[i].size);
-			if (contents != NULL) {
-				status = fsu_read(mount_point, pEntries[i].name, contents,
-						  pEntries[i].size);
-				shell_print(shell,
-					    "File %s contents (%d bytes): ", pEntries[i].name,
-					    pEntries[i].size);
+	ssize_t size;
 
-				if (status > 0) {
-					shell_hexdump(shell, contents, pEntries[i].size);
-					k_free(contents);
-				} else {
-					shell_print(shell, "Read of %d bytes failed: %d",
-						    pEntries[i].size, status);
-					k_free(contents);
-					break;
-				}
+	size = fsu_get_file_size_abs(abs_path);
+	if (size < 0) {
+		shell_print(shell, "Failed to read size of %s: %d", abs_path, size);
+	} else {
+		contents = (uint8_t *)k_malloc(size);
+		if (contents != NULL) {
+			status = fsu_read_abs(abs_path, contents, size);
+			shell_print(shell, "File %s contents (%d bytes): ", abs_path, size);
+			if (status > 0) {
+				shell_hexdump(shell, contents, size);
+			} else {
+				shell_print(shell, "Read of %d bytes failed: %d", size, status);
 			}
-			i += 1;
+			k_free(contents);
 		}
 	}
-	fsu_free_found(pEntries);
 	return 0;
 }
 
@@ -344,46 +331,26 @@ static int fsu_enc_append_cmd(const struct shell *shell, size_t argc, char **arg
 
 static int fsu_enc_dump_cmd(const struct shell *shell, size_t argc, char **argv)
 {
-	char abs_path[FSU_MAX_ABS_PATH_SIZE];
-	char *name = fsu_name_handler(argc, argv);
+	char *abs_path = fsu_name_handler(argc, argv);
 	uint8_t *contents;
 	ssize_t status = 0;
 	ssize_t file_size = 0;
-	size_t count = 0;
-	struct fs_dirent *pEntries = fsu_find(mount_point, name, &count, FS_DIR_ENTRY_FILE);
-	if (count == 0) {
-		status = -ENOENT;
-		shell_print(shell, "No files found");
-	} else {
-		shell_print(shell, "Found %u matching files", count);
-		size_t i = 0;
-		while (i < count) {
-			(void)fsu_build_full_name(abs_path, sizeof(abs_path), mount_point, name);
-			file_size = efs_get_file_size(abs_path);
-			if (file_size > 0) {
-				contents = (uint8_t *)k_malloc(file_size);
-				if (contents != NULL) {
-					status = efs_read(abs_path, contents, file_size);
-					shell_print(shell, "File %s contents (%d bytes): ",
-						    pEntries[i].name, file_size);
-
-					if (status > 0) {
-						shell_hexdump(shell, contents, file_size);
-						k_free(contents);
-					} else {
-						shell_print(shell, "Failed %d", status);
-						k_free(contents);
-						break;
-					}
-				}
+	file_size = efs_get_file_size(abs_path);
+	if (file_size > 0) {
+		contents = (uint8_t *)k_malloc(file_size);
+		if (contents != NULL) {
+			status = efs_read(abs_path, contents, file_size);
+			shell_print(shell, "File %s contents (%d bytes): ", abs_path, file_size);
+			if (status > 0) {
+				shell_hexdump(shell, contents, file_size);
 			} else {
-				shell_print(shell, "Failed to read file size of %s: %d", abs_path,
-					    file_size);
+				shell_print(shell, "Failed %d", status);
 			}
-			i += 1;
+			k_free(contents);
 		}
+	} else {
+		shell_print(shell, "Failed to read file size of %s: %d", abs_path, file_size);
 	}
-	fsu_free_found(pEntries);
 	return 0;
 }
 
