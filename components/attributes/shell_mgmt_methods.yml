@@ -1,0 +1,45 @@
+info:
+  title: shell_mgmt_methods
+  group_id: 9
+methods:
+  - name: shell_exec
+    summary: Execute Command
+    description: Execute a shell command
+    x-management-option: Write
+    x-id: 0
+    x-group_id: 9
+    params:
+      - name: argv
+        summary: cmd args
+        description: shell command arguments
+        required: true
+        x-ctype: array<char*>
+        x-sequencenumber: 1
+        x-default: "kernel version"
+        schema:
+          type: array
+          minItems: 0
+    result:
+      name: exec_result
+      schema:
+        type: array
+      x-result:
+        - name: o
+          summary: cmd output
+          description: The output response of a shell command. Command response max size is set by CONFIG_SHELL_BACKEND_DUMMY_BUF_SIZE
+          required: true
+          x-ctype: string
+          x-sequencenumber: 1
+          schema:
+            type: string
+            minLength: 0
+            maxLength: 300
+        - name: rc
+          summary: Reason code
+          description: Result of the command execution
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 2
+          schema:
+            type: integer
