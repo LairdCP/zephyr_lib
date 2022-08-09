@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2012-2014 Wind River Systems, Inc.
  * Copyright (c) 2020 Prevas A/S
- * Copyright (c) 2020 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,10 +12,11 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(mcumgr_wrapper, LOG_LEVEL_DBG);
 
-/******************************************************************************/
-/* Includes                                                                   */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Includes                                                                                       */
+/**************************************************************************************************/
 #include <zephyr.h>
+#include <init.h>
 
 #ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
 #include <stats/stats.h>
@@ -50,9 +51,9 @@ LOG_MODULE_REGISTER(mcumgr_wrapper, LOG_LEVEL_DBG);
 #include "shell_mgmt/shell_mgmt.h"
 #endif
 
-/******************************************************************************/
-/* Local Data Definitions                                                     */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Local Data Definitions                                                                         */
+/**************************************************************************************************/
 #ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
 /* Define an example stats group; approximates time since boot. */
 STATS_SECT_START(lcz_mcumgr_stats)
@@ -72,29 +73,28 @@ struct k_timer tick_timer;
 #endif
 #endif
 
-/******************************************************************************/
-/* Local Function Prototypes                                                  */
-/******************************************************************************/
-#if defined(CONFIG_MCUMGR_CMD_STAT_MGMT) &&                                    \
-	(CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0)
+/**************************************************************************************************/
+/* Local Function Prototypes                                                                      */
+/**************************************************************************************************/
+#if defined(CONFIG_MCUMGR_CMD_STAT_MGMT) && (CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0)
 static void tick_timer_callback_isr(struct k_timer *timer_id);
 #endif
 
-/******************************************************************************/
-/* Global Functions                                                           */
-/******************************************************************************/
-void mcumgr_wrapper_register_subsystems(void)
+/**************************************************************************************************/
+/* SYS INIT                                                                                       */
+/**************************************************************************************************/
+static int mcumgr_wrapper_register_subsystems(const struct device *dev)
 {
+	ARG_UNUSED(dev);
+
 #ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
-	int rc = STATS_INIT_AND_REG(lcz_mcumgr_stats, STATS_SIZE_32,
-				    "lcz_mcumgr_stats");
+	int rc = STATS_INIT_AND_REG(lcz_mcumgr_stats, STATS_SIZE_32, "lcz_mcumgr_stats");
 
 	if (rc < 0) {
 		LOG_ERR("Error initializing stats system [%d]", rc);
 	}
 #endif
 
-	/* Register the built-in mcumgr command handlers. */
 #ifdef CONFIG_FILE_SYSTEM_LITTLEFS
 #ifdef CONFIG_FILE_SYSTEM_UTILITIES
 	fsu_lfs_mount();
@@ -128,20 +128,23 @@ void mcumgr_wrapper_register_subsystems(void)
 #endif
 #ifdef CONFIG_MCUMGR_SMP_BT
 	smp_bt_register();
-#if CONFIG_SIMPLE_BLUETOOTH
+#ifdef CONFIG_LCZ_MCUMGR_SIMPLE_BLUETOOTH
 	simple_bluetooth_init();
 #endif
 #endif
 #ifdef CONFIG_MCUMGR_CMD_SHELL_MGMT
 	shell_mgmt_register_group();
 #endif
+
+	return 0;
 }
 
-/******************************************************************************/
-/* Interrupt Service Routines                                                 */
-/******************************************************************************/
-#if defined(CONFIG_MCUMGR_CMD_STAT_MGMT) &&                                    \
-	(CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0)
+SYS_INIT(mcumgr_wrapper_register_subsystems, APPLICATION, CONFIG_LCZ_MCUMGR_WRAPPER_INIT_PRIORITY);
+
+/**************************************************************************************************/
+/* Interrupt Service Routines                                                 	                  */
+/**************************************************************************************************/
+#if defined(CONFIG_MCUMGR_CMD_STAT_MGMT) && (CONFIG_LCZ_MCUMGR_STATS_TICK_RATE_MS > 0)
 static void tick_timer_callback_isr(struct k_timer *timer_id)
 {
 	ARG_UNUSED(timer_id);
