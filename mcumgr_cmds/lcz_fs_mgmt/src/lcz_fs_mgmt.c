@@ -144,10 +144,8 @@ static int fs_mgmt_file_download(struct mgmt_ctxt *ctxt)
 #ifdef CONFIG_LCZ_FS_MGMT_FILE_ACCESS_HOOK
 	if (fs_evt_cb != NULL) {
 		/* Send request to application to check if access should be allowed or not */
-		rc = fs_evt_cb(false, path);
-
-		if (rc != 0) {
-			return rc;
+		if (fs_evt_cb(path, false) == false) {
+			return MGMT_ERR_ENOTSUP;
 		}
 	}
 #endif
@@ -213,10 +211,8 @@ static int fs_mgmt_file_upload(struct mgmt_ctxt *ctxt)
 #ifdef CONFIG_LCZ_FS_MGMT_FILE_ACCESS_HOOK
 	if (fs_evt_cb != NULL) {
 		/* Send request to application to check if access should be allowed or not */
-		rc = fs_evt_cb(true, file_name);
-
-		if (rc != 0) {
-			return rc;
+		if (fs_evt_cb(file_name, true) == false) {
+			return MGMT_ERR_ENOTSUP;
 		}
 	}
 #endif
@@ -402,27 +398,6 @@ static int fs_mgmt_file_hash_checksum(struct mgmt_ctxt *ctxt)
 }
 #endif
 
-/**************************************************************************************************/
-/* SYS INIT                                                                                       */
-/**************************************************************************************************/
-/* Initialize after fs but before application. */
-SYS_INIT(lcz_fs_mgmt_init, APPLICATION, CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_INIT_PRIORITY);
-static int lcz_fs_mgmt_init(const struct device *device)
-{
-	ARG_UNUSED(device);
-	int r = -EPERM;
-
-#if defined(CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH)
-	if (strlen(CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH)) {
-		r = fs_mkdir(CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH);
-		if (r != 0 && r != -EEXIST) {
-			LOG_ERR("lcz_fs_mgmt_init: mkdir failed: %d", r);
-		}
-	}
-#endif
-
-	return r;
-}
 
 /**************************************************************************************************/
 /* Global Function Definitions                                                                    */
@@ -433,7 +408,7 @@ void lcz_fs_mgmt_register_group(void)
 }
 
 #ifdef CONFIG_LCZ_FS_MGMT_FILE_ACCESS_HOOK
-void fs_mgmt_register_evt_cb(fs_mgmt_on_evt_cb cb)
+void lcz_fs_mgmt_register_evt_cb(fs_mgmt_on_evt_cb cb)
 {
 	fs_evt_cb = cb;
 }

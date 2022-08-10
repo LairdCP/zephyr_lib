@@ -14,31 +14,6 @@ menuconfig LCZ_MCUMGR_CMD_FS_MGMT
 
 if LCZ_MCUMGR_CMD_FS_MGMT
 
-config LCZ_MCUMGR_CMD_FS_MGMT_INIT_PRIORITY
-	int "Initialization priority for FS mgmt"
-	range 0 99
-	default 2
-	help
-	  Initialization creates CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH directory. The
-	  priority should be smaller than any other init functions that make use of
-	  encrypted files.
-
-config LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH
-	string "Path for encrypted files for SMP FS mgmt"
-	default "/lfs1/enc"
-	depends on FSU_ENCRYPTED_FILES
-	help
-	  When using SMP fs_mgmt to read/write files. Anything stored under
-	  this path is assumed to be encrypted in the file system
-
-config LCZ_MCUMGR_CMD_FS_MGMT_READ_ENC
-	bool "Allow encrypted files to be read via SMP"
-	depends on FSU_ENCRYPTED_FILES
-	default false
-	help
-	  If false, an encrypted file cannot be read via SMP. If true, encrypted
-	  files will be decrypted and returned when requested.
-
 choice LCZ_FS_MGMT_MAX_FILE_SIZE
 	prompt "Maximum file size that could be uploaded/downloaded"
 	default LCZ_FS_MGMT_MAX_FILE_SIZE_64KB

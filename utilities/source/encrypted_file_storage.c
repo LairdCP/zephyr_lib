@@ -62,17 +62,37 @@ struct efs_block_header {
 /**************************************************************************************************/
 /* Local Function Prototypes                                                                      */
 /**************************************************************************************************/
-static int simplify_path(const char *path_in, char *path_out);
 static int file_name_hash_gen(const char *abs_path, uint8_t *hash, uint8_t hash_len);
 static int file_name_hash_comp(const char *abs_path, uint8_t *hash, uint8_t hash_len);
 static int encrypt_block(struct efs_block_header *hdr, uint8_t *user_data, ssize_t user_data_len,
 			 uint8_t *out);
 static int decrypt_block(const char *abs_path, int block_number, struct efs_block_header *hdr,
 			 uint8_t *in_data, int in_data_len, uint8_t *out_data, int out_data_len);
+static int lcz_enc_fs_init(const struct device *device);
 
 /**************************************************************************************************/
 /* Global Function Definitions                                                                    */
 /**************************************************************************************************/
+bool efs_is_encrypted_path(const char *abs_path)
+{
+	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
+
+	/* Simplify the input path */
+	if (fsu_simplify_path(abs_path, simple_path) < 0) {
+		LOG_ERR("efs_is_encrypted_path: Invalid path: %s", log_strdup(abs_path));
+
+		/* To be on the safe side, say "true" to an invalid path */
+		return true;
+	}
+
+	/* Compare against the encrypted file path */
+	if (strncmp(simple_path, CONFIG_FSU_ENCRYPTED_FILE_PATH,
+		   strlen(CONFIG_FSU_ENCRYPTED_FILE_PATH)) == 0) {
+		return true;
+	}
+	return false;
+}
+
 int efs_write(const char *abs_path, uint8_t *data, size_t size)
 {
 	int ret = 0;
@@ -121,7 +141,7 @@ int efs_write(const char *abs_path, uint8_t *data, size_t size)
 
 int efs_append(const char *abs_path, uint8_t *data, size_t size)
 {
-	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
+	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
 	int ret = 0;
 	int ret2;
 	ssize_t file_size = 0;
@@ -144,16 +164,20 @@ int efs_append(const char *abs_path, uint8_t *data, size_t size)
 
 	/* Remove any extra slashes in the path */
 	if (ret == 0) {
-		(void)simplify_path(abs_path, simple_path);
+		ret = fsu_simplify_path(abs_path, simple_path);
+		if (ret < 0) {
+			LOG_ERR("efs_append: Invalid input path: %s", log_strdup(abs_path));
+		} else {
+			ret = 0;
+		}
 	}
 
 	/* Check current file size */
 	if (ret == 0) {
 		file_size = fsu_get_file_size_abs(simple_path);
 		if (file_size < 0) {
-			LOG_ERR("efs_append: could not read file size of %s: %d",
-				log_strdup(simple_path), file_size);
-			ret = -EINVAL;
+			/* Assume file doesn't exist */
+			file_size = 0;
 		}
 	}
 
@@ -388,7 +412,7 @@ ssize_t efs_read(const char *abs_path, uint8_t *data, size_t size)
 
 ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t size)
 {
-	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
+	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
 	int block_num;
 	int block_offset;
 	int this_size;
@@ -408,7 +432,12 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 
 	/* Remove any extra slashes in the path */
 	if (ret == 0) {
-		(void)simplify_path(abs_path, simple_path);
+		ret = fsu_simplify_path(abs_path, simple_path);
+		if (ret < 0) {
+			LOG_ERR("efs_read_block: Invalid input path: %s", log_strdup(abs_path));
+		} else {
+			ret = 0;
+		}
 	}
 
 	/* Compute which encrypted block the offset should be in */
@@ -562,7 +591,7 @@ ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t s
 
 ssize_t efs_get_file_size(const char *abs_path)
 {
-	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
+	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
 	ssize_t file_size = 0;
 	int num_blocks;
 	int block_offset;
@@ -580,7 +609,12 @@ ssize_t efs_get_file_size(const char *abs_path)
 
 	/* Remove any extra slashes in the path */
 	if (ret == 0) {
-		(void)simplify_path(abs_path, simple_path);
+		ret = fsu_simplify_path(abs_path, simple_path);
+		if (ret < 0) {
+			LOG_ERR("efs_get_file_size: Invalid input path: %s", log_strdup(abs_path));
+		} else {
+			ret = 0;
+		}
 	}
 
 	/* Get the encrypted size */
@@ -590,6 +624,11 @@ ssize_t efs_get_file_size(const char *abs_path)
 			LOG_ERR("efs_get_file_size: Could not read flash file size: %d", file_size);
 			ret = file_size;
 		}
+	}
+
+	/* If the file is empty, shortcut this entire function */
+	if (file_size == 0) {
+		return 0;
 	}
 
 	/* Get the number of file blocks */
@@ -690,7 +729,7 @@ ssize_t efs_get_file_size(const char *abs_path)
 
 int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 {
-	char simple_path[FSU_MAX_ABS_PATH_SIZE+1];
+	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
 	int block_offset = 0;
 	int this_size;
 	ssize_t file_size;
@@ -721,7 +760,12 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 
 	/* Remove any extra slashes in the path */
 	if (ret == 0) {
-		(void)simplify_path(abs_path, simple_path);
+		ret = fsu_simplify_path(abs_path, simple_path);
+		if (ret < 0) {
+			LOG_ERR("efs_sha256: Invalid input path: %s", log_strdup(abs_path));
+		} else {
+			ret = 0;
+		}
 	}
 
 	/* Get the size of the encrypted file */
@@ -864,48 +908,6 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 /**************************************************************************************************/
 /* Local Function Definitions                                                                     */
 /**************************************************************************************************/
-/** @brief Remove duplicate slashes from a pathname
- *
- * @param[in] path_in Pointer to input pathname
- * @param[in] path_out Pointer to where simplified output should be written. Must point to memory
- * at least as large as FSU_MAX_ABS_PATH_SIZE+1
- *
- * @returns the length of simplified string, or <0 on error
- */
-static int simplify_path(const char *path_in, char *path_out)
-{
-	int i;
-	int j;
-	int len;
-
-	/* Validate the input parameters */
-	if (path_in == NULL || path_out == NULL) {
-		return -EINVAL;
-	}
-
-	memset(path_out, 0, FSU_MAX_ABS_PATH_SIZE+1);
-
-	/* Make sure that the input isn't too long for our output buffer */
-	len = strlen(path_in);
-	if (len > FSU_MAX_ABS_PATH_SIZE) {
-		return -ENOMEM;
-	}
-
-	/* Remove any duplicate slashes */
-	i = 0;
-	j = 0;
-	while (i < len) {
-		if (i == 0 || path_in[i] != '/' || path_in[i - 1] != '/') {
-			path_out[j] = path_in[i];
-			j++;
-		}
-		i++;
-	}
-	path_out[j] = '\0';
-
-	return j;
-}
-
 static int file_name_hash_gen(const char *abs_path, uint8_t *hash, uint8_t hash_len)
 {
 	int ret = 0;
@@ -1016,4 +1018,23 @@ static int decrypt_block(const char *abs_path, int block_number, struct efs_bloc
 	}
 
 	return ret;
+}
+
+/**************************************************************************************************/
+/* SYS_INIT                                                                                       */
+/**************************************************************************************************/
+SYS_INIT(lcz_enc_fs_init, APPLICATION, CONFIG_FSU_ENCRYPTED_FILES_INIT_PRIORITY);
+static int lcz_enc_fs_init(const struct device *device)
+{
+	ARG_UNUSED(device);
+	int r = 0;
+
+	if (strlen(CONFIG_FSU_ENCRYPTED_FILE_PATH)) {
+		r = fs_mkdir(CONFIG_FSU_ENCRYPTED_FILE_PATH);
+		if (r != 0 && r != -EEXIST) {
+			LOG_ERR("lcz_fs_mgmt_init: mkdir failed: %d", r);
+		}
+	}
+
+	return r;
 }

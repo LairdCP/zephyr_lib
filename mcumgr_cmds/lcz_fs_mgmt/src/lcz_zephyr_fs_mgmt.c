@@ -16,15 +16,10 @@
 #include <mgmt/mcumgr/buf.h>
 #include <mgmt/mgmt.h>
 #include "file_system_utilities.h"
-#include "encrypted_file_storage.h"
-#include <lcz_fs_mgmt/lcz_fs_mgmt_impl.h>
-
-/**************************************************************************************************/
-/* Local Function Prototypes                                                                      */
-/**************************************************************************************************/
 #if defined(CONFIG_FSU_ENCRYPTED_FILES)
-static bool is_encrypted_path(const char *path);
+#include "encrypted_file_storage.h"
 #endif
+#include <lcz_fs_mgmt/lcz_fs_mgmt_impl.h>
 
 /**************************************************************************************************/
 /* Global Function Definitions                                                                    */
@@ -34,7 +29,7 @@ int lcz_fs_mgmt_impl_filelen(const char *path, size_t *out_len)
 	ssize_t size;
 
 #if defined(CONFIG_FSU_ENCRYPTED_FILES)
-	if (is_encrypted_path(path)) {
+	if (efs_is_encrypted_path(path)) {
 		size = efs_get_file_size(path);
 	} else
 #endif
@@ -60,8 +55,7 @@ int lcz_fs_mgmt_impl_read(const char *path, size_t offset, size_t len, void *out
 	int rc;
 
 #if defined(CONFIG_FSU_ENCRYPTED_FILES)
-	if (is_encrypted_path(path)) {
-#if defined(CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_READ_ENC)
+	if (efs_is_encrypted_path(path)) {
 		bytes_read = efs_read_block(path, offset, out_data, len);
 		if (bytes_read >= 0) {
 			if (out_len != NULL) {
@@ -71,9 +65,6 @@ int lcz_fs_mgmt_impl_read(const char *path, size_t offset, size_t len, void *out
 		} else {
 			rc = bytes_read;
 		}
-#else
-		rc = MGMT_ERR_ENOTSUP;
-#endif
 	} else
 #endif
 	{
@@ -113,7 +104,7 @@ int lcz_fs_mgmt_impl_write(const char *path, size_t offset, const void *data, si
 	int rc;
 
 #if defined(CONFIG_FSU_ENCRYPTED_FILES)
-	if (is_encrypted_path(path)) {
+	if (efs_is_encrypted_path(path)) {
 		if (offset == 0) {
 			rc = efs_write(path, (uint8_t *)data, len);
 		} else {
@@ -171,7 +162,7 @@ int lcz_fs_mgmt_impl_write(const char *path, size_t offset, const void *data, si
 int lcz_fs_mgmt_impl_hash(const char *path, size_t size, uint8_t output[FSU_HASH_SIZE])
 {
 #if defined(CONFIG_FSU_ENCRYPTED_FILES)
-	if (is_encrypted_path(path)) {
+	if (efs_is_encrypted_path(path)) {
 		return efs_sha256(output, path, size);
 	} else
 #endif
@@ -179,19 +170,3 @@ int lcz_fs_mgmt_impl_hash(const char *path, size_t size, uint8_t output[FSU_HASH
 		return fsu_sha256_abs(output, path, size);
 	}
 }
-
-/**************************************************************************************************/
-/* Local Function Definitions                                                                     */
-/**************************************************************************************************/
-#if defined(CONFIG_FSU_ENCRYPTED_FILES)
-static bool is_encrypted_path(const char *path)
-{
-	int enc_path_len = strlen(CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH);
-
-	if ((strlen(path) > enc_path_len) &&
-	    (strncmp(path, CONFIG_LCZ_MCUMGR_CMD_FS_MGMT_ENC_PATH, enc_path_len) == 0)) {
-		return true;
-	}
-	return false;
-}
-#endif

@@ -28,6 +28,13 @@ extern "C" {
 /**************************************************************************************************/
 /* Global Function Prototypes                                                                     */
 /**************************************************************************************************/
+/** @brief Determines if a path belongs to an encrypted directory
+ *
+ * @param abs_path Pathname of directory or file to check
+ *
+ * @return true if the path is an encrypted location, false if unencrypted
+ */
+bool efs_is_encrypted_path (const char *abs_path);
 
 /** @brief Write entire contents of encrypted file
  *

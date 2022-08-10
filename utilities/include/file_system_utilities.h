@@ -290,6 +290,18 @@ ssize_t fsu_read(const char *path, const char *name, void *data, size_t size);
 ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size);
 
 /**
+ * @brief Opens file, seeks to offset, reads data, and closes file.
+ *
+ * @param abs_path directory path and name
+ * @param offset Offset to seek before reading
+ * @param data pointer to data
+ * @param size maximum number of bytes to read
+ *
+ * @retval negative error code, number of bytes read on success.
+ */
+ssize_t fsu_read_abs_block(const char *abs_path, uint32_t offset, void *data, size_t size);
+
+/**
  * @brief Get size of file
  *
  * @note Directory entry structure is allocated using malloc
@@ -313,6 +325,19 @@ ssize_t fsu_get_file_size_abs(const char *abs_path);
  * @retval negative error code, size of file on success
  */
 ssize_t fsu_get_file_size(const char *path, const char *name);
+
+/** @brief Clean up an absolute path
+ *
+ * This function removes duplicate slashes and handles . and .. directories
+ * in a path string to produce a simplified representation of the input.
+ *
+ * @param[in] path_in Pointer to input pathname
+ * @param[in] path_out Pointer to where simplified output should be written. Must point to memory
+ * at least as large as FSU_MAX_ABS_PATH_SIZE+1
+ *
+ * @returns the length of simplified string, or <0 on error
+ */
+int fsu_simplify_path(const char *path_in, char *path_out);
 
 #ifdef __cplusplus
 }

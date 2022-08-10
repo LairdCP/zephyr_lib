@@ -1,8 +1,7 @@
 /**
  * @file file_system_utilities.c
- * @brief
  *
- * Copyright (c) 2020-2021 Laird Connectivity
+ * Copyright (c) 2020-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,9 +9,9 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(fsu, CONFIG_FSU_LOG_LEVEL);
 
-/******************************************************************************/
-/* Includes                                                                   */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Includes                                                                                       */
+/**************************************************************************************************/
 #include <stdio.h>
 #include <zephyr.h>
 #include <device.h>
@@ -29,46 +28,43 @@ LOG_MODULE_REGISTER(fsu, CONFIG_FSU_LOG_LEVEL);
 
 #include "file_system_utilities.h"
 
-/******************************************************************************/
-/* Local Constant, Macro and Type Definitions                                 */
-/******************************************************************************/
-#define BREAK_ON_ERROR(x)                                                      \
-	if (x < 0) {                                                           \
-		break;                                                         \
+/**************************************************************************************************/
+/* Local Constant, Macro and Type Definitions                                                     */
+/**************************************************************************************************/
+#define BREAK_ON_ERROR(x)                                                                          \
+	if (x < 0) {                                                                               \
+		break;                                                                             \
 	}
 
-/******************************************************************************/
-/* Local Data Definitions                                                     */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Local Data Definitions                                                                         */
+/**************************************************************************************************/
 
 #ifdef CONFIG_FSU_LFS_MOUNT
 static K_MUTEX_DEFINE(lfs_init_mutex);
 
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
-static struct fs_mount_t littlefs_mnt = {
-	.type = FS_LITTLEFS,
-	.fs_data = &cstorage,
-	.storage_dev = (void *)COND_CODE_1(FLASH_AREA_LABEL_EXISTS(lfs_storage),
-					   (FLASH_AREA_ID(lfs_storage)),
-					   (FLASH_AREA_ID(littlefs_storage))),
-	.mnt_point = CONFIG_FSU_MOUNT_POINT
-};
+static struct fs_mount_t littlefs_mnt = { .type = FS_LITTLEFS,
+					  .fs_data = &cstorage,
+					  .storage_dev = (void *)COND_CODE_1(
+						  FLASH_AREA_LABEL_EXISTS(lfs_storage),
+						  (FLASH_AREA_ID(lfs_storage)),
+						  (FLASH_AREA_ID(littlefs_storage))),
+					  .mnt_point = CONFIG_FSU_MOUNT_POINT };
 
 static bool lfs_mounted;
 #endif
 
-/******************************************************************************/
-/* Local Function Prototypes                                                  */
-/******************************************************************************/
-static ssize_t fsu_wa(const char *path, const char *name, void *data,
-		      size_t size, bool append);
+/**************************************************************************************************/
+/* Local Function Prototypes                                                                      */
+/**************************************************************************************************/
+static ssize_t fsu_wa(const char *path, const char *name, void *data, size_t size, bool append);
 
-static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
-			  bool append);
+static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size, bool append);
 
-/******************************************************************************/
-/* Global Function Definitions                                                */
-/******************************************************************************/
+/**************************************************************************************************/
+/* Global Function Definitions                                                                    */
+/**************************************************************************************************/
 int fsu_lfs_mount(void)
 {
 	int rc = -ENOSYS;
@@ -86,10 +82,8 @@ int fsu_lfs_mount(void)
 			struct fs_statvfs stats;
 			int status = fs_statvfs(littlefs_mnt.mnt_point, &stats);
 			if (status == 0) {
-				LOG_INF("Optimal transfer block size %lu",
-					stats.f_bsize);
-				LOG_INF("Allocation unit size %lu",
-					stats.f_frsize);
+				LOG_INF("Optimal transfer block size %lu", stats.f_bsize);
+				LOG_INF("Allocation unit size %lu", stats.f_frsize);
 				LOG_INF("Free blocks %lu", stats.f_bfree);
 			}
 		}
@@ -124,9 +118,8 @@ void fsu_list_directory(const char *path)
 			LOG_DBG("End of files\n");
 			break;
 		}
-		LOG_DBG("  %c %u %s\n",
-			(entry.type == FS_DIR_ENTRY_FILE) ? 'F' : 'D',
-			entry.size, entry.name);
+		LOG_DBG("  %c %u %s\n", (entry.type == FS_DIR_ENTRY_FILE) ? 'F' : 'D', entry.size,
+			entry.name);
 	}
 
 	(void)fs_closedir(&dir);
@@ -164,8 +157,7 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 			LOG_DBG("End of files");
 			break;
 		}
-		if ((entry->type == entry_type) &&
-		    (strstr(entry->name, name) != NULL)) {
+		if ((entry->type == entry_type) && (strstr(entry->name, name) != NULL)) {
 			(*count)++;
 		}
 	}
@@ -189,8 +181,7 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 			}
 			if ((results[i].type == entry_type) &&
 			    (strstr(results[i].name, name) != NULL)) {
-				LOG_DBG(" %u %s", results[i].size,
-					log_strdup(results[i].name));
+				LOG_DBG(" %u %s", results[i].size, log_strdup(results[i].name));
 				i++;
 			}
 		}
@@ -208,8 +199,7 @@ void fsu_free_found(struct fs_dirent *entry)
 	}
 }
 
-int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
-	       size_t size)
+int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name, size_t size)
 {
 	int rc = -EPERM;
 	char abs_path[FSU_MAX_ABS_PATH_SIZE];
@@ -224,8 +214,7 @@ int fsu_sha256(uint8_t hash[FSU_HASH_SIZE], const char *path, const char *name,
 	return fsu_sha256_abs(hash, abs_path, size);
 }
 
-int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
-		   size_t size)
+int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 {
 	int rc = -EPERM;
 
@@ -253,8 +242,7 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 			length = MIN(rem, CONFIG_FSU_HASH_CHUNK_SIZE);
 			bytes_read = fs_read(&f, pBuffer, length);
 			if (bytes_read == length) {
-				rc = mbedtls_sha256_update(pCtx, pBuffer,
-							   length);
+				rc = mbedtls_sha256_update(pCtx, pBuffer, length);
 				rem -= length;
 			} else {
 				rc = -EIO;
@@ -279,8 +267,7 @@ int fsu_sha256_abs(uint8_t hash[FSU_HASH_SIZE], const char *abs_path,
 	return rc;
 }
 
-int fsu_crc32(uint32_t *checksum, const char *path, const char *name,
-	      size_t size)
+int fsu_crc32(uint32_t *checksum, const char *path, const char *name, size_t size)
 {
 	int rc = -EPERM;
 	char abs_path[FSU_MAX_ABS_PATH_SIZE];
@@ -321,8 +308,7 @@ int fsu_crc32_abs(uint32_t *checksum, const char *abs_path, size_t size)
 			length = MIN(rem, CONFIG_FSU_CHECKSUM_CHUNK_SIZE);
 			bytes_read = fs_read(&f, pBuffer, length);
 			if (bytes_read == length) {
-				*checksum = crc32_ieee_update(
-					*checksum, pBuffer, bytes_read);
+				*checksum = crc32_ieee_update(*checksum, pBuffer, bytes_read);
 				rem -= length;
 			} else {
 				rc = -EIO;
@@ -340,8 +326,7 @@ int fsu_crc32_abs(uint32_t *checksum, const char *abs_path, size_t size)
 	return rc;
 }
 
-int fsu_build_full_name(char *result, size_t max_size, const char *path,
-			const char *name)
+int fsu_build_full_name(char *result, size_t max_size, const char *path, const char *name)
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
@@ -354,8 +339,7 @@ int fsu_build_full_name(char *result, size_t max_size, const char *path,
 	return snprintk(result, max_size, "%s/%s", path, name);
 }
 
-int fsu_single_entry_exists(const char *path, const char *name,
-			    enum fs_dir_entry_type entry_type)
+int fsu_single_entry_exists(const char *path, const char *name, enum fs_dir_entry_type entry_type)
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
@@ -426,16 +410,14 @@ int fsu_delete_files(const char *path, const char *name)
 	int status = 0;
 	size_t count = 0;
 	size_t i = 0;
-	struct fs_dirent *pEntries =
-		fsu_find(path, name, &count, FS_DIR_ENTRY_FILE);
+	struct fs_dirent *pEntries = fsu_find(path, name, &count, FS_DIR_ENTRY_FILE);
 	if (count == 0) {
 		status = -ENOENT;
 	} else {
 		while (i < count) {
-			(void)fsu_build_full_name(abs_path, sizeof(abs_path),
-						  path, pEntries[i].name);
-			LOG_DBG("Deleting (unlinking) file %s",
-				log_strdup(abs_path));
+			(void)fsu_build_full_name(abs_path, sizeof(abs_path), path,
+						  pEntries[i].name);
+			LOG_DBG("Deleting (unlinking) file %s", log_strdup(abs_path));
 			status = fs_unlink(abs_path);
 			if (status == 0) {
 				i += 1;
@@ -457,8 +439,7 @@ int fsu_mkdir(const char *path, const char *name)
 		if (r >= 0) {
 			r = fs_mkdir(abs_path);
 			if (r < 0) {
-				LOG_ERR("Unable to create directory %s",
-					log_strdup(abs_path));
+				LOG_ERR("Unable to create directory %s", log_strdup(abs_path));
 			}
 		}
 	} else {
@@ -502,6 +483,41 @@ ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size)
 		struct fs_file_t f;
 		fs_file_t_init(&f);
 		r = fs_open(&f, abs_path, FS_O_READ);
+		BREAK_ON_ERROR(r);
+
+		r = fs_read(&f, data, size);
+
+		int rc2 = fs_close(&f);
+		if (rc2 < 0) {
+			LOG_ERR("Unable to close file");
+			/* Don't mask other errors */
+			if (r >= 0) {
+				r = rc2;
+			}
+		}
+
+	} while (0);
+
+	return r;
+}
+
+ssize_t fsu_read_abs_block(const char *abs_path, uint32_t offset, void *data, size_t size)
+{
+	ssize_t r = -EPERM;
+
+	do {
+		if (abs_path == NULL) {
+			LOG_ERR("Invalid absolute path");
+			break;
+		}
+
+		/* It is quicker to try to open the file than checking if it exists. */
+		struct fs_file_t f;
+		fs_file_t_init(&f);
+		r = fs_open(&f, abs_path, FS_O_READ);
+		BREAK_ON_ERROR(r);
+
+		r = fs_seek(&f, offset, FS_SEEK_SET);
 		BREAK_ON_ERROR(r);
 
 		r = fs_read(&f, data, size);
@@ -568,12 +584,68 @@ ssize_t fsu_get_file_size(const char *path, const char *name)
 	return r;
 }
 
-/******************************************************************************/
-/* Local Function Definitions                                                 */
-/******************************************************************************/
+int fsu_simplify_path(const char *path_in, char *path_out)
+{
+	int i;
+	int j;
+	int k;
+	int len;
+
+	/* Validate the input parameters */
+	if (path_in == NULL || path_out == NULL) {
+		return -EINVAL;
+	}
+
+	/* Start by clearing the entire output string */
+	memset(path_out, 0, FSU_MAX_ABS_PATH_SIZE + 1);
+
+	/* Make sure that the input isn't too long for our output buffer */
+	len = strlen(path_in);
+	if (len > FSU_MAX_ABS_PATH_SIZE) {
+		return -ENOMEM;
+	}
+
+	i = 0;
+	j = 0;
+	while (i < len) {
+		/* Don't allow duplicate (back-to-back) slashes */
+		if (i == 0 || path_in[i] != '/' || path_in[i - 1] != '/') {
+			path_out[j] = path_in[i];
+			j++;
+
+			/* Remove .. from the output */
+			if (j >= 4 && path_out[j - 4] == '/' && path_out[j - 3] == '.' &&
+			    path_out[j - 2] == '.' && path_out[j - 1] == '/') {
+				/* Scan backwards to find the previous slash */
+				k = j - 5;
+				while (k >= 0 && path_out[k] != '/') {
+					k--;
+				}
+				if (k < 0) {
+					/* Tried to .. beyond the start of the string */
+					return -EINVAL;
+				}
+				j = k + 1;
+			}
+
+			/* Remove . from the output */
+			if (j >= 3 && path_out[j - 3] == '/' && path_out[j - 2] == '.' &&
+			    path_out[j - 1] == '/') {
+				j -= 2;
+			}
+		}
+		i++;
+	}
+	path_out[j] = '\0';
+
+	return j;
+}
+
+/**************************************************************************************************/
+/* Local Function Definitions                                                                     */
+/**************************************************************************************************/
 /* write or append */
-static ssize_t fsu_wa(const char *path, const char *name, void *data,
-		      size_t size, bool append)
+static ssize_t fsu_wa(const char *path, const char *name, void *data, size_t size, bool append)
 {
 	if (path == NULL || name == NULL) {
 		LOG_ERR("Invalid path or name");
@@ -586,8 +658,7 @@ static ssize_t fsu_wa(const char *path, const char *name, void *data,
 	return fsu_wa_abs(abs_path, data, size, append);
 }
 
-static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
-			  bool append)
+static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size, bool append)
 {
 	fs_mode_t flags = FS_O_CREATE | FS_O_WRITE | (append ? FS_O_APPEND : 0);
 	const char *desc = append ? "append" : "write";
@@ -603,8 +674,7 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 		fs_file_t_init(&handle);
 		rc = fs_open(&handle, abs_path, flags);
 		if (rc < 0) {
-			LOG_ERR("Unable to open file %s for %s",
-				log_strdup(abs_path), desc);
+			LOG_ERR("Unable to open file %s for %s", log_strdup(abs_path), desc);
 		}
 		BREAK_ON_ERROR(rc);
 
@@ -615,12 +685,10 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 
 		rc = fs_write(&handle, data, size);
 		if (rc < 0) {
-			LOG_ERR("Unable to %s file %s", desc,
-				log_strdup(abs_path));
+			LOG_ERR("Unable to %s file %s", desc, log_strdup(abs_path));
 		} else if (rc != size) {
 			rc = -ENOSPC;
-			LOG_ERR("Disk Full: Unable to %s file %s", desc,
-				log_strdup(abs_path));
+			LOG_ERR("Disk Full: Unable to %s file %s", desc, log_strdup(abs_path));
 		} else {
 			LOG_DBG("%s %s (%d)", log_strdup(abs_path), desc, rc);
 		}
@@ -640,8 +708,8 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size,
 	if (rc >= 0 && !append) {
 		ssize_t read_size = fsu_get_file_size_abs(abs_path);
 		if (read_size != size) {
-			LOG_ERR("Unexpected file size (actual) %d != %d (desired)",
-				read_size, size);
+			LOG_ERR("Unexpected file size (actual) %d != %d (desired)", read_size,
+				size);
 			rc = -EIO;
 		}
 	}

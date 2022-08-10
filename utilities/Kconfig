@@ -98,6 +98,24 @@ config FSU_ENCRYPTED_FILES
 	bool "Encrypted file support"
 	depends on LCZ_HW_KEY
 
+if FSU_ENCRYPTED_FILES
+
+config FSU_ENCRYPTED_FILE_PATH
+	string "Directory path to all encrypted files"
+	default "/lfs1/enc"
+	help
+	  All encrypted files will be stored under this path
+
+config FSU_ENCRYPTED_FILES_INIT_PRIORITY
+	int "Application init priority for encrypted file system"
+	default APPLICATION_INIT_PRIORITY
+	help
+	  Initialization creates CONFIG_FSU_ENCRYPTED_FILE_PATH directory. The
+	  priority should be smaller than any other init functions that make use of
+	  encrypted files.
+
+endif # FSU_ENCRYPTED_FILES
+
 config FSU_SHELL
 	bool "Enable the file system utility shell"
 	depends on SHELL
