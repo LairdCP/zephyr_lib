@@ -5,7 +5,8 @@
 #
 
 menu "Laird Connectivity Zephyr Utilities"
-	 default y
+
+rsource "Kconfig.lcz_snprintk"
 
 config JSON_LOG_ENABLED
 	bool "Print JSON strings using printk"
