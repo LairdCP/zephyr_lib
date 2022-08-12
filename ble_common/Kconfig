@@ -7,7 +7,6 @@
 if BT
 
 menu "Laird Connectivity Zephyr BLE Common Components"
-	 default y
 
 config LCZ_BT
 	bool "Enable Bluetooth utility functions"
@@ -29,4 +28,4 @@ rsource "Kconfig.lcz_bt_scan"
 
 endmenu
 
-endif
+endif # BT
