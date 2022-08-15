@@ -1,0 +1,285 @@
+info:
+  title: fs_mgmt_methods
+  group_id: 8
+methods:
+  - name: file_download
+    summary: File Download
+    description: Request to download file from Zephyr file system.
+    x-management-option: Read
+    x-id: 0
+    x-group_id: 8
+    params:
+      - name: "off"
+        summary: File offset
+        description: Offset where to start file access
+        required: true
+        x-ctype: uint64_t
+        x-sequencenumber: 1
+        x-default: 0
+        schema:
+          type: integer
+      - name: name
+        summary: file name
+        description: Full filename to access
+        required: true
+        x-ctype: string
+        x-sequencenumber: 2
+        x-default: 0
+        x-example: /ext/file.txt
+        schema:
+          type: string
+          minLength: 0
+          maxLength: 64
+    result:
+      name: file_download_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Reason code
+          description: Result of the read operation
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
+        - name: "off"
+          summary: File offset
+          description: The updated file offset following read
+          required: true
+          x-ctype: uint64_t
+          x-example: 0
+          x-sequencenumber: 2
+          schema:
+            type: integer
+        - name: data
+          summary: data
+          description: data
+          required: true
+          x-ctype: array<byte>
+          x-sequencenumber: 3
+          schema:
+            type: array
+        - name: len
+          summary: Length
+          description: The total file length, only returned when the requested offset is 0.
+          required: false
+          x-ctype: uint64_t
+          x-example: 100
+          x-sequencenumber: 4
+          schema:
+            type: integer
+  - name: file_upload
+    summary: File Upload
+    description: Request to upload file to Zephyr file system.
+    x-management-option: Write
+    x-id: 0
+    x-group_id: 8
+    params:
+      - name: "off"
+        summary: File Offset
+        description: Offset where to start file access
+        required: true
+        x-ctype: uint64_t
+        x-sequencenumber: 1
+        x-default: 0
+        schema:
+          type: integer
+      - name: name
+        summary: File name
+        description: Full file name to access
+        required: true
+        x-ctype: string
+        x-sequencenumber: 2
+        x-default: 0
+        x-example: /ext/file.txt
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: data
+        summary: File data
+        description: The data to write.
+        required: true
+        x-ctype: array<byte>
+        x-sequencenumber: 3
+        x-default: 0
+        schema:
+          type: array
+      - name: len
+        summary: Data length
+        description: Number of bytes being uploaded
+        required: true
+        x-ctype: uint64_t
+        x-sequencenumber: 4
+        x-default: 0
+        schema:
+          type: integer
+    result:
+      name: file_upload_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Response code
+          description: Response code for the upload operation
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
+        - name: "off"
+          summary: Offset
+          description: Updated file offset
+          required: true
+          x-ctype: uint64_t
+          x-example: 0
+          x-sequencenumber: 2
+          schema:
+            type: integer
+  - name: file_status
+    summary: File status
+    description: See if the file is active, return length.
+    x-management-option: Read
+    x-id: 1
+    x-group_id: 8
+    params:
+      - name: name
+        summary: File name
+        description: Full file name to access
+        required: true
+        x-ctype: string
+        x-sequencenumber: 2
+        x-default: 0
+        x-example: /ext/file.txt
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    result:
+      name: file_status_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Response code
+          description: Response code for when an error occurs
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
+        - name: len
+          summary: Length
+          description: If there is no error the file length is returned
+          required: true
+          x-ctype: uint64_t
+          x-sequencenumber: 4
+          x-example: 0
+          schema:
+            type: integer
+  - name: file_hash_checksum
+    summary: File hash checksum
+    description: Getting file hash/checksum, with support for IEEE CRC32 and SHA256
+    x-management-option: Read
+    x-id: 2
+    x-group_id: 8
+    params:
+      - name: type
+        summary: Checksum type
+        description: The type of checksum used. Use sha256 for SHA256.
+        required: true
+        x-ctype: string
+        x-sequencenumber: 1
+        x-default: 0
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: name
+        summary: File name
+        description: Full path of the file to access
+        required: true
+        x-ctype: string
+        x-sequencenumber: 2
+        x-default: 0
+        x-example: /ext/file.txt
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: "off"
+        summary: File Offset
+        description: Offset where to start reading from the file
+        required: true
+        x-ctype: uint64_t
+        x-sequencenumber: 3
+        x-default: 0
+        schema:
+          type: integer
+      - name: len
+        summary: Length of the file to hash
+        required: true
+        x-ctype: uint64_t
+        x-sequencenumber: 4
+        x-default: 0
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 04
+    result:
+      name: file_hash_checksum_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Response code
+          description: Response code for when an error occurs
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
+        - name: type
+          summary: Checksum type
+          description: If there is no error, the checksum type used. sha256 for SHA256.
+          required: true
+          x-ctype: string
+          x-sequencenumber: 2
+          x-default: 0
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: "off"
+          summary: File Offset
+          description: If there is no error, offset where to start reading from the file.
+          required: true
+          x-ctype: uint64_t
+          x-sequencenumber: 3
+          x-default: 0
+          schema:
+            type: integer
+        - name: len
+          summary: Length
+          description: If there is no error, the length of the file data that was hashed is returned.
+          required: true
+          x-ctype: uint64_t
+          x-sequencenumber: 4
+          x-default: 0
+          schema:
+            type: integer
+        - name: output
+          summary: Byte string representing the hash result
+          required: true
+          x-ctype: string
+          x-sequencenumber: 5
+          x-default: 0
+          schema:
+            type: string
+            minLength: 64
+            maxLength: 64
