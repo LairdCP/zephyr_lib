@@ -57,7 +57,6 @@ static int fs_mgmt_file_status(struct mgmt_ctxt *ctxt);
 #if defined(CONFIG_LCZ_FS_MGMT_CHECKSUM_HASH)
 static int fs_mgmt_file_hash_checksum(struct mgmt_ctxt *ctxt);
 #endif
-static int lcz_fs_mgmt_init(const struct device *device);
 
 /**************************************************************************************************/
 /* Local Data Definitions                                                                         */
@@ -330,8 +329,6 @@ static int fs_mgmt_file_hash_checksum(struct mgmt_ctxt *ctxt)
 	struct zcbor_string type = { 0 };
 	struct zcbor_string name = { 0 };
 	size_t decoded;
-	struct fs_file_t file;
-	const struct hash_checksum_mgmt_group *group = NULL;
 
 	struct zcbor_map_decode_key_val fs_hash_checksum_decode[] = {
 		ZCBOR_MAP_DECODE_KEY_VAL(type, zcbor_tstr_decode, &type),

@@ -448,6 +448,56 @@ int fsu_mkdir(const char *path, const char *name)
 	return r;
 }
 
+int fsu_mkdir_abs(const char *abs_path, bool recursive)
+{
+	char path[FSU_MAX_ABS_PATH_SIZE];
+	struct fs_dirent entry;
+	int i = 1;
+	bool done = false;
+	int r = 0;
+
+	/* Make sure the path doesn't have duplicate slashes */
+	if (fsu_simplify_path(abs_path, path) < 0) {
+		return -EINVAL;
+	}
+
+	/* Step through each section to create the directories */
+	while (path[i] != '\0') {
+		while (path[i] != '\0' && path[i] != '/') {
+			i++;
+		}
+
+		if (path[i] == '/') {
+			/* Terminate the string at this point */
+			path[i] = '\0';
+			done = false;
+		} else {
+			done = true;
+		}
+
+		/* If we're recursive, we try every sub-path, else just the last one */
+		if (recursive == true || done == true) {
+			/* Does this portion already exist? */
+			r = fs_stat(path, &entry);
+			if (r < 0) {
+				/* Doesn't exist. Make it. */
+				r = fs_mkdir(path);
+				if (r < 0) {
+					break;
+				}
+			}
+		}
+
+		if (!done) {
+			/* Put the slash back where it belonged */
+			path[i] = '/';
+			i++;
+		}
+	}
+
+	return r;
+}
+
 ssize_t fsu_read(const char *path, const char *name, void *data, size_t size)
 {
 	ssize_t r = -EPERM;
