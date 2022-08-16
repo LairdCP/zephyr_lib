@@ -31,7 +31,6 @@ extern "C" {
 #define SENSOR_NAME_MAX_STR_LEN (SENSOR_NAME_MAX_SIZE - 1)
 
 #define LAIRD_CONNECTIVITY_MANUFACTURER_SPECIFIC_COMPANY_ID1 0x0077
-/* Do not use ID2 for new designs */
 #define LAIRD_CONNECTIVITY_MANUFACTURER_SPECIFIC_COMPANY_ID2 0x00E4
 
 /* clang-format off */
@@ -65,8 +64,9 @@ extern "C" {
 /* clang-format on */
 
 /* clang-format off */
-#define BT510_PRODUCT_ID 0
-#define BT6XX_PRODUCT_ID 1
+#define BT510_PRODUCT_ID   0
+#define BT6XX_PRODUCT_ID   1
+#define INVALID_PRODUCT_ID 0xFFFF
 /* clang-format on */
 
 /* clang-format off */
@@ -174,7 +174,8 @@ BUILD_ASSERT(sizeof(LczSensorAdCoded_t) == LCZ_SENSOR_MSD_CODED_PAYLOAD_LENGTH,
 /* Bytes used to differentiate advertisement types/sensors. */
 #define LCZ_SENSOR_AD_HEADER_SIZE 4
 extern const uint8_t BTXXX_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BTXXX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BT5XX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BT6XX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BTXXX_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t CT_TRACKER_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t CT_GATEWAY_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];

@@ -68,8 +68,12 @@ bool lcz_sensor_adv_match_rsp(AdHandle_t *handle)
 {
 	if (handle->pPayload != NULL) {
 		if ((handle->size == LCZ_SENSOR_MSD_RSP_PAYLOAD_LENGTH)) {
-			if (memcmp(handle->pPayload, BTXXX_RSP_HEADER,
-				   sizeof(BTXXX_RSP_HEADER)) == 0) {
+			if (memcmp(handle->pPayload, BT5XX_RSP_HEADER,
+				   sizeof(BT5XX_RSP_HEADER)) == 0) {
+				return true;
+			}
+			if (memcmp(handle->pPayload, BT6XX_RSP_HEADER,
+				   sizeof(BT6XX_RSP_HEADER)) == 0) {
 				return true;
 			}
 		}
