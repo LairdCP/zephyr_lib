@@ -183,7 +183,7 @@ methods:
             type: integer
   - name: file_hash_checksum
     summary: File hash checksum
-    description: Getting file hash/checksum, with support for IEEE CRC32 and SHA256
+    description: Get a file SHA256 hash.
     x-management-option: Read
     x-id: 2
     x-group_id: 8
