@@ -67,8 +67,9 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size, bool ap
 /**************************************************************************************************/
 int fsu_lfs_mount(void)
 {
-	int rc = -ENOSYS;
+	int rc = 0;
 #ifdef CONFIG_FSU_LFS_MOUNT
+	rc = -ENOSYS;
 	k_mutex_lock(&lfs_init_mutex, K_FOREVER);
 	if (!lfs_mounted) {
 		rc = fs_mount(&littlefs_mnt);
