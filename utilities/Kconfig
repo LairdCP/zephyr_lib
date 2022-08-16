@@ -53,13 +53,9 @@ config FSU_LFS_MOUNT
 	  to function use by an application or module (or nRF Connect SDK
 	  partition manager) instead of calling fsu_lfs_mount().
 
-if FSU_LFS_MOUNT
-
 config FSU_MOUNT_POINT
-	string "Default mount point"
+	string "Mount point for main littlefs partition"
 	default "/lfs"
-
-endif # FSU_LFS_MOUNT
 
 config FSU_MAX_PATH_SIZE
 	int "The maximum size of the file system mount + path"
