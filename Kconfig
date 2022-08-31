@@ -14,5 +14,6 @@ rsource "utilities/Kconfig"
 rsource "mcumgr_wrapper/Kconfig"
 rsource "memfault/Kconfig"
 rsource "mcumgr_cmds/Kconfig"
+rsource "lcz_kvp/Kconfig"
 
 endif # LCZ

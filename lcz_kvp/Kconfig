@@ -1,0 +1,34 @@
+#
+# Copyright (c) 2021 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig LCZ_KVP
+	bool "Enable Laird Connectivity Key-Value Pair Module"
+	depends on FILE_SYSTEM_UTILITIES
+	depends on HEAP_MEM_POOL_SIZE > 0
+
+if LCZ_KVP
+
+config LCZ_KVP_INIT_PRIORITY
+	int "Sys init priority (APPLICATION)"
+	range 1 99
+	default 60
+	help
+	  Can't be higher than the file system init priority.
+	  Using fstab is recommended.
+
+module = LCZ_KVP
+module-str = LCZ_KVP
+source "subsys/logging/Kconfig.template.log_config"
+
+config LCZ_KVP_LOG_VERBOSE
+	bool "Enable verbose debug logging for key-value pair module"
+	depends on LCZ_KVP_LOG_LEVEL_DBG
+
+config LCZ_KVP_LOG_HEXDUMP
+	bool "Enable hexdump of key-value strings"
+	depends on LCZ_KVP_LOG_LEVEL_DBG
+
+endif # LCZ_KVP

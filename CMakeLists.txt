@@ -10,6 +10,7 @@ add_subdirectory(mcumgr_wrapper)
 add_subdirectory(drivers)
 add_subdirectory(memfault)
 add_subdirectory(mcumgr_cmds)
+add_subdirectory(lcz_kvp)
 
 endif()
 
