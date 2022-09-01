@@ -39,43 +39,43 @@ bool efs_is_encrypted_path (const char *abs_path);
 /** @brief Write entire contents of encrypted file
  *
  * @param abs_path directory path and name
- * @param data to be written
+ * @param vdata to be written
  * @param size in bytes
  *
  * @retval negative error code, number of bytes written on success.
  */
-int efs_write(const char *abs_path, uint8_t *data, size_t size);
+int efs_write(const char *abs_path, void *vdata, size_t size);
 
 /** @brief Append to encrypted file
  *
  * @param abs_path directory path and name
- * @param data to be written
+ * @param vdata to be written
  * @param size in bytes
  *
  * @retval negative error code, number of bytes written on success.
  */
-int efs_append(const char *abs_path, uint8_t *data, size_t size);
+int efs_append(const char *abs_path, void *vdata, size_t size);
 
 /** @brief Read entire contents of encrypted file
  *
  * @param abs_path directory path and name
- * @param data pointer to data
+ * @param vdata pointer to data
  * @param size maximum number of bytes to read
  *
  * @retval negative error code, number of bytes read on success.
  */
-ssize_t efs_read(const char *abs_path, uint8_t *data, size_t size);
+ssize_t efs_read(const char *abs_path, void *vdata, size_t size);
 
 /** @brief Read block of encrypted file
  *
  * @param abs_path directory path and name
  * @param offset Byte offset into file to start reading
- * @param data pointer to data
+ * @param vdata pointer to data
  * @param size maximum number of bytes to read
  *
  * @retval negative error code, number of bytes read on success.
  */
-ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t size);
+ssize_t efs_read_block(const char *abs_path, int offset, void *vdata, size_t size);
 
 /** @brief Get size of encrypted file
  *

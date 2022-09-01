@@ -93,8 +93,9 @@ bool efs_is_encrypted_path(const char *abs_path)
 	return false;
 }
 
-int efs_write(const char *abs_path, uint8_t *data, size_t size)
+int efs_write(const char *abs_path, void *vdata, size_t size)
 {
+	char *data = (char *)vdata;
 	int ret = 0;
 	int ret2;
 	struct fs_file_t f;
@@ -139,8 +140,9 @@ int efs_write(const char *abs_path, uint8_t *data, size_t size)
 	return ret;
 }
 
-int efs_append(const char *abs_path, uint8_t *data, size_t size)
+int efs_append(const char *abs_path, void *vdata, size_t size)
 {
+	char *data = (char *)vdata;
 	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
 	int ret = 0;
 	int ret2;
@@ -405,13 +407,14 @@ int efs_append(const char *abs_path, uint8_t *data, size_t size)
 	return ret;
 }
 
-ssize_t efs_read(const char *abs_path, uint8_t *data, size_t size)
+ssize_t efs_read(const char *abs_path, void *vdata, size_t size)
 {
-	return efs_read_block(abs_path, 0, data, size);
+	return efs_read_block(abs_path, 0, vdata, size);
 }
 
-ssize_t efs_read_block(const char *abs_path, int offset, uint8_t *data, size_t size)
+ssize_t efs_read_block(const char *abs_path, int offset, void *vdata, size_t size)
 {
+	char *data = (char *)vdata;
 	char simple_path[FSU_MAX_ABS_PATH_SIZE + 1];
 	int block_num;
 	int block_offset;
