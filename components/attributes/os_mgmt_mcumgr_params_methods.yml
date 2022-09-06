@@ -1,0 +1,42 @@
+info:
+  title: os_mgmt_mcumgr_params_methods
+  group_id: 0
+methods:
+  - name: mcumgr_params
+    summary: mcumgr params
+    description: Reads mcumgr params that are set in firmware
+    x-management-option: Read
+    x-id: 6
+    x-group_id: 0
+    result:
+      name: mcumgr_params_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Reason code
+          description: "Result of the read operation. NOTE: This param may only be present if an error occurs."
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
+        - name: buf_size
+          summary: mcumgr buffer size
+          description: The buffer size for receiving mcumgr commands
+          required: true
+          x-ctype: uint32_t
+          x-example: 300
+          x-sequencenumber: 2
+          schema:
+            type: integer
+        - name: buf_count
+          summary: Number of mcumgr buffers
+          description: The number of mcumgr buffers available for receiving commands
+          required: true
+          x-ctype: uint32_t
+          x-example: 4
+          x-sequencenumber: 3
+          schema:
+            type: integer
