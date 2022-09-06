@@ -1,0 +1,67 @@
+info:
+  title: os_mgmt_methods
+  group_id: 0
+methods:
+  - name: echo
+    summary: Echo command
+    description: Echos back the string that was sent
+    x-management-option: Write
+    x-id: 0
+    x-group_id: 0
+    params:
+      - name: d
+        summary: Echo string
+        description: The string that will be echoed back
+        required: true
+        x-ctype: string
+        x-sequencenumber: 1
+        x-default: "hello"
+        schema:
+          type: string
+          minLength: 0
+          maxLength: 255
+    result:
+      name: echo_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Reason code
+          description: "Result of the read operation. NOTE: This param may only be present if an error occurs."
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
+        - name: r
+          summary: Echo result
+          description: The matching string that was to be echoed
+          required: true
+          x-ctype: string
+          x-example: "hello"
+          x-sequencenumber: 2
+          schema:
+            type: string
+            minLength: 0
+            maxLength: 255
+  - name: reset
+    summary: Reboot command
+    description: Reboots the device
+    x-management-option: Write
+    x-id: 5
+    x-group_id: 0
+    result:
+      name: reset_result
+      schema:
+        type: array
+      x-result:
+        - name: rc
+          summary: Reason code
+          description: "Result of the read operation. NOTE: This param may only be present if an error occurs."
+          required: true
+          x-ctype: int32_t
+          x-example: 0
+          x-sequencenumber: 1
+          schema:
+            type: integer
