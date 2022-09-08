@@ -111,7 +111,7 @@ int efs_write(const char *abs_path, void *vdata, size_t size)
 	if (ret == 0) {
 		ret = fs_open(&f, abs_path, FS_O_WRITE | FS_O_CREATE);
 		if (ret < 0) {
-			LOG_ERR("efs_read: fs_open failed %d", ret);
+			LOG_ERR("efs_write: fs_open failed %d", ret);
 		}
 	}
 
