@@ -47,7 +47,7 @@ struct led {
 #else
 	const struct device *device_handle;
 	uint32_t pin;
-	bool on_when_high;
+	gpio_flags_t flags;
 #endif
 	bool pattern_busy;
 	struct lcz_led_blink_pattern pattern;
@@ -211,7 +211,7 @@ static void led_bind_and_configure(struct lcz_led_configuration *pConfig)
 		return;
 	}
 	led_bind_device(pConfig->index, pConfig->dev_name);
-	led[pConfig->index].on_when_high = pConfig->on_when_high;
+	led[pConfig->index].flags = pConfig->flags;
 	led_configure_pin(pConfig->index, pConfig->pin);
 }
 
@@ -228,14 +228,9 @@ static void led_configure_pin(led_index_t index, uint32_t pin)
 	int ret;
 	led[index].pin = pin;
 	ret = gpio_pin_configure(led[index].device_handle, led[index].pin,
-				 (GPIO_OUTPUT));
+				 (GPIO_OUTPUT_INACTIVE | led[index].flags));
 	if (ret) {
 		LOG_ERR("Error configuring GPIO");
-	}
-	ret = gpio_pin_set(led[index].device_handle, led[index].pin,
-			   led[index].on_when_high ? 0 : 1);
-	if (ret) {
-		LOG_ERR("Error setting GPIO state");
 	}
 }
 #endif
@@ -346,8 +341,7 @@ static void turn_on(struct led *pLed)
 		pLed->on();
 	}
 #else
-	gpio_pin_set(pLed->device_handle, pLed->pin,
-		     pLed->on_when_high ? 1 : 0);
+	gpio_pin_set(pLed->device_handle, pLed->pin, ON);
 #endif
 }
 
@@ -358,8 +352,7 @@ static void turn_off(struct led *pLed)
 		pLed->off();
 	}
 #else
-	gpio_pin_set(pLed->device_handle, pLed->pin,
-		     pLed->on_when_high ? 0 : 1);
+	gpio_pin_set(pLed->device_handle, pLed->pin, OFF);
 #endif
 }
 

@@ -14,6 +14,7 @@
 /******************************************************************************/
 #include <zephyr/types.h>
 #include <stddef.h>
+#include <zephyr/drivers/gpio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,9 +24,6 @@ extern "C" {
 /* Global Constants, Macros and Type Definitions                              */
 /******************************************************************************/
 typedef size_t led_index_t;
-
-#define LED_ACTIVE_HIGH true
-#define LED_ACTIVE_LOW false
 
 /* The on and off times are in system ticks.
  * If the repeat count is 2 the pattern will be displayed 3
@@ -40,7 +38,9 @@ typedef struct lcz_led_blink_pattern {
 #define REPEAT_INDEFINITELY (0xFFFFFFFF)
 
 typedef struct lcz_led_configuration {
-	/* LED index may be enumerated in lcz_led_configuration.h */
+	/* LED index may be enumerated in application LED configuration.
+	 * See lcz_led_configuration.template.h for an example.
+	 */
 	led_index_t index;
 
 #ifdef CONFIG_LCZ_LED_CUSTOM_ON_OFF
@@ -51,8 +51,7 @@ typedef struct lcz_led_configuration {
 	const char *const dev_name;
 	/* from device tree */
 	uint32_t pin;
-	/* polarity.  on_when_high should be true when '1' turns on LED */
-	bool on_when_high;
+	gpio_flags_t flags;
 #endif
 
 } lcz_led_configuration_t;
