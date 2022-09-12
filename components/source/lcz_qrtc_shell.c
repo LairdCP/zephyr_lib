@@ -42,6 +42,29 @@
 #define QRTC_MONTH_OUTPUT_STARTING_MONTH 1
 #define QRTC_YEAR_OUTPUT_STARTING_YEAR 1900
 
+#if defined(CONFIG_LCZ_QRTC_SHELL_ENABLE_FORMATTED_OUTPUT)
+/* Character count limiters to suppress compiler warnings.
+ * These are used to limit the number of characters for the various elements of
+ * a QRTC to avoid -Wformat-truncation= warnings being displayed. Most do not match
+ * exactly the expected max value, the idea is more to ensure the specified
+ * number of characters is not exceeded. Also used this approach as opposed
+ * to warning suppression on the off chance this code is built with a
+ * compiler other than GCC.
+ */
+/* Closest mask for seconds (63) */
+#define QRTC_SECOND_CHARACTER_MASK 0x3F
+/* Closest mask for minutes (63) */
+#define QRTC_MINUTE_CHARACTER_MASK 0x3F
+/* Closest mask for hours (31) */
+#define QRTC_HOUR_CHARACTER_MASK 0x1F
+/* Closest mask for day (31) */
+#define QRTC_DAY_CHARACTER_MASK 0x1F
+/* Closest mask for month (15) */
+#define QRTC_MONTH_CHARACTER_MASK 0xF
+/* Closest mask for year (4095) */
+#define QRTC_YEAR_CHARACTER_MASK 0xFFF
+#endif
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -81,7 +104,9 @@ static int shell_qrtc_gettime_cmd(const struct shell *shell, size_t argc,
 
 	tm = gmtime(&time);
 	snprintf(time_string, QRTC_TIME_STRING_SIZE, QRTC_TIME_STRING,
-		 tm->tm_hour, tm->tm_min, tm->tm_sec);
+                tm->tm_hour & QRTC_HOUR_CHARACTER_MASK,
+                tm->tm_min & QRTC_MINUTE_CHARACTER_MASK,
+                tm->tm_sec & QRTC_SECOND_CHARACTER_MASK);
 
 	shell_print(shell, "%s", time_string);
 
@@ -96,9 +121,11 @@ static int shell_qrtc_getdate_cmd(const struct shell *shell, size_t argc,
 	time_t time = (time_t)lcz_qrtc_get_epoch();
 
 	tm = gmtime(&time);
+
 	snprintf(time_string, QRTC_DATE_STRING_SIZE, QRTC_DATE_STRING,
-		 tm->tm_mday, tm->tm_mon + QRTC_MONTH_OUTPUT_STARTING_MONTH,
-		 tm->tm_year + QRTC_YEAR_OUTPUT_STARTING_YEAR);
+                tm->tm_mday & QRTC_DAY_CHARACTER_MASK,
+                (tm->tm_mon + QRTC_MONTH_OUTPUT_STARTING_MONTH) & QRTC_MONTH_CHARACTER_MASK,
+                (tm->tm_year + QRTC_YEAR_OUTPUT_STARTING_YEAR) & QRTC_YEAR_CHARACTER_MASK);
 
 	shell_print(shell, "%s", time_string);
 
@@ -113,10 +140,14 @@ static int shell_qrtc_gettimedate_cmd(const struct shell *shell, size_t argc,
 	time_t time = (time_t)lcz_qrtc_get_epoch();
 
 	tm = gmtime(&time);
+
 	snprintf(time_string, QRTC_TIMEDATE_STRING_SIZE, QRTC_TIMEDATE_STRING,
-		 tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday,
-		 tm->tm_mon + QRTC_MONTH_OUTPUT_STARTING_MONTH,
-		 tm->tm_year + QRTC_YEAR_OUTPUT_STARTING_YEAR);
+                tm->tm_hour & QRTC_HOUR_CHARACTER_MASK,
+                tm->tm_min & QRTC_MINUTE_CHARACTER_MASK,
+                tm->tm_sec & QRTC_SECOND_CHARACTER_MASK,
+                tm->tm_mday & QRTC_DAY_CHARACTER_MASK,
+                (tm->tm_mon + QRTC_MONTH_OUTPUT_STARTING_MONTH) & QRTC_MONTH_CHARACTER_MASK,
+                (tm->tm_year + QRTC_YEAR_OUTPUT_STARTING_YEAR) & QRTC_YEAR_CHARACTER_MASK);
 
 	shell_print(shell, "%s", time_string);
 
