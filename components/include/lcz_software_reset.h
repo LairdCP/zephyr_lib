@@ -2,7 +2,7 @@
  * @file lcz_software_reset.h
  * @brief Wraps sys reboot and memfault assert.
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,7 +22,8 @@ extern "C" {
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 /**
- * @brief Call log panic. Reset after delay.
+ * @brief Call log panic. Reset after delay unless called from interrupt
+ * context.
  */
 void lcz_software_reset(uint32_t delay_ms);
 
@@ -30,7 +31,8 @@ void lcz_software_reset(uint32_t delay_ms);
  * @brief Call log panic. If memfault is enabled, then use
  * memfault assert to generate core dump and reset.
  *
- * @param delay_ms is not used when memfault is enabled
+ * @param delay_ms is not used when memfault is enabled or when called
+ * from interrupt context.
  */
 void lcz_software_reset_after_assert(uint32_t delay_ms);
 

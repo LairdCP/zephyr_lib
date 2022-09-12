@@ -2,7 +2,7 @@
  * @file lcz_software_reset.c
  * @brief
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -30,8 +30,10 @@ LOG_MODULE_REGISTER(lcz_software_reset, CONFIG_LCZ_SOFTWARE_RESET_LOG_LEVEL);
 void lcz_software_reset(uint32_t delay_ms)
 {
 	LOG_PANIC();
-	LOG_WRN("Software Reset in %d milliseconds", delay_ms);
-	k_sleep(K_MSEC(delay_ms));
+	if (!k_is_in_isr()) {
+		LOG_WRN("Software Reset in %d milliseconds", delay_ms);
+		k_busy_wait(delay_ms * USEC_PER_MSEC);
+	}
 	sys_reboot(SYS_REBOOT_COLD);
 }
 
