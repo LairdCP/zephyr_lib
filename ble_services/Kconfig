@@ -22,7 +22,7 @@ config BLE_CELLULAR_SERVICE
 
 config BLE_POWER_SERVICE
 	bool "Enable BLE Power Service"
-	select LCZ_POWER
+	depends on LCZ_POWER
 
 if BLE_POWER_SERVICE
 
