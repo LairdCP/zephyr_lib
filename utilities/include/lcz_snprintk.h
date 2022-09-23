@@ -14,6 +14,7 @@
 /**************************************************************************************************/
 /* Includes                                                                                       */
 /**************************************************************************************************/
+#include <zephyr.h>
 #include <stdarg.h>
 
 #ifdef __cplusplus
@@ -35,7 +36,7 @@ extern "C" {
  * @param size of buffer
  * @param fmt string
  * @param ... variable list
- * @return int negative error code, 0 on success
+ * @return int negative error code, actual length on success
  */
 int lcz_snprintk(char *msg, size_t size, const char *fmt, ...);
 
@@ -46,7 +47,7 @@ int lcz_snprintk(char *msg, size_t size, const char *fmt, ...);
  * @param length of buffer if not NULL, negative or desired length on error
  * @param fmt string
  * @param ... variable list
- * @return int negative error code, 0 on success
+ * @return int negative error code, actual length on success
  */
 int lcz_snprintk_malloc(char **msg, int *length, const char *fmt, ...);
 
