@@ -23,16 +23,16 @@ LOG_MODULE_REGISTER(snprintk, CONFIG_LCZ_SNPRINTK);
 int lcz_snprintk(char *msg, size_t size, const char *fmt, ...)
 {
 	va_list ap;
-	int actual_size;
+	int actual_len;
 	int r;
 
 	va_start(ap, fmt);
-	actual_size = vsnprintk(msg, size, fmt, ap);
+	actual_len = vsnprintk(msg, size, fmt, ap);
 	/* Has the string has been completely written? */
-	if (actual_size > 0 && actual_size < size) {
-		r = 0;
+	if (actual_len > 0 && actual_len < size) {
+		r = actual_len;
 	} else {
-		LOG_ERR("Unable to format message; actual size: %d string size: %d", actual_size,
+		LOG_ERR("Unable to format message; actual len: %d string size: %d", actual_len,
 			size);
 		r = -EINVAL;
 	}
@@ -44,7 +44,7 @@ int lcz_snprintk(char *msg, size_t size, const char *fmt, ...)
 int lcz_snprintk_malloc(char **msg, int *length, const char *fmt, ...)
 {
 	va_list ap;
-	int actual_size = -1;
+	int actual_len = -1;
 	int req_size;
 	int r;
 	char *buf = NULL;
@@ -74,12 +74,12 @@ int lcz_snprintk_malloc(char **msg, int *length, const char *fmt, ...)
 		}
 
 		/* Build message and determine if string has been completely written. */
-		actual_size = vsnprintk(buf, req_size, fmt, ap);
-		if (actual_size > 0 && actual_size < req_size) {
-			r = 0;
+		actual_len = vsnprintk(buf, req_size, fmt, ap);
+		if (actual_len > 0 && actual_len < req_size) {
+			r = actual_len;
 		} else {
-			LOG_ERR("Unable to format message; actual size: %d string size: %d",
-				actual_size, req_size);
+			LOG_ERR("Unable to format message; actual len: %d string size: %d",
+				actual_len, req_size);
 			r = -EINVAL;
 		}
 
@@ -87,7 +87,7 @@ int lcz_snprintk_malloc(char **msg, int *length, const char *fmt, ...)
 
 	va_end(ap);
 	if (length != NULL) {
-		*length = actual_size;
+		*length = actual_len;
 	}
 	*msg = buf;
 	return r;

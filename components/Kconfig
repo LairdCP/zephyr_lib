@@ -5,7 +5,6 @@
 #
 
 menu "Laird Connectivity Zephyr Components"
-	 default y
 
 config LCZ_DNS
 	bool "Wrapper for DNS resolver that provides retries and debug printing"
