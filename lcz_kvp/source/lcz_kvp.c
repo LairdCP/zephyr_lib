@@ -437,6 +437,7 @@ static int read_text(const func_context_t *ctx, const char *fname, char **fstr, 
 	int r = 0;
 	int stripped_len = 0;
 	bool comment;
+	bool was_eol;
 	int i;
 	int j;
 
@@ -507,6 +508,25 @@ static int read_text(const func_context_t *ctx, const char *fname, char **fstr, 
 
 			i++;
 		}
+		/* Clear the remainder of the input string */
+		memset((*fstr) + j, 0, i - j);
+		stripped_len = j;
+	}
+
+	/* Strip blank lines */
+	if (r == 0) {
+		i = 0;
+		j = 0;
+		was_eol = true;
+		while (i < stripped_len) {
+			if (((*fstr)[i] != EOL_CHAR) || (((*fstr)[i] == EOL_CHAR) && !was_eol)) {
+				(*fstr)[j] = (*fstr)[i];
+				j++;
+			}
+			was_eol = ((*fstr)[i] == EOL_CHAR);
+			i++;
+		}
+
 		/* Clear the remainder of the input string */
 		memset((*fstr) + j, 0, i - j);
 		stripped_len = j;
