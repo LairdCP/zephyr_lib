@@ -281,6 +281,7 @@ int lcz_kvp_validate_file(const lcz_kvp_cfg_t *cfg, const char *str, size_t size
 	size_t lines = 0;
 	size_t pairs = 0;
 	bool comment = false;
+	bool in_value = false;
 	size_t distance = 0;
 	size_t i;
 
@@ -290,8 +291,9 @@ int lcz_kvp_validate_file(const lcz_kvp_cfg_t *cfg, const char *str, size_t size
 	}
 
 	for (i = 0; i < size; i++) {
-		if (str[i] == DELIMITER) {
+		if (str[i] == DELIMITER && !in_value) {
 			delimiters += 1;
+			in_value = true;
 			if (distance <= 0 || distance > cfg->max_key_len) {
 				r = -EINVAL;
 				LOG_ERR("Invalid key length: %u line: %u", distance, lines);
@@ -300,6 +302,7 @@ int lcz_kvp_validate_file(const lcz_kvp_cfg_t *cfg, const char *str, size_t size
 			distance = 0;
 		} else if (str[i] == EOL_CHAR) {
 			lines += 1;
+			in_value = false;
 			if (!comment) {
 				pairs += 1;
 				if (distance <= 0) {
