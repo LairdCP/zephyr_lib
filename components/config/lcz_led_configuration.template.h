@@ -28,16 +28,16 @@ extern "C" {
 #define LED4_NODE DT_ALIAS(led3)
 
 /* clang-format off */
-#define LED1_DEV 	DT_GPIO_LABEL(LED1_NODE, gpios)
+#define LED1_DEV 	DEVICE_DT_GET(DT_GPIO_CTLR(LED1_NODE, gpios))
 #define LED1_FLAGS 	DT_GPIO_FLAGS(LED1_NODE, gpios)
 #define LED1 		DT_GPIO_PIN(LED1_NODE, gpios)
-#define LED2_DEV	DT_GPIO_LABEL(LED2_NODE, gpios)
+#define LED2_DEV	DEVICE_DT_GET(DT_GPIO_CTLR(LED2_NODE, gpios))
 #define LED2_FLAGS 	DT_GPIO_FLAGS(LED2_NODE, gpios)
 #define LED2 		DT_GPIO_PIN(LED2_NODE, gpios)
-#define LED3_DEV 	DT_GPIO_LABEL(LED3_NODE, gpios)
+#define LED3_DEV 	DEVICE_DT_GET(DT_GPIO_CTLR(LED3_NODE, gpios))
 #define LED3_FLAGS 	DT_GPIO_FLAGS(LED3_NODE, gpios)
 #define LED3 		DT_GPIO_PIN(LED3_NODE, gpios)
-#define LED4_DEV 	DT_GPIO_LABEL(LED4_NODE, gpios)
+#define LED4_DEV 	DEVICE_DT_GET(DT_GPIO_CTLR(LED4_NODE, gpios))
 #define LED4_FLAGS 	DT_GPIO_FLAGS(LED4_NODE, gpios)
 #define LED4 		DT_GPIO_PIN(LED4_NODE, gpios)
 /* clang-format on */

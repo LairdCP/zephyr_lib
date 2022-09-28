@@ -156,11 +156,11 @@ int lcz_param_file_parse_from_file(const char *fname, size_t *fsize, char **fstr
 
 		r = fs_stat(fname, entry);
 		if (r < 0) {
-			LOG_ERR("%s not found", log_strdup(fname));
+			LOG_ERR("%s not found", fname);
 			break;
 		}
 
-		LOG_DBG("'%s' parameter file size bytes: %u ", log_strdup(fname), entry->size);
+		LOG_DBG("'%s' parameter file size bytes: %u ", fname, entry->size);
 		if (entry->size == 0) {
 			r = -EPERM;
 			LOG_ERR("Unexpected file size");
@@ -216,15 +216,15 @@ int lcz_param_file_enc_parse_from_file(const char *fname, size_t *fsize, char **
 		file_size = efs_get_file_size(fname);
 		if (file_size < 0) {
 			LOG_ERR("Could not get size of encrypted param file %s: %d",
-				log_strdup(fname), file_size);
+				fname, file_size);
 			r = *fsize;
 			break;
 		}
 
-		LOG_DBG("'%s' enc parameter file size bytes: %u ", log_strdup(fname), file_size);
+		LOG_DBG("'%s' enc parameter file size bytes: %u ", fname, file_size);
 		if (file_size == 0) {
 			r = -ENOENT;
-			LOG_ERR("Encrypted param file %s is empty", log_strdup(fname));
+			LOG_ERR("Encrypted param file %s is empty", fname);
 			break;
 		}
 
@@ -476,7 +476,7 @@ static int read_text_enc(const char *fname, char **fstr, size_t fsize)
 		*fstr = k_malloc(fsize + 1);
 		if (*fstr == NULL) {
 			LOG_ERR("read_text_enc: Could not allocate %d bytes for %s", fsize + 1,
-				log_strdup(fname));
+				fname);
 			r = -ENOMEM;
 		}
 	}
@@ -485,7 +485,7 @@ static int read_text_enc(const char *fname, char **fstr, size_t fsize)
 	if (r == 0) {
 		r = efs_read(fname, *fstr, fsize);
 		if (r != fsize) {
-			LOG_ERR("read_text_enc: Could not read file %s: %d", log_strdup(fname), r);
+			LOG_ERR("read_text_enc: Could not read file %s: %d", fname, r);
 			if (r >= 0) {
 				r = -EPERM;
 			}

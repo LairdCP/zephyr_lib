@@ -207,7 +207,7 @@ static void lcz_bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
 	char bt_addr[BT_ADDR_LE_STR_LEN];
 	memset(bt_addr, 0, BT_ADDR_LE_STR_LEN);
 	bt_addr_le_to_str(addr, bt_addr, BT_ADDR_LE_STR_LEN);
-	LOG_DBG("Advert from %s RSSI: %d Type: %d", log_strdup(bt_addr), rssi,
+	LOG_DBG("Advert from %s RSSI: %d Type: %d", bt_addr, rssi,
 		type);
 	LOG_HEXDUMP_DBG(ad->data, ad->len, "Data:");
 #endif

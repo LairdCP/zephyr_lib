@@ -79,7 +79,7 @@ bool efs_is_encrypted_path(const char *abs_path)
 
 	/* Simplify the input path */
 	if (fsu_simplify_path(abs_path, simple_path) < 0) {
-		LOG_ERR("efs_is_encrypted_path: Invalid path: %s", log_strdup(abs_path));
+		LOG_ERR("efs_is_encrypted_path: Invalid path: %s", abs_path);
 
 		/* To be on the safe side, say "true" to an invalid path */
 		return true;
@@ -168,7 +168,7 @@ int efs_append(const char *abs_path, void *vdata, size_t size)
 	if (ret == 0) {
 		ret = fsu_simplify_path(abs_path, simple_path);
 		if (ret < 0) {
-			LOG_ERR("efs_append: Invalid input path: %s", log_strdup(abs_path));
+			LOG_ERR("efs_append: Invalid input path: %s", abs_path);
 		} else {
 			ret = 0;
 		}
@@ -437,7 +437,7 @@ ssize_t efs_read_block(const char *abs_path, int offset, void *vdata, size_t siz
 	if (ret == 0) {
 		ret = fsu_simplify_path(abs_path, simple_path);
 		if (ret < 0) {
-			LOG_ERR("efs_read_block: Invalid input path: %s", log_strdup(abs_path));
+			LOG_ERR("efs_read_block: Invalid input path: %s", abs_path);
 		} else {
 			ret = 0;
 		}
@@ -614,7 +614,7 @@ ssize_t efs_get_file_size(const char *abs_path)
 	if (ret == 0) {
 		ret = fsu_simplify_path(abs_path, simple_path);
 		if (ret < 0) {
-			LOG_ERR("efs_get_file_size: Invalid input path: %s", log_strdup(abs_path));
+			LOG_ERR("efs_get_file_size: Invalid input path: %s", abs_path);
 		} else {
 			ret = 0;
 		}
@@ -765,7 +765,7 @@ int efs_sha256(uint8_t hash[FSU_HASH_SIZE], const char *abs_path, size_t size)
 	if (ret == 0) {
 		ret = fsu_simplify_path(abs_path, simple_path);
 		if (ret < 0) {
-			LOG_ERR("efs_sha256: Invalid input path: %s", log_strdup(abs_path));
+			LOG_ERR("efs_sha256: Invalid input path: %s", abs_path);
 		} else {
 			ret = 0;
 		}

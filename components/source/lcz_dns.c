@@ -38,7 +38,7 @@ int dns_resolve_server_addr(const char *endpoint, const char *port,
 	} while (rc != 0 && dns_retries != 0);
 
 	if (rc != 0) {
-		LOG_ERR("Unable to resolve '%s'", log_strdup(endpoint));
+		LOG_ERR("Unable to resolve '%s'", endpoint);
 	}
 	return rc;
 }

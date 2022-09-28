@@ -106,7 +106,7 @@ void fsu_list_directory(const char *path)
 	struct fs_dir_t dir = { 0 };
 	fs_dir_t_init(&dir);
 	int rc = fs_opendir(&dir, path);
-	LOG_DBG("%s opendir: %d\n", log_strdup(path), rc);
+	LOG_DBG("%s opendir: %d\n", path, rc);
 
 	while (rc >= 0) {
 		struct fs_dirent entry = { 0 };
@@ -142,7 +142,7 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 	/* Count matching items */
 	fs_dir_t_init(&dir);
 	int rc = fs_opendir(&dir, path);
-	LOG_DBG("%s opendir: %d", log_strdup(path), rc);
+	LOG_DBG("%s opendir: %d", path, rc);
 	/* Use malloc because entry is 264 bytes when using LFS */
 	struct fs_dirent *entry = k_malloc(sizeof(struct fs_dirent));
 	if (entry == NULL) {
@@ -182,7 +182,7 @@ struct fs_dirent *fsu_find(const char *path, const char *name, size_t *count,
 			}
 			if ((results[i].type == entry_type) &&
 			    (strstr(results[i].name, name) != NULL)) {
-				LOG_DBG(" %u %s", results[i].size, log_strdup(results[i].name));
+				LOG_DBG(" %u %s", results[i].size, results[i].name);
 				i++;
 			}
 		}
@@ -396,7 +396,7 @@ int fsu_delete(const char *path, const char *name)
 
 int fsu_delete_abs(const char *abs_path)
 {
-	LOG_DBG("Deleting (unlinking) file %s", log_strdup(abs_path));
+	LOG_DBG("Deleting (unlinking) file %s", abs_path);
 	return fs_unlink(abs_path);
 }
 
@@ -418,7 +418,7 @@ int fsu_delete_files(const char *path, const char *name)
 		while (i < count) {
 			(void)fsu_build_full_name(abs_path, sizeof(abs_path), path,
 						  pEntries[i].name);
-			LOG_DBG("Deleting (unlinking) file %s", log_strdup(abs_path));
+			LOG_DBG("Deleting (unlinking) file %s", abs_path);
 			status = fs_unlink(abs_path);
 			if (status == 0) {
 				i += 1;
@@ -440,7 +440,7 @@ int fsu_mkdir(const char *path, const char *name)
 		if (r >= 0) {
 			r = fs_mkdir(abs_path);
 			if (r < 0) {
-				LOG_ERR("Unable to create directory %s", log_strdup(abs_path));
+				LOG_ERR("Unable to create directory %s", abs_path);
 			}
 		}
 	} else {
@@ -601,7 +601,7 @@ ssize_t fsu_get_file_size_abs(const char *abs_path)
 
 		r = fs_stat(abs_path, entry);
 		if (r < 0) {
-			LOG_WRN("%s not found", log_strdup(abs_path));
+			LOG_WRN("%s not found", abs_path);
 			break;
 		} else {
 			r = entry->size;
@@ -725,7 +725,7 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size, bool ap
 		fs_file_t_init(&handle);
 		rc = fs_open(&handle, abs_path, flags);
 		if (rc < 0) {
-			LOG_ERR("Unable to open file %s for %s", log_strdup(abs_path), desc);
+			LOG_ERR("Unable to open file %s for %s", abs_path, desc);
 		}
 		BREAK_ON_ERROR(rc);
 
@@ -736,12 +736,12 @@ static ssize_t fsu_wa_abs(const char *abs_path, void *data, size_t size, bool ap
 
 		rc = fs_write(&handle, data, size);
 		if (rc < 0) {
-			LOG_ERR("Unable to %s file %s", desc, log_strdup(abs_path));
+			LOG_ERR("Unable to %s file %s", desc, abs_path);
 		} else if (rc != size) {
 			rc = -ENOSPC;
-			LOG_ERR("Disk Full: Unable to %s file %s", desc, log_strdup(abs_path));
+			LOG_ERR("Disk Full: Unable to %s file %s", desc, abs_path);
 		} else {
-			LOG_DBG("%s %s (%d)", log_strdup(abs_path), desc, rc);
+			LOG_DBG("%s %s (%d)", abs_path, desc, rc);
 		}
 
 		int rc2 = fs_close(&handle);

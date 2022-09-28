@@ -88,7 +88,7 @@ static void system_workq_led_timer_handler(struct k_work *item);
 
 #ifndef CONFIG_LCZ_LED_CUSTOM_ON_OFF
 static void led_bind_and_configure(struct lcz_led_configuration *pConfig);
-static void led_bind_device(led_index_t index, const char *name);
+static void led_bind_device(led_index_t index, const struct device *dev);
 static void led_configure_pin(led_index_t index, uint32_t pin);
 #endif
 
@@ -210,16 +210,16 @@ static void led_bind_and_configure(struct lcz_led_configuration *pConfig)
 		__ASSERT(false, "Invalid LED Index");
 		return;
 	}
-	led_bind_device(pConfig->index, pConfig->dev_name);
+	led_bind_device(pConfig->index, pConfig->dev);
 	led[pConfig->index].flags = pConfig->flags;
 	led_configure_pin(pConfig->index, pConfig->pin);
 }
 
-static void led_bind_device(led_index_t index, const char *name)
+static void led_bind_device(led_index_t index, const struct device *dev)
 {
-	led[index].device_handle = device_get_binding(name);
+	led[index].device_handle = dev;
 	if (!led[index].device_handle) {
-		LOG_ERR("Cannot find %s!", name);
+		LOG_ERR("Cannot find %s!", dev->name);
 	}
 }
 

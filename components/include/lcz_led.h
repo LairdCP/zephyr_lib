@@ -48,7 +48,7 @@ typedef struct lcz_led_configuration {
 	void (*off)(void);
 #else
 	/* from device tree */
-	const char *const dev_name;
+	const struct device *dev;
 	/* from device tree */
 	uint32_t pin;
 	gpio_flags_t flags;
