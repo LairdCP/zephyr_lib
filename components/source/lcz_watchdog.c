@@ -43,7 +43,7 @@ LOG_MODULE_REGISTER(watchdog, CONFIG_LCZ_WDT_LOG_LEVEL);
 #endif
 
 #ifdef WDT_NODE
-#define WDT_DEV_NAME DT_LABEL(WDT_NODE)
+#define WDT_DEV_NAME DEVICE_DT_NAME(WDT_NODE)
 #else
 #error "Unsupported SoC and no watchdog0 alias in zephyr.dts"
 #endif
