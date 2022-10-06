@@ -23,6 +23,7 @@ LOG_MODULE_REGISTER(lcz_bt_scan, CONFIG_LCZ_BT_SCAN_LOG_LEVEL);
 /******************************************************************************/
 static int scan_start(void);
 static bool valid_user_id(int id);
+static bool valid_scan_param_user_id(int id);
 static void lcz_bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
 				    uint8_t type, struct net_buf_simple *ad);
 
@@ -39,6 +40,8 @@ static struct {
 	uint32_t num_stops;
 	uint32_t num_starts;
 } bts;
+
+static int scan_param_id = -1;
 
 static struct bt_le_scan_param scan_parameters = BT_LE_SCAN_PARAM_INIT(
 	BT_LE_SCAN_TYPE_PASSIVE, BT_LE_SCAN_OPT_FILTER_DUPLICATE,
@@ -146,7 +149,7 @@ int lcz_bt_scan_update_parameters(int id, const struct bt_le_scan_param *param)
 {
 	int r = -EPERM;
 
-	if (valid_user_id(id)) {
+	if (valid_scan_param_user_id(id)) {
 		r = lcz_bt_scan_stop(id);
 		if (r == 0) {
 			memcpy(&scan_parameters, param,
@@ -198,6 +201,29 @@ static bool valid_user_id(int id)
 		LOG_ERR("Invalid bt scan user id");
 		return false;
 	}
+}
+
+/* Is the user ID valid for updating the scan parameters? */
+static bool valid_scan_param_user_id(int id)
+{
+	bool valid = false;
+
+	if (valid_user_id(id)) {
+		if (scan_param_id == -1 || scan_param_id == id) {
+			valid = true;
+		} else if (IS_ENABLED(CONFIG_LCZ_BT_SCAN_ALLOW_MULTIPLE_SCAN_PARAM_UPDATERS)) {
+			valid = true;
+			LOG_WRN("Multiple users setting scan parameters");
+		} else {
+			LOG_ERR("Scan parameter updates limited to one user");
+		}
+	}
+
+	if (valid) {
+		scan_param_id = id;
+	}
+
+	return valid;
 }
 
 static void lcz_bt_scan_adv_handler(const bt_addr_le_t *addr, int8_t rssi,

@@ -40,4 +40,11 @@ config LCZ_BT_SCAN_DEFAULT_INTERVAL
 	  The default config is a 30 ms window and a 60 ms interval.
 	  The system will attempt to scan 50% of the time.
 
+config LCZ_BT_SCAN_ALLOW_MULTIPLE_SCAN_PARAM_UPDATERS
+	bool "Allow multiple users to update scan parameters"
+	help
+	  With multiple users the settings of one module might conflict
+	  with settings required by another module.  Scan parameters may
+	  need to be handled at the application level.
+
 endif # LCZ_BT_SCAN
