@@ -14,6 +14,10 @@ menuconfig LCZ_APPROTECT
 
 if LCZ_APPROTECT
 
+module=LCZ_APPROTECT
+module-str=LCZ_APPROTECT
+source "subsys/logging/Kconfig.template.log_config"
+
 menuconfig LCZ_APPROTECT_STARTUP
     bool "Enabling start-up readback protection/CPU debug protection"
     help
@@ -21,14 +25,31 @@ menuconfig LCZ_APPROTECT_STARTUP
         enable the requested features which will then reboot the module
         to apply those settings
 
+if LCZ_APPROTECT_STARTUP
+
+config LCZ_APPROTECT_STARTUP_INIT_LEVEL
+    int "Init Level"
+    range 0 4
+    default 0
+    help
+      0 - PRE_KERNEL_1
+      1 - PRE_KERNEL_2
+      2 - POST_KERNEL
+      3 - APPLICATION
+      4 - SMP
+
+config LCZ_APPROTECT_STARTUP_INIT_PRIORITY
+    int "Init priority"
+    default 0
+
 config LCZ_APPROTECT_STARTUP_READBACK_PROTECTION
-    depends on LCZ_APPROTECT_STARTUP
     bool "Start-up readback protection enablement"
     default y
 
 config LCZ_APPROTECT_STARTUP_CPU_DEBUG_PROTECTION
-    depends on LCZ_APPROTECT_STARTUP
     bool "Start-up CPU debug protection enablement"
     default y
+
+endif
 
 endif # LCZ_APPROTECT

@@ -10,11 +10,14 @@
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <init.h>
-#include <zephyr.h>
-#include <stdlib.h>
-#include <sys/reboot.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(lcz_approtect, CONFIG_LCZ_APPROTECT_LOG_LEVEL);
 
+#include <zephyr/init.h>
+#include <zephyr/zephyr.h>
+#include <stdlib.h>
+#include <zephyr/sys/reboot.h>
+#include <zephyr/logging/log_ctrl.h>
 #include "lcz_approtect.h"
 
 /******************************************************************************/
@@ -29,7 +32,7 @@
 #endif
 
 #if defined(CONFIG_LCZ_APPROTECT_STARTUP)
-#if !defined(CONFIG_LCZ_APPROTECT_STARTUP_READBACK_PROTECTION) &&              \
+#if !defined(CONFIG_LCZ_APPROTECT_STARTUP_READBACK_PROTECTION) &&                                  \
 	!defined(CONFIG_LCZ_APPROTECT_STARTUP_CPU_DEBUG_PROTECTION)
 #error LCZ_APPROTECT_STARTUP is defined but is missing required                \
        LCZ_APPROTECT_STARTUP_READBACK_PROTECTION and/or                        \
@@ -57,11 +60,30 @@
 static int approtect_sys_init(const struct device *device);
 #endif
 
+static void reboot(void)
+{
+	LOG_WRN("APPROTECT enabled, rebooting!");
+	LOG_PANIC();
+	sys_reboot(SYS_REBOOT_COLD);
+}
+
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
 #if defined(CONFIG_LCZ_APPROTECT_STARTUP)
-SYS_INIT(approtect_sys_init, PRE_KERNEL_1, 0);
+#if CONFIG_LCZ_APPROTECT_STARTUP_INIT_LEVEL == 0
+#define INIT_LEVEL PRE_KERNEL_1
+#elif CONFIG_LCZ_APPROTECT_STARTUP_INIT_LEVEL == 1
+#define INIT_LEVEL PRE_KERNEL_2
+#elif CONFIG_LCZ_APPROTECT_STARTUP_INIT_LEVEL == 2
+#define INIT_LEVEL POST_KERNEL
+#elif CONFIG_LCZ_APPROTECT_STARTUP_INIT_LEVEL == 3
+#define INIT_LEVEL APPLICATION
+#elif CONFIG_LCZ_APPROTECT_STARTUP_INIT_LEVEL == 4
+#define INIT_LEVEL SMP
+#endif
+
+SYS_INIT(approtect_sys_init, INIT_LEVEL, CONFIG_LCZ_APPROTECT_STARTUP_INIT_PRIORITY);
 #endif
 
 bool lcz_enable_readback_protection(bool restart)
@@ -88,7 +110,7 @@ bool lcz_enable_readback_protection(bool restart)
 
 		/* Reboot device for changes to take effect, if requested */
 		if (restart == true) {
-			sys_reboot(SYS_REBOOT_COLD);
+			reboot();
 		}
 		return true;
 	}
@@ -120,7 +142,7 @@ bool lcz_enable_cpu_debug_protection(bool restart)
 
 		/* Reboot device for changes to take effect, if requested */
 		if (restart == true) {
-			sys_reboot(SYS_REBOOT_COLD);
+			reboot();
 		}
 		return true;
 	}
@@ -134,8 +156,7 @@ bool lcz_enable_cpu_debug_readback_protection(bool restart)
 	restart_needed |= lcz_enable_cpu_debug_protection(false);
 
 	if (restart == true && restart_needed == true) {
-		/* Reboot device for changes to take effect */
-		sys_reboot(SYS_REBOOT_COLD);
+		reboot();
 	}
 
 	return restart_needed;
@@ -158,8 +179,7 @@ static int approtect_sys_init(const struct device *device)
 #endif
 
 	if (restart_needed == true) {
-		/* Reboot device for changes to take effect */
-		sys_reboot(SYS_REBOOT_COLD);
+		reboot();
 	}
 
 	return 0;
