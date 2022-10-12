@@ -43,25 +43,25 @@ uint16_t lcz_sensor_adv_match(struct net_buf_simple *ad, bool match_rsp,
  * @brief Match BT510 or BT6xx 1M advertisement
  *
  * @param handle payload of manufacturer specific ad
- * @return true if match, false otherwise
+ * @return The protocol id if found, 0 otherwise.
  */
-bool lcz_sensor_adv_match_1m(AdHandle_t *handle);
+uint16_t lcz_sensor_adv_match_1m(AdHandle_t *handle);
 
 /**
  * @brief Match BT510 or BT6xx scan response
  *
  * @param handle payload of manufacturer specific ad
- * @return true if match, false otherwise
+ * @return The protocol id if found, 0 otherwise.
  */
-bool lcz_sensor_adv_match_rsp(AdHandle_t *handle);
+uint16_t lcz_sensor_adv_match_rsp(AdHandle_t *handle);
 
 /**
  * @brief Match BT510 or BT6xx coded PHY ad
  *
  * @param handle payload of manufacturer specific ad
- * @return true if match, false otherwise
+ * @return The protocol id if found, 0 otherwise.
  */
-bool lcz_sensor_adv_match_coded(AdHandle_t *handle);
+uint16_t lcz_sensor_adv_match_coded(AdHandle_t *handle);
 
 #ifdef __cplusplus
 }
