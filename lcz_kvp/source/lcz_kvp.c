@@ -72,13 +72,13 @@ static func_context_t get_func_context(bool encrypted);
 
 static int read_text(const func_context_t *ctx, const char *fname, char **fstr, size_t fsize);
 
-static char *parse_kvp(const lcz_kvp_cfg_t *cfg, char *start, lcz_kvp_t *kvp);
-static int parse_kvp_file(const lcz_kvp_cfg_t *cfg, const char *str, int pairs, lcz_kvp_t *kv);
+static char *parse_kvp(char *start, lcz_kvp_t *kvp);
+static int parse_kvp_file(const char *str, size_t length, int pairs, lcz_kvp_t *kv);
 
 static int append_kvp_line(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp, char *str);
 
 static bool valid_cfg(const lcz_kvp_cfg_t *cfg);
-static bool valid_kvp(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp);
+static bool valid_kvp(const lcz_kvp_t *kvp);
 static ssize_t space_avail(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp, size_t start_len);
 
 /**************************************************************************************************/
@@ -218,7 +218,8 @@ int lcz_kvp_parse_from_file(const lcz_kvp_cfg_t *cfg, const char *fname, size_t 
 			break;
 		}
 
-		r = parse_kvp_file(cfg, *fstr, r, *kv);
+		/* Point to locations in the file. Compute key and value lengths. */
+		r = parse_kvp_file(*fstr, file_size, r, *kv);
 		if (r < 0) {
 			break;
 		}
@@ -258,7 +259,7 @@ int lcz_kvp_generate_file(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp, char *
 		}
 
 		if (*fstr == NULL) {
-			*fstr = k_calloc(cfg->max_file_size, sizeof(char));
+			*fstr = k_calloc(cfg->max_file_out_size, sizeof(char));
 		}
 
 		if (*fstr == NULL) {
@@ -285,16 +286,11 @@ int lcz_kvp_validate_file(const lcz_kvp_cfg_t *cfg, const char *str, size_t size
 	size_t distance = 0;
 	size_t i;
 
-	if (size > cfg->max_file_size) {
-		LOG_ERR("KVP file too large %u > %u (max)", size, cfg->max_file_size);
-		return -EINVAL;
-	}
-
 	for (i = 0; i < size; i++) {
 		if (str[i] == DELIMITER && !in_value) {
 			delimiters += 1;
 			in_value = true;
-			if (distance <= 0 || distance > cfg->max_key_len) {
+			if (distance <= 0) {
 				r = -EINVAL;
 				LOG_ERR("Invalid key length: %u line: %u", distance, lines);
 				break;
@@ -347,7 +343,7 @@ int lcz_kvp_validate_file(const lcz_kvp_cfg_t *cfg, const char *str, size_t size
 /**************************************************************************************************/
 /* Local Function Definitions                                                                     */
 /**************************************************************************************************/
-static char *parse_kvp(const lcz_kvp_cfg_t *cfg, char *start, lcz_kvp_t *kvp)
+static char *parse_kvp(char *start, lcz_kvp_t *kvp)
 {
 	char *next = NULL;
 	char *delimiter;
@@ -380,18 +376,6 @@ static char *parse_kvp(const lcz_kvp_cfg_t *cfg, char *start, lcz_kvp_t *kvp)
 			}
 		}
 
-		if (kvp->key_len > cfg->max_key_len) {
-			LOG_ERR("Invalid key length: %d", kvp->key_len);
-			KVP_HEXDUMP(kvp->key, kvp->key_len, "Invalid key");
-			break;
-		}
-
-		if (kvp->val_len > cfg->max_val_len) {
-			LOG_ERR("Invalid value length: %d", kvp->val_len);
-			KVP_HEXDUMP(kvp->val, kvp->val_len, "Invalid value");
-			break;
-		}
-
 		next = newline + 1;
 	} while (0);
 
@@ -401,10 +385,10 @@ static char *parse_kvp(const lcz_kvp_cfg_t *cfg, char *start, lcz_kvp_t *kvp)
 /**
  * @retval negative on error, otherwise number of key-value pairs.
  */
-static int parse_kvp_file(const lcz_kvp_cfg_t *cfg, const char *str, int pairs, lcz_kvp_t *kv)
+static int parse_kvp_file(const char *str, size_t length, int pairs, lcz_kvp_t *kv)
 {
 	char *next = (char *)str; /* start */
-	char *end = next + cfg->max_file_size;
+	char *end = next + length;
 	int i;
 
 	for (i = 0; i < pairs; i++) {
@@ -414,7 +398,7 @@ static int parse_kvp_file(const lcz_kvp_cfg_t *cfg, const char *str, int pairs, 
 			break;
 		}
 
-		next = parse_kvp(cfg, next, &kv[i]);
+		next = parse_kvp(next, &kv[i]);
 		if (next == NULL) {
 			pairs = -EINVAL;
 			break;
@@ -549,7 +533,7 @@ static bool valid_cfg(const lcz_kvp_cfg_t *cfg)
 		return false;
 	}
 
-	if (cfg->max_file_size < 0 || cfg->max_key_len < 0 || cfg->max_val_len < 0) {
+	if (cfg->max_file_out_size <= 0) {
 		return false;
 	}
 
@@ -560,13 +544,9 @@ static bool valid_cfg(const lcz_kvp_cfg_t *cfg)
 	return true;
 }
 
-static bool valid_kvp(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp)
+static bool valid_kvp(const lcz_kvp_t *kvp)
 {
-	if (cfg == NULL || kvp == NULL || kvp->key == NULL || kvp->val == NULL) {
-		return false;
-	}
-
-	if (kvp->key_len > cfg->max_key_len || kvp->val_len > cfg->max_val_len) {
+	if (kvp == NULL || kvp->key == NULL || kvp->val == NULL) {
 		return false;
 	}
 
@@ -581,7 +561,7 @@ static ssize_t space_avail(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp, size_
 	size_t overhead = sizeof(DELIMITER) + sizeof(EOL_CHAR) + sizeof(TERMINATOR);
 	size_t line_len = kvp->key_len + kvp->val_len + overhead;
 
-	if ((start_len + line_len) < cfg->max_file_size) {
+	if ((start_len + line_len) < cfg->max_file_out_size) {
 		return line_len;
 	} else {
 		return -ENOMEM;
@@ -598,7 +578,7 @@ static int append_kvp_line(const lcz_kvp_cfg_t *cfg, const lcz_kvp_t *kvp, char 
 			break;
 		}
 
-		if (!valid_kvp(cfg, kvp)) {
+		if (!valid_kvp(kvp)) {
 			break;
 		}
 

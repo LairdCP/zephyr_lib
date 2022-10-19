@@ -23,9 +23,7 @@ extern "C" {
 /* Global Constants, Macros and Type Definitions                                                  */
 /**************************************************************************************************/
 typedef struct lcz_kvp_cfg {
-	size_t max_file_size;
-	size_t max_key_len;
-	size_t max_val_len;
+	size_t max_file_out_size;
 	bool encrypted;
 } lcz_kvp_cfg_t;
 
@@ -79,7 +77,7 @@ ssize_t lcz_kvp_read(bool encrypted, char *name, void *data, size_t size);
 int lcz_kvp_delete(char *name);
 
 /**
- * @brief Parses a text file.  Data is in hex with least significant byte first.
+ * @brief Parses a text file. Data is in hex with least significant byte first.
  *
  * @note Example File:
  *
@@ -110,12 +108,12 @@ int lcz_kvp_parse_from_file(const lcz_kvp_cfg_t *cfg, const char *fname, size_t 
 int lcz_kvp_validate_file(const lcz_kvp_cfg_t *cfg, const char *str, size_t size);
 
 /**
- * @brief Generates a key-value pair file.  Allocates buffer on first call and
+ * @brief Generates a key-value pair file. Allocates buffer on first call and
  * appends to buffer on subsequent calls.
  *
  * @param cfg file configuration
  * @param kvp key-value pair
- * @param fstr pointer to string.  Allocated by this function when pointing
+ * @param fstr pointer to string. Allocated by this function when pointing
  * to NULL.
  *
  * @note Caller is responsible for freeing fstr.
