@@ -68,9 +68,10 @@ extern "C" {
 /* clang-format on */
 
 /* clang-format off */
-#define BT510_PRODUCT_ID   0
-#define BT6XX_PRODUCT_ID   1
-#define INVALID_PRODUCT_ID 0xFFFF
+#define BT510_PRODUCT_ID     0
+#define BT6XX_PRODUCT_ID     1
+#define BT6XX_DM_PRODUCT_ID  2
+#define INVALID_PRODUCT_ID   0xFFFF
 /* clang-format on */
 
 /* clang-format off */
@@ -124,6 +125,36 @@ struct LczSensorAdCoded {
 	struct LczSensorRsp rsp;
 } __packed;
 
+/* Format of the Device Management Manufacturer Specific Data (MSD)
+ * using 1M PHY or the coded PHY (unencrypted)
+ */
+struct LczSensorDMUnencrAd {
+	uint16_t companyId;
+	uint16_t protocolId;
+	uint16_t networkId;
+	uint16_t productId;
+	uint16_t flags;
+	bt_addr_t addr;
+} __packed;
+
+/* Format of the Device Management Manufacturer Specifc Data (MSD)
+ * using the coded PHY (encrypted)
+ */
+struct LczSensorDMEncrAd {
+	uint16_t companyId;
+	uint16_t protocolId;
+	uint16_t networkId;
+	uint16_t productId;
+	uint16_t flags;
+	bt_addr_t addr;
+	uint16_t mic;
+	uint32_t epoch;
+	uint16_t id;
+	/* Below this line, the data is encrypted */
+	uint8_t recordType;
+	SensorEventData_t data;
+} __packed;
+
 /* Contact Tracing */
 struct LczContactTracingAd {
 	uint16_t companyId;
@@ -149,6 +180,8 @@ typedef struct LczSensorRsp           LczSensorRsp_t;
 typedef struct LczSensorRspWithHeader LczSensorRspWithHeader_t;
 typedef struct LczSensorAdCoded       LczSensorAdCoded_t;
 typedef struct LczSensorAdCoded       LczSensorAdExt_t;
+typedef struct LczSensorDMUnencrAd    LczSensorDMUnencrAd_t;
+typedef struct LczSensorDMEncrAd      LczSensorDMEncrAd_t;
 typedef struct LczContactTracingAd    LczContactTracingAd_t;
 /* clang-format on */
 
@@ -175,15 +208,30 @@ BUILD_ASSERT(sizeof(LczSensorRspWithHeader_t) ==
 BUILD_ASSERT(sizeof(LczSensorAdCoded_t) == LCZ_SENSOR_MSD_CODED_PAYLOAD_LENGTH,
 	     "Coded advertisement size mismatch (check packing)");
 
+/*
+ * DM Advertisements
+ */
+#define LCZ_SENSOR_MSD_DM_UNENCR_FIELD_LENGTH 17
+#define LCZ_SENSOR_MSD_DM_UNENCR_PAYLOAD_LENGTH \
+	(LCZ_SENSOR_MSD_DM_UNENCR_FIELD_LENGTH - 1)
+BUILD_ASSERT(sizeof(LczSensorDMUnencrAd_t) == LCZ_SENSOR_MSD_DM_UNENCR_PAYLOAD_LENGTH,
+	     "DM unencrypted advertisement size mismatch (check packing)");
+
+#define LCZ_SENSOR_MSD_DM_ENCR_FIELD_LENGTH 30
+#define LCZ_SENSOR_MSD_DM_ENCR_PAYLOAD_LENGTH \
+	(LCZ_SENSOR_MSD_DM_ENCR_FIELD_LENGTH - 1)
+BUILD_ASSERT(sizeof(LczSensorDMEncrAd_t) == LCZ_SENSOR_MSD_DM_ENCR_PAYLOAD_LENGTH,
+	     "DM encrypted advertisement size mismatch (check packing)");
+
 /* Bytes used to differentiate advertisement types/sensors. */
 #define LCZ_SENSOR_AD_HEADER_SIZE 4
 extern const uint8_t BTXXX_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BTXXX_DM_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BT5XX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BT6XX_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
-extern const uint8_t BT6XX_DM_RSP_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BTXXX_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BTXXX_DM_1M_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t BTXXX_DM_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BTXXX_DM_ENC_CODED_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t CT_TRACKER_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t CT_GATEWAY_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];
 extern const uint8_t CT_DATA_DOWNLOAD_AD_HEADER[LCZ_SENSOR_AD_HEADER_SIZE];

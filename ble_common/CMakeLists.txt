@@ -22,3 +22,5 @@ zephyr_sources_ifdef(CONFIG_LCZ_SENSOR_EVENT source/lcz_sensor_event.c)
 zephyr_sources_ifdef(CONFIG_LCZ_SENSOR_ADV_MATCH
 	source/lcz_sensor_adv_match.c
 )
+
+zephyr_sources_ifdef(CONFIG_LCZ_SENSOR_ADV_ENC source/lcz_sensor_adv_enc.c)

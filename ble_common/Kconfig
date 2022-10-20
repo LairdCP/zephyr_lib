@@ -24,6 +24,16 @@ config LCZ_SENSOR_EVENT
 config LCZ_SENSOR_ADV_MATCH
 	bool "Enable sensor advertisement matching module"
 
+config LCZ_SENSOR_ADV_ENC
+	bool "Enable sensor advertisement encryption/decryption"
+	depends on LCZ_PKI_AUTH
+
+if LCZ_SENSOR_ADV_ENC
+module = LCZ_SENSOR_ADV_ENC
+module-str = LCZ_SENSOR_ADV_ENC
+source "subsys/logging/Kconfig.template.log_config"
+endif
+
 rsource "Kconfig.lcz_bt_scan"
 
 endmenu
