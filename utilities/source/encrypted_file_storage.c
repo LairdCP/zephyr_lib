@@ -1033,7 +1033,7 @@ static int lcz_enc_fs_init(const struct device *device)
 	int r = 0;
 
 	if (strlen(CONFIG_FSU_ENCRYPTED_FILE_PATH)) {
-		r = fs_mkdir(CONFIG_FSU_ENCRYPTED_FILE_PATH);
+		r = fsu_mkdir_abs(CONFIG_FSU_ENCRYPTED_FILE_PATH, false);
 		if (r != 0 && r != -EEXIST) {
 			LOG_ERR("lcz_fs_mgmt_init: mkdir failed: %d", r);
 		}
