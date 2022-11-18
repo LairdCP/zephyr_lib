@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2021 Laird Connectivity
+# Copyright (c) 2021-2022 Laird Connectivity
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -10,10 +10,10 @@ config LCZ_MEMFAULT
 
 if LCZ_MEMFAULT
 
-config LCZ_MEMFAULT_LOG_LEVEL
-	int "Memfault log level"
-	default 3
-	range 0 4
+module=LCZ_MEMFAULT
+module-dep=LOG
+module-str=LCZ_MEMFAULT
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
 config LCZ_MEMFAULT_SOFTWARE_TYPE
 	string "Software type"
@@ -26,24 +26,8 @@ config LCZ_MEMFAULT_HTTP_TRANSPORT
 config LCZ_MEMFAULT_MQTT_TRANSPORT
 	bool "Enable MQTT data transport"
 	depends on MQTT_LIB
-
-if LCZ_MEMFAULT_MQTT_TRANSPORT
-
-config LCZ_MEMFAULT_MQTT_TOPIC
-	string "MQTT topic for publishing data"
-	default "prod/%s/%s/memfault/%s/chunk"
-
-config LCZ_MEMFAULT_MQTT_DATA_BUF_LENGTH
-	int "MQTT data buffer length"
-	default 1024
-	help
-	  Determines maximum size of data that can be sent at a time.
-
-config MEMFAULT_TOPIC_MAX_SIZE
-	int "Max topic size for memfault"
-	default 128
-
-endif # LCZ_MEMFAULT_MQTT_TRANSPORT
+	depends on LCZ_MQTT
+	depends on ATTR
 
 config LCZ_MEMFAULT_METRICS
 	bool "Enable Memfault metrics tracking"

@@ -1,0 +1,27 @@
+---
+info:
+  title: mqtt_memfault_attributes
+attributes:
+  - name: mqtt_memfault_enable
+    summary: "Publish Memfault data using MQTT (so that it can be forwarded)"
+    required: true
+    schema:
+      maximum: 1
+      minimum: 0
+      type: integer
+    x-ctype: bool
+    x-default: 0
+    x-readable: true
+    x-savable: true
+    x-writable: true
+  - name: mqtt_memfault_topic
+    summary: Topic for publishing Memfault data
+    required: true
+    schema:
+      maxLength: 255
+      type: string
+    x-ctype: string
+    x-default: ""
+    x-savable: true
+    x-writable: true
+    x-readable: true

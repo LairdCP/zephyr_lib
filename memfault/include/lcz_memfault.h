@@ -1,7 +1,7 @@
 /**
  * @file lcz_memfault.h
  *
- * Copyright (c) 2021 Laird Connectivity
+ * Copyright (c) 2021-2022 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@
 /**************************************************************************************************/
 /* Includes                                                                                       */
 /**************************************************************************************************/
+#include <zephyr/zephyr.h>
 #ifdef CONFIG_LCZ_MEMFAULT
 #include "memfault/core/build_info.h"
 #include "memfault/core/platform/device_info.h"
@@ -89,11 +90,11 @@ BUILD_ASSERT(sizeof(CONFIG_MEMFAULT_NCS_PROJECT_KEY) > 1,
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
-#define LCZ_MEMFAULT_PUBLISH_DATA lcz_memfault_publish_data
-#define LCZ_MEMFAULT_BUILD_TOPIC lcz_memfault_build_topic
+#define LCZ_MEMFAULT_PUBLISH_DATA lcz_memfault_mqtt_publish_data
+#define LCZ_MEMFAULT_MQTT_ENABLED lcz_memfault_mqtt_enabled
 #else
-#define LCZ_MEMFAULT_PUBLISH_DATA(...)
-#define LCZ_MEMFAULT_BUILD_TOPIC(...)
+#define LCZ_MEMFAULT_PUBLISH_DATA(...) -ENOSYS
+#define LCZ_MEMFAULT_MQTT_ENABLED(...) false
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT
@@ -153,17 +154,21 @@ int lcz_memfault_post_data_v2(void *buf, size_t buf_size);
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
 /**
  * @brief Publish any available data to memfault cloud via MQTT
+ * (using same connection as LCZ_MQTT module).
  *
- * @return true if data was sent
+ * @param buf buffer used to post the data
+ * @param buf_size size of the buffer
+ * @param Maximum amount of time to wait for ack of each chunk
+ * K_FOREVER can be used to block indefinitely.
+ * @return int < 0 on err, 0 on success
  */
-bool lcz_memfault_publish_data(struct mqtt_client *client);
+int lcz_memfault_mqtt_publish_data(char *buf, size_t buf_size, k_timeout_t chunk_timeout);
 
 /**
- * @brief Build topic used for publishing using the format string.
- *
- * @return negative error code, 0 on success
+ * @return true if MQTT Memfault is enabled (attribute)
+ * @return false otherwise
  */
-int lcz_memfault_build_topic(const char *format, ...);
+bool lcz_memfault_mqtt_enabled(void);
 
 #endif
 
