@@ -160,11 +160,14 @@ int lcz_led_turn_off(led_index_t index)
 }
 
 int lcz_led_blink(led_index_t index,
-		  struct lcz_led_blink_pattern const *pPattern)
+		  struct lcz_led_blink_pattern const *pPattern, bool force)
 {
 	int r = -EINVAL;
 
 	if (pPattern != NULL) {
+		if (led[index].state == ON && !force) {
+			return -EBUSY;
+		}
 		r = led_lock(index);
 		if (r == 0) {
 			led[index].pattern_busy = true;
@@ -232,6 +235,7 @@ static void led_configure_pin(led_index_t index, uint32_t pin)
 	if (ret) {
 		LOG_ERR("Error configuring GPIO");
 	}
+	led[index].state = OFF;
 }
 #endif
 
@@ -300,10 +304,8 @@ static void system_workq_led_timer_handler(struct k_work *item)
 static void change_state(struct led *pLed, bool state, bool blink)
 {
 	if (state == ON) {
-		pLed->state = ON;
 		turn_on(pLed);
 	} else {
-		pLed->state = OFF;
 		turn_off(pLed);
 	}
 
@@ -343,6 +345,7 @@ static void turn_on(struct led *pLed)
 #else
 	gpio_pin_set(pLed->device_handle, pLed->pin, ON);
 #endif
+	pLed->state = ON;
 }
 
 static void turn_off(struct led *pLed)
@@ -354,6 +357,7 @@ static void turn_off(struct led *pLed)
 #else
 	gpio_pin_set(pLed->device_handle, pLed->pin, OFF);
 #endif
+	pLed->state = OFF;
 }
 
 static bool valid_index(led_index_t index)

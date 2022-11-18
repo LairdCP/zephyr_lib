@@ -82,14 +82,17 @@ int lcz_led_turn_on(led_index_t index);
 int lcz_led_turn_off(led_index_t index);
 
 /**
+ * @brief Blink the LED based on the pattern.
+ *
  * @param index is a Valid LED
- * @param lcz_led_blink_pattern @ref struct lcz_led_blink_pattern
+ * @param pPattern Blink pattern @ref struct lcz_led_blink_pattern
+ * @param force true = blink the LED even if the LED is already on, false = do not blink the LED and if LED is already on, return an error.
  * @return int negative error, 0 on success
  *
  * @note The pattern is copied by the LED driver.
  */
 int lcz_led_blink(led_index_t index,
-		  struct lcz_led_blink_pattern const *pPattern);
+		  struct lcz_led_blink_pattern const *pPattern, bool force);
 
 /**
  * @param param function called in system work queue context
