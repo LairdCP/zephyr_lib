@@ -7,15 +7,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(lcz_mflt_http, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
 #include <zephyr.h>
+#include <memfault/ports/zephyr/http.h>
+
 #include "lcz_memfault.h"
-#include "memfault/ports/zephyr/http.h"
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */

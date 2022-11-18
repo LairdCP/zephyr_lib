@@ -7,15 +7,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(lcz_mflt_file, CONFIG_LCZ_MEMFAULT_LOG_LEVEL);
 
 /**************************************************************************************************/
 /* Includes                                                                                       */
 /**************************************************************************************************/
-#include <zephyr.h>
-#include <fs/fs.h>
-#include "file_system_utilities.h"
+#include <zephyr/zephyr.h>
+#include <zephyr/fs/fs.h>
+#include <file_system_utilities.h>
+
 #include "lcz_memfault.h"
 
 /**************************************************************************************************/

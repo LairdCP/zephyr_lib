@@ -10,8 +10,8 @@
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <zephyr.h>
-#include <init.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/init.h>
 #include <limits.h>
 #include <string.h>
 #include <zcbor_common.h>

@@ -12,20 +12,21 @@
 /* Includes                                                                                       */
 /**************************************************************************************************/
 #include <zephyr/zephyr.h>
+
 #ifdef CONFIG_LCZ_MEMFAULT
-#include "memfault/core/build_info.h"
-#include "memfault/core/platform/device_info.h"
-#include "memfault/ports/watchdog.h"
-#include "memfault/components.h"
-#include "memfault/http/root_certs.h"
+#include <memfault/core/build_info.h>
+#include <memfault/core/platform/device_info.h>
+#include <memfault/ports/watchdog.h>
+#include <memfault/components.h>
+#include <memfault/http/root_certs.h>
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_METRICS
-#include "memfault/metrics/metrics.h"
+#include <memfault/metrics/metrics.h>
 #endif
 
 #ifdef CONFIG_LCZ_MEMFAULT_MQTT_TRANSPORT
-#include <net/mqtt.h>
+#include <zephyr/net/mqtt.h>
 #endif
 
 #ifdef __cplusplus
