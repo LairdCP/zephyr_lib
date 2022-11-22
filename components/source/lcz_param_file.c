@@ -156,7 +156,7 @@ int lcz_param_file_parse_from_file(const char *fname, size_t *fsize, char **fstr
 
 		r = fs_stat(fname, entry);
 		if (r < 0) {
-			LOG_ERR("%s not found", fname);
+			LOG_WRN("%s not found", fname);
 			break;
 		}
 
@@ -333,7 +333,7 @@ int lcz_param_file_validate_file(const char *str, size_t length)
 
 	if (delimiters != newlines) {
 		r = -EINVAL;
-		LOG_ERR("%d delimeters != %d newlines", delimiters, newlines);
+		LOG_ERR("%d delimiters != %d newlines", delimiters, newlines);
 	} else {
 		LOG_DBG("Found %d pairs", delimiters);
 	}

@@ -183,27 +183,20 @@ int lcz_kvp_parse_from_file(const lcz_kvp_cfg_t *cfg, const char *fname, size_t 
 	}
 
 	do {
-		file_size = ctx.get_size(fname);
+		r = file_size = ctx.get_size(fname);
+		LOG_DBG("'%s' %s kvp file size bytes: %d", fname, ctx.msg, file_size);
 		if (file_size < 0) {
-			LOG_ERR("Could not get size of %s param file %s: %d", ctx.msg, fname,
-				file_size);
-			r = *fsize;
 			break;
-		}
-
-		LOG_DBG("'%s' %s kvp file size bytes: %u ", fname, ctx.msg, file_size);
-		if (file_size == 0) {
+		} else if (file_size == 0) {
 			r = -ENOENT;
-			LOG_ERR("%s param file %s is empty", ctx.msg, fname);
+			LOG_ERR("%s kvp file %s is empty", ctx.msg, fname);
 			break;
 		}
 
-		r = read_text(&ctx, fname, fstr, file_size);
+		r = file_size = read_text(&ctx, fname, fstr, file_size);
 		if (r < 0) {
 			break;
 		}
-		file_size = r;
-
 		LOG_VRB("stripped size: %u ", file_size);
 
 		r = lcz_kvp_validate_file(cfg, *fstr, file_size);
