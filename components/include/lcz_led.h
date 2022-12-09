@@ -23,7 +23,7 @@ extern "C" {
 /******************************************************************************/
 /* Global Constants, Macros and Type Definitions                              */
 /******************************************************************************/
-typedef size_t led_index_t;
+typedef int led_index_t;
 
 /* The on and off times are in system ticks.
  * If the repeat count is 2 the pattern will be displayed 3

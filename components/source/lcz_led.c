@@ -362,10 +362,10 @@ static void turn_off(struct led *pLed)
 
 static bool valid_index(led_index_t index)
 {
-	if (index < CONFIG_LCZ_NUMBER_OF_LEDS) {
+	if (index >= 0 && index < CONFIG_LCZ_NUMBER_OF_LEDS) {
 		return led[index].initialized;
 	} else {
-		__ASSERT(false, "Invalid LED Index");
+		LOG_DBG("Invalid LED index %d", index);
 		return false;
 	}
 }
