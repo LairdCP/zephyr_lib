@@ -29,6 +29,12 @@ config LCZ_MEMFAULT_MQTT_TRANSPORT
 	depends on LCZ_MQTT
 	depends on ATTR
 
+config LCZ_MEMFAULT_COAP_TRANSPORT
+	bool "Enable COAP data transport"
+	depends on LCZ_COAP_TELEMETRY
+	depends on LCZ_COAP_SOCK
+	depends on ATTR
+
 config LCZ_MEMFAULT_METRICS
 	bool "Enable Memfault metrics tracking"
 	select MEMFAULT_METRICS

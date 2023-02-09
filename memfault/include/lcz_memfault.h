@@ -98,6 +98,14 @@ BUILD_ASSERT(sizeof(CONFIG_MEMFAULT_NCS_PROJECT_KEY) > 1,
 #define LCZ_MEMFAULT_MQTT_ENABLED(...) false
 #endif
 
+#ifdef CONFIG_LCZ_MEMFAULT_COAP_TRANSPORT
+#define LCZ_MEMFAULT_COAP_PUBLISH_DATA lcz_memfault_coap_publish_data
+#define LCZ_MEMFAULT_COAP_ENABLED lcz_memfault_coap_enabled
+#else
+#define LCZ_MEMFAULT_COAP_PUBLISH_DATA(...) -ENOSYS
+#define LCZ_MEMFAULT_COAP_ENABLED(...) false
+#endif
+
 #ifdef CONFIG_LCZ_MEMFAULT
 #define LCZ_MEMFAULT_WATCHDOG_ENABLE memfault_software_watchdog_enable
 #define LCZ_MEMFAULT_WATCHDOG_FEED memfault_software_watchdog_feed
@@ -170,6 +178,42 @@ int lcz_memfault_mqtt_publish_data(char *buf, size_t buf_size, k_timeout_t chunk
  * @return false otherwise
  */
 bool lcz_memfault_mqtt_enabled(void);
+
+#endif
+
+#ifdef CONFIG_LCZ_MEMFAULT_COAP_TRANSPORT
+/**
+ * @brief Publish any available data to memfault cloud via COAP
+ * (using same connection as application COAP module).
+ *
+ * @param buf buffer used to post the data
+ * @param buf_size size of the buffer
+ * @param Maximum amount of time to wait for ack of each chunk
+ * K_FOREVER can be used to block indefinitely.
+ * @return int < 0 on err, 0 on success
+ */
+int lcz_memfault_coap_publish_data(char *buf, size_t buf_size, k_timeout_t chunk_timeout);
+
+/**
+ * @return true if COAP Memfault is enabled (attribute)
+ * @return false otherwise
+ */
+bool lcz_memfault_coap_enabled(void);
+
+/**
+ * @brief Initialize the CoAP module
+ * 
+ * @param domain CoAP endpoint to connect to
+ * @param dtls flag to indicate whether DTLS should be used
+ * @param port CoAP port
+ * @param url_path URL to be converted to CoAP option COAP_OPTION_URI_PATH (optional - NULL if unneeded)
+ * @param proxy Proxy URL to be converted to CoAP option COAP_OPTION_PROXY_URI (optional - NULL if unneeded)
+ * @param peer_verify flag to indicate whether TLS_PEER_VERIFY option is required or not (0 - TLS_PEER_VERIFY_NONE, 1 - TLS_PEER_VERIFY_REQUIRED)
+ * @param hostname_verify flag to indicate whether TLS_HOSTNAME option is enabled or not (0 - not enabled, 1 - enabled)
+ * 
+ */
+void lcz_memfault_coap_init(char *domain, bool dtls, uint16_t port, char *url_path, char *proxy,
+			    bool peer_verify, bool hostname_verify);
 
 #endif
 

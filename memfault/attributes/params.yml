@@ -2,14 +2,19 @@
 info:
   title: mqtt_memfault_attributes
 attributes:
-  - name: mqtt_memfault_enable
-    summary: "Publish Memfault data using MQTT (so that it can be forwarded)"
+  - name: memfault_transport
+    summary: "Publish Memfault data using selected transport (so that it can be forwarded)"
     required: true
     schema:
-      maximum: 1
+      maximum: 3
       minimum: 0
       type: integer
-    x-ctype: bool
+      enum:
+        NONE: 0
+        HTTP: 1
+        MQTT: 2
+        COAP: 3
+    x-ctype: uint8_t
     x-default: 0
     x-readable: true
     x-savable: true
@@ -22,6 +27,27 @@ attributes:
       type: string
     x-ctype: string
     x-default: ""
+    x-savable: true
+    x-writable: true
+    x-readable: true
+  - name: coap_mflt_proxy_route
+    summary: Route used when publishing Memfault data to CoAP proxy
+    required: true
+    schema:
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-default: "mflt"
+    x-savable: true
+    x-writable: true
+    x-readable: true    
+  - name: store_memfault_data
+    summary: Flag to indicate whether memfault data should be stored to file or posted
+    required: true
+    schema:
+      type: integer
+    x-ctype: bool
+    x-default: 0
     x-savable: true
     x-writable: true
     x-readable: true
