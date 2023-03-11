@@ -210,10 +210,11 @@ bool lcz_memfault_coap_enabled(void);
  * @param proxy Proxy URL to be converted to CoAP option COAP_OPTION_PROXY_URI (optional - NULL if unneeded)
  * @param peer_verify flag to indicate whether TLS_PEER_VERIFY option is required or not (0 - TLS_PEER_VERIFY_NONE, 1 - TLS_PEER_VERIFY_REQUIRED)
  * @param hostname_verify flag to indicate whether TLS_HOSTNAME option is enabled or not (0 - not enabled, 1 - enabled)
+ * @param imm_close flag to indicate whether socket should be closed immediately after CoAP Tx/Rx
  * 
  */
 void lcz_memfault_coap_init(char *domain, bool dtls, uint16_t port, char *url_path, char *proxy,
-			    bool peer_verify, bool hostname_verify);
+				bool peer_verify, bool hostname_verify, bool imm_close);
 
 #endif
 

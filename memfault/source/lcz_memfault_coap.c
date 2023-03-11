@@ -78,7 +78,7 @@ bool lcz_memfault_coap_enabled(void)
 }
 
 void lcz_memfault_coap_init(char *domain, bool dtls, uint16_t port, char *url_path, char *proxy,
-				bool peer_verify, bool hostname_verify)
+				bool peer_verify, bool hostname_verify, bool imm_close)
 {
 	query.domain = domain;
 	query.dtls = dtls;
@@ -87,6 +87,7 @@ void lcz_memfault_coap_init(char *domain, bool dtls, uint16_t port, char *url_pa
 	snprintf(query.proxy_url, sizeof(query.proxy_url), "%s", proxy);
 	query.peer_verify = peer_verify;
 	query.hostname_verify = hostname_verify;
+	query.imm_close = imm_close;
 }
 
 /**************************************************************************************************/
