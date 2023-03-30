@@ -267,6 +267,17 @@ int fsu_delete_files(const char *path, const char *name);
 int fsu_mkdir(const char *path, const char *name);
 
 /**
+ * @brief Create one or more directories if they don't exist
+ *
+ * @param path Direction path to create
+ * @param recursive True to create every directory in the path,
+ * false to just create the last directory
+ *
+ * @retval negative error code, 0 on success
+ */
+int fsu_mkdir_abs(const char *abs_path, bool recursive);
+
+/**
  * @brief Opens file, reads data, and closes file.
  *
  * @param path directory path
