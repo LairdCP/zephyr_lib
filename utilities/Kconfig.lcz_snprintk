@@ -1,0 +1,14 @@
+menuconfig LCZ_SNPRINTK
+	bool "Wrap snprintk with log messages"
+    help
+      Add print statements to an operation
+      in which result is often unchecked.
+      If there is a heap, allow malloc version.
+
+if LCZ_SNPRINTK
+
+module=SNPRINTK
+module-str=SNPRINTK
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # LCZ_SNPRINTK

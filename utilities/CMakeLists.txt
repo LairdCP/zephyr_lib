@@ -15,6 +15,7 @@ zephyr_sources_ifdef(CONFIG_FILE_SYSTEM_UTILITIES source/file_system_utilities.c
 zephyr_sources_ifdef(CONFIG_FSU_SHELL source/fsu_shell.c)
 zephyr_sources_ifdef(CONFIG_ERRNO_STR source/errno_str.c)
 zephyr_sources_ifdef(CONFIG_LCZ_NRF_RESET_REASON source/lcz_nrf_reset_reason.c)
+zephyr_sources_ifdef(CONFIG_LCZ_SNPRINTK source/lcz_snprintk.c)
 
 if(CONFIG_FILE_SYSTEM_LITTLEFS)
 zephyr_link_libraries(LITTLEFS INTERFACE
