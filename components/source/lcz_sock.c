@@ -99,12 +99,12 @@ int lcz_sock_wait(sock_info_t *p, int timeout)
 	if (p->nfds > 0) {
 		r = poll(p->fds, p->nfds, timeout);
 		if (r < 0) {
-			LOG_ERR("%s Poll Error: -%d", log_strdup(p->name),
+			LOG_ERR("%s Poll Error: -%d", p->name,
 				errno);
 			r = -errno;
 		} else if (r == 0) {
 			if (IS_ENABLED(CONFIG_LCZ_SOCK_VERBOSE_POLL)) {
-				LOG_DBG("%s Poll Timeout", log_strdup(p->name));
+				LOG_DBG("%s Poll Timeout", p->name);
 			}
 			r = -ETIME;
 		} else {
@@ -174,11 +174,11 @@ int lcz_udp_sock_start(sock_info_t *p, struct sockaddr *addr, const char *name)
 
 		if (status < 0) {
 			LOG_ERR("Unable to set socket host name '%s': -%d",
-				name ? log_strdup(name) : "null", errno);
+				name ? name : "null", errno);
 			return -errno;
 		} else {
 			LOG_DBG("Set DTLS socket host name: %s",
-				name ? log_strdup(name) : "null (disabled)");
+				name ? name : "null (disabled)");
 		}
 	}
 

@@ -77,7 +77,7 @@ int lcz_memfault_build_topic(const char *format, ...)
 		return -1;
 	} else {
 		LOG_DBG("Memfault topic set to: %s",
-			log_strdup(memfault_topic));
+			memfault_topic);
 		return 0;
 	}
 }
@@ -105,7 +105,7 @@ static bool send_mqtt_data(struct mqtt_client *client)
 			break;
 		}
 		LOG_DBG("Send %d bytes to %s", data_len,
-			log_strdup(memfault_topic));
+			memfault_topic);
 		rc = publish_data(client, data_buf, data_len, memfault_topic);
 		if (rc != 0) {
 			LOG_ERR("Could not publish data %d", rc);

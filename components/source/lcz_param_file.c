@@ -130,12 +130,11 @@ int lcz_param_file_parse_from_file(const char *fname, size_t *fsize,
 
 		r = fs_stat(fname, entry);
 		if (r < 0) {
-			LOG_ERR("%s not found", log_strdup(fname));
+			LOG_ERR("%s not found", fname);
 			break;
 		}
 
-		LOG_DBG("'%s' parameter file size bytes: %u ",
-			log_strdup(fname), entry->size);
+		LOG_DBG("'%s' parameter file size bytes: %u ", fname, entry->size);
 		if (entry->size == 0) {
 			r = -EPERM;
 			LOG_ERR("Unexpected file size");

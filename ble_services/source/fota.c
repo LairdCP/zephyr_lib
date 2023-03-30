@@ -426,7 +426,7 @@ static void fota_modem_start(const char *name)
 	if (status == FOTA_STATUS_SUCCESS) {
 		fota_build_full_name(pEntries[0].name);
 		LOG_DBG("Requesting modem FOTA with file %s",
-			log_strdup(fota_full_name));
+			fota_full_name);
 #if CONFIG_MODEM_HL7800_FW_UPDATE
 		status = mdm_hl7800_update_fw(fota_full_name);
 #else
@@ -452,7 +452,7 @@ static void fota_delete_files(const char *name)
 		while ((i < count) && (status == FOTA_STATUS_SUCCESS)) {
 			fota_build_full_name(pEntries[i].name);
 			LOG_DBG("Deleting (unlinking) file %s",
-				log_strdup(fota_full_name));
+				fota_full_name);
 			status = fs_unlink(fota_full_name);
 			i += 1;
 		}
@@ -474,7 +474,7 @@ static void fota_compute_sha256(const char *name)
 		size_t i = 0;
 		while ((i < count) && (status == FOTA_STATUS_SUCCESS)) {
 			LOG_DBG("Computing hash for %s",
-				log_strdup(pEntries[i].name));
+				pEntries[i].name);
 			status = fsu_sha256(hash, CONFIG_FOTA_FS_MOUNT,
 					    pEntries[i].name, pEntries[i].size);
 			if (status == FOTA_STATUS_SUCCESS) {
