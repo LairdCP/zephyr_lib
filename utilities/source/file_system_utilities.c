@@ -434,25 +434,23 @@ int fsu_delete_files(const char *path, const char *name)
 int fsu_mkdir(const char *path, const char *name)
 {
 	char abs_path[FSU_MAX_ABS_PATH_SIZE];
-	int r = fsu_single_entry_exists(path, name, FS_DIR_ENTRY_DIR);
-	if (r < 0) {
+	int r;
+
+	do {
 		r = fsu_build_full_name(abs_path, sizeof(abs_path), path, name);
-		if (r >= 0) {
-			r = fs_mkdir(abs_path);
-			if (r < 0) {
-				LOG_ERR("Unable to create directory %s", abs_path);
-			}
-		}
-	} else {
-		LOG_DBG("Directory exists");
-	}
+		BREAK_ON_ERROR(r);
+
+		r = fsu_mkdir_abs(abs_path, false);
+
+	} while(0);
+
 	return r;
 }
 
 int fsu_mkdir_abs(const char *abs_path, bool recursive)
 {
 	char path[FSU_MAX_ABS_PATH_SIZE];
-	struct fs_dirent entry;
+	struct fs_dirent *entry;
 	int i = 1;
 	bool done = false;
 	int r = 0;
@@ -460,6 +458,24 @@ int fsu_mkdir_abs(const char *abs_path, bool recursive)
 	/* Make sure the path doesn't have duplicate slashes */
 	if (fsu_simplify_path(abs_path, path) < 0) {
 		return -EINVAL;
+	}
+
+	/* Check to see if the path already exists */
+	entry = k_malloc(sizeof(struct fs_dirent));
+	if (entry == NULL) {
+		LOG_ERR("Unable to allocate file entry");
+		return -ENOMEM;
+	}
+
+	r = fs_stat(path, entry);
+	if (r == 0) {
+		(void)k_free(entry);
+		if (entry->type == FS_DIR_ENTRY_DIR) {
+			return 0;
+		} else {
+			LOG_WRN("%s is file not directory", abs_path);
+			return -ENOTDIR;
+		}
 	}
 
 	/* Step through each section to create the directories */
@@ -479,7 +495,7 @@ int fsu_mkdir_abs(const char *abs_path, bool recursive)
 		/* If we're recursive, we try every sub-path, else just the last one */
 		if (recursive == true || done == true) {
 			/* Does this portion already exist? */
-			r = fs_stat(path, &entry);
+			r = fs_stat(path, entry);
 			if (r < 0) {
 				/* Doesn't exist. Make it. */
 				r = fs_mkdir(path);
@@ -495,6 +511,8 @@ int fsu_mkdir_abs(const char *abs_path, bool recursive)
 			i++;
 		}
 	}
+
+	(void)k_free(entry);
 
 	return r;
 }
@@ -522,39 +540,15 @@ ssize_t fsu_read(const char *path, const char *name, void *data, size_t size)
 
 ssize_t fsu_read_abs(const char *abs_path, void *data, size_t size)
 {
-	ssize_t r = -EPERM;
-
-	do {
-		if (abs_path == NULL) {
-			LOG_ERR("Invalid absolute path");
-			break;
-		}
-
-		/* It is quicker to try to open the file than checking if it exists. */
-		struct fs_file_t f;
-		fs_file_t_init(&f);
-		r = fs_open(&f, abs_path, FS_O_READ);
-		BREAK_ON_ERROR(r);
-
-		r = fs_read(&f, data, size);
-
-		int rc2 = fs_close(&f);
-		if (rc2 < 0) {
-			LOG_ERR("Unable to close file");
-			/* Don't mask other errors */
-			if (r >= 0) {
-				r = rc2;
-			}
-		}
-
-	} while (0);
-
-	return r;
+	return fsu_read_abs_block(abs_path, 0, data, size);
 }
 
 ssize_t fsu_read_abs_block(const char *abs_path, uint32_t offset, void *data, size_t size)
 {
 	ssize_t r = -EPERM;
+	struct fs_dirent *entry = NULL;
+	struct fs_file_t f;
+	int rc2;
 
 	do {
 		if (abs_path == NULL) {
@@ -562,18 +556,34 @@ ssize_t fsu_read_abs_block(const char *abs_path, uint32_t offset, void *data, si
 			break;
 		}
 
-		/* It is quicker to try to open the file than checking if it exists. */
-		struct fs_file_t f;
+		entry = k_malloc(sizeof(struct fs_dirent));
+		if (entry == NULL) {
+			LOG_ERR("Unable to allocate file entry");
+			break;
+		}
+
+		r = fs_stat(abs_path, entry);
+		if (r < 0) {
+			LOG_DBG("File %s does not exist: %d", abs_path, r);
+			break;
+		} else if (entry->type != FS_DIR_ENTRY_FILE) {
+			LOG_WRN("%s is directory not file", abs_path);
+			r = -EISDIR;
+			break;
+		}
+
 		fs_file_t_init(&f);
 		r = fs_open(&f, abs_path, FS_O_READ);
 		BREAK_ON_ERROR(r);
 
-		r = fs_seek(&f, offset, FS_SEEK_SET);
-		BREAK_ON_ERROR(r);
+		if (offset != 0) {
+			r = fs_seek(&f, offset, FS_SEEK_SET);
+			BREAK_ON_ERROR(r);
+		}
 
 		r = fs_read(&f, data, size);
 
-		int rc2 = fs_close(&f);
+		rc2 = fs_close(&f);
 		if (rc2 < 0) {
 			LOG_ERR("Unable to close file");
 			/* Don't mask other errors */
@@ -583,6 +593,8 @@ ssize_t fsu_read_abs_block(const char *abs_path, uint32_t offset, void *data, si
 		}
 
 	} while (0);
+
+	(void)k_free(entry);
 
 	return r;
 }
