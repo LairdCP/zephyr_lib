@@ -40,9 +40,9 @@ const char *errno_str_get(int err)
 	case ECHILD:
 		return "No children";
 	case EAGAIN:
-		return "No more contexts";
+		return "No more contexts (again)";
 	case ENOMEM:
-		return "Not enough core";
+		return "Not enough core (no mem)";
 	case EACCES:
 		return "Permission denied";
 	case EFAULT:
@@ -178,7 +178,7 @@ const char *errno_str_get(int err)
 	case ECANCELED:
 		return "Operation canceled";
 	default:
-		return "?";
+		return "Unknown errno";
 	}
 }
 #else
