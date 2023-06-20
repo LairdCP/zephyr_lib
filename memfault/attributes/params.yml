@@ -15,7 +15,7 @@ attributes:
         MQTT: 2
         COAP: 3
     x-ctype: uint8_t
-    x-default: 0
+    x-default: 1
     x-readable: true
     x-savable: true
     x-writable: true
@@ -40,7 +40,7 @@ attributes:
     x-default: "mflt"
     x-savable: true
     x-writable: true
-    x-readable: true    
+    x-readable: true
   - name: store_memfault_data
     summary: Flag to indicate whether memfault data should be stored to file or posted
     required: true
