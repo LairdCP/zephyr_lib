@@ -75,8 +75,8 @@ if LCZ_FS_MGMT_DL_CHUNK_SIZE_LIMIT
 
 config LCZ_FS_MGMT_DL_CHUNK_SIZE
 	int "Maximum chunk size for file downloads"
-	range 65 MCUMGR_BUF_SIZE
-	default MCUMGR_BUF_SIZE
+	range 65 MCUMGR_TRANSPORT_NETBUF_SIZE
+	default MCUMGR_TRANSPORT_NETBUF_SIZE
 	help
 	  Sets the MAXIMUM size of chunk which will be rounded down to
 	  number of bytes that, with all the required headers, will fit
