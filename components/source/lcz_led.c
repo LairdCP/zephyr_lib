@@ -7,14 +7,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(lcz_led, CONFIG_LCZ_LED_LOG_LEVEL);
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <drivers/gpio.h>
-#include <kernel.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
 
 #include "lcz_led.h"
 
