@@ -37,7 +37,7 @@ attributes:
       maxLength: 32
       type: string
     x-ctype: string
-    x-default: "mflt"
+    x-default: "memfault"
     x-savable: true
     x-writable: true
     x-readable: true
