@@ -91,6 +91,10 @@ config FSU_MAX_PRODUCT_NAME_SIZE
 	help
 	  Examples: mg100, pinnacle-mg100, pinnacle-100-dvk, BT510
 
+config FSU_COPY_CHUNK_SIZE
+	int "Default size of buffer that is allocated for copy/move"
+	default 1024
+
 config FSU_SHELL
 	bool "Enable the file system utility shell"
 	depends on SHELL

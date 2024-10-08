@@ -350,6 +350,28 @@ ssize_t fsu_get_file_size(const char *path, const char *name);
  */
 int fsu_simplify_path(const char *path_in, char *path_out);
 
+
+/**
+ * @brief Copy a file from one location to another.
+ * 
+ * @param dest_abs_path destination directory path and name
+ * @param src_abs_path source directory path and file name
+ * @param chunk_size number of bytes to copy at a time (mallocs buffer)
+ * If zero, then CONFIG_FSU_COPY_CHUNK_SIZE is used.
+ * 
+ * @retval negative error code, number of bytes copied on success
+ *
+ */
+int fsu_copy_abs(const char *dest_abs_path, const char *src_abs_path, size_t chunk_size);
+
+/**
+ * @brief Move a file from one location to another and delete the source file.
+ * 
+ * @ref fsu_copy_abs
+ *
+ */
+int fsu_move_abs(const char *dest_abs_path, const char *src_abs_path, size_t chunk_size);
+
 #ifdef __cplusplus
 }
 #endif

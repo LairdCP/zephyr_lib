@@ -442,7 +442,7 @@ int fsu_mkdir(const char *path, const char *name)
 
 		r = fsu_mkdir_abs(abs_path, false);
 
-	} while(0);
+	} while (0);
 
 	return r;
 }
@@ -702,6 +702,85 @@ int fsu_simplify_path(const char *path_in, char *path_out)
 	path_out[j] = '\0';
 
 	return j;
+}
+
+int fsu_copy_abs(const char *dest_abs_path, const char *src_abs_path, size_t chunk_size)
+{
+	uint8_t *buffer = NULL;
+	ssize_t src_size;
+	size_t offset;
+	bool append = false;
+	int r = -EINVAL;
+
+	if (dest_abs_path == NULL || src_abs_path == NULL) {
+		LOG_ERR("Invalid path");
+		return -EPERM;
+	}
+
+	if (chunk_size == 0) {
+		chunk_size = CONFIG_FSU_COPY_CHUNK_SIZE;
+	}
+
+	buffer = k_malloc(chunk_size);
+	if (buffer == NULL) {
+		LOG_ERR("Unable to allocate buffer");
+		return -ENOMEM;
+	}
+
+	do {
+		src_size = fsu_get_file_size_abs(src_abs_path);
+		if (src_size < 0) {
+			LOG_ERR("Unable to get source file size");
+			r = src_size;
+			break;
+		}
+
+		offset = 0;
+		while (src_size > 0) {
+			r = fsu_read_abs_block(src_abs_path, offset, buffer,
+					       MIN(src_size, chunk_size));
+			if (r < 0) {
+				LOG_ERR("Unable to read source file");
+				break;
+			}
+			src_size -= r;
+			offset += r;
+			if (append) {
+				r = fsu_append_abs(dest_abs_path, buffer, r);
+			} else {
+				r = fsu_write_abs(dest_abs_path, buffer, r);
+				append = true;
+			}
+			if (r < 0) {
+				LOG_ERR("Unable to %s to destination file",
+					append ? "append" : "write");
+				break;
+			}
+		}
+
+	} while (0);
+
+	k_free(buffer);
+
+	return r;
+}
+
+int fsu_move_abs(const char *dest_abs_path, const char *src_abs_path, size_t chunk_size)
+{
+	int r;
+
+	r = fsu_copy_abs(dest_abs_path, src_abs_path, chunk_size);
+	if (r < 0) {
+		LOG_ERR("Unable to copy file");
+		return r;
+	}
+
+	r = fsu_delete_abs(src_abs_path);
+	if (r < 0) {
+		LOG_ERR("Unable to delete source file");
+	}
+
+	return r;
 }
 
 /**************************************************************************************************/
