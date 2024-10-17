@@ -30,6 +30,12 @@ int lcz_memfault_log_save(const char *file_name)
 
 	r = fsu_delete_abs(file_name);
 	LOG_INF("Delete previous log: %d", r);
+	if (r == -ENOENT) {
+		/* Ignore error if file isn't present. */
+		r = 0;
+	} else if (r < 0) {
+		return r;
+	}
 
 	LOG_WRN("Writing log. Please wait...");
 
